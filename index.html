@@ -28,7 +28,7 @@
       margin-bottom: 20px;
     }
 
-    /* INPUT WRAP */
+    /* INPUT WRAP FOR X BUTTON */
     .input-wrap {
       position: relative;
       width: 100%;
@@ -36,20 +36,18 @@
 
     .input-wrap input {
       width: 100%;
-      padding: 16px 45px 16px 16px;
+      padding: 14px 35px 14px 14px;
       font-size: 18px;
-      border: 2px solid #ddd;
-      border-radius: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
       box-sizing: border-box;
-      outline: none;
     }
 
     .input-wrap input:focus {
+      outline: none;
       border-color: #4a90e2;
-      box-shadow: 0 0 0 3px rgba(74,144,226,0.15);
     }
 
-    /* CLEAR X BUTTON */
     .clear-x {
       position: absolute;
       right: 12px;
@@ -67,14 +65,13 @@
 
     button {
       width: 100%;
-      padding: 14px;
-      font-size: 18px;
-      margin-top: 12px;
+      padding: 12px;
+      font-size: 16px;
+      margin-top: 10px;
       border: none;
-      border-radius: 10px;
+      border-radius: 8px;
       background: #4a90e2;
       color: white;
-      font-weight: bold;
       cursor: pointer;
     }
 
@@ -84,7 +81,7 @@
 
     #result {
       margin-top: 25px;
-      font-size: 36px;
+      font-size: 44px;
       font-weight: bold;
       white-space: pre-wrap;
       line-height: 1.6;
@@ -99,10 +96,10 @@
 
   <h2>EAN Lookup</h2>
 
-  <!-- INPUT WITH X -->
+  <!-- INPUT WITH X BUTTON -->
   <div class="input-wrap">
     <input id="sku" placeholder="Enter EAN">
-    <span class="clear-x" onclick="clearInput()">×</span>
+    <span class="clear-x" onclick="document.getElementById('sku').value=''">×</span>
   </div>
 
   <button onclick="lookup()">Search</button>
@@ -190,7 +187,7 @@ function lookup() {
 
   if (results && results.length) {
     document.getElementById('result').innerText =
-      "Locations:\n" + results.join("\n");
+      results.join("\n");
   } else {
     document.getElementById('result').innerText =
       "Item not found";
@@ -209,4 +206,9 @@ document.addEventListener("DOMContentLoaded", () => {
       lookup();
     }
   });
-}
+});
+
+</script>
+
+</body>
+</html>
