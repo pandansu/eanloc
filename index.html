@@ -28,29 +28,53 @@
       margin-bottom: 20px;
     }
 
-    input {
+    /* INPUT WRAP */
+    .input-wrap {
+      position: relative;
       width: 100%;
-      padding: 14px;
-      font-size: 18px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      box-sizing: border-box;
     }
 
-    input:focus {
+    .input-wrap input {
+      width: 100%;
+      padding: 16px 45px 16px 16px;
+      font-size: 18px;
+      border: 2px solid #ddd;
+      border-radius: 10px;
+      box-sizing: border-box;
       outline: none;
+    }
+
+    .input-wrap input:focus {
       border-color: #4a90e2;
+      box-shadow: 0 0 0 3px rgba(74,144,226,0.15);
+    }
+
+    /* CLEAR X BUTTON */
+    .clear-x {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 22px;
+      color: #999;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .clear-x:hover {
+      color: #333;
     }
 
     button {
       width: 100%;
-      padding: 12px;
-      font-size: 16px;
-      margin-top: 10px;
+      padding: 14px;
+      font-size: 18px;
+      margin-top: 12px;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       background: #4a90e2;
       color: white;
+      font-weight: bold;
       cursor: pointer;
     }
 
@@ -60,7 +84,7 @@
 
     #result {
       margin-top: 25px;
-      font-size: 44px;   /* ONLY UI CHANGE */
+      font-size: 36px;
       font-weight: bold;
       white-space: pre-wrap;
       line-height: 1.6;
@@ -75,7 +99,12 @@
 
   <h2>EAN Lookup</h2>
 
-  <input id="sku" placeholder="Enter EAN">
+  <!-- INPUT WITH X -->
+  <div class="input-wrap">
+    <input id="sku" placeholder="Enter EAN">
+    <span class="clear-x" onclick="clearInput()">×</span>
+  </div>
+
   <button onclick="lookup()">Search</button>
 
   <div id="result">Loading data...</div>
@@ -90,7 +119,7 @@ const csvUrl =
 let index = {};
 let ready = false;
 
-// ✅ PROPER CSV PARSER (UNCHANGED)
+// CSV PARSER (UNCHANGED)
 function parseCSVLine(line) {
   const result = [];
   let current = '';
@@ -161,7 +190,7 @@ function lookup() {
 
   if (results && results.length) {
     document.getElementById('result').innerText =
-      results.join("\n");
+      "Locations:\n" + results.join("\n");
   } else {
     document.getElementById('result').innerText =
       "Item not found";
@@ -180,9 +209,4 @@ document.addEventListener("DOMContentLoaded", () => {
       lookup();
     }
   });
-});
-
-</script>
-
-</body>
-</html>
+}
