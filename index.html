@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EAN Lookup</title>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: #f5f6f8;
+      margin: 0;
+      padding: 30px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: white;
+      padding: 25px;
+      border-radius: 14px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    input {
+      width: 100%;
+      padding: 14px;
+      font-size: 18px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-sizing: border-box;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: #4a90e2;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 8px;
+      background: #4a90e2;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #3b7bd6;
+    }
+
+    #result {
+      margin-top: 25px;
+      font-size: 44px;   /* ONLY UI CHANGE */
+      font-weight: bold;
+      white-space: pre-wrap;
+      line-height: 1.6;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="card">
+
+  <h2>EAN Lookup</h2>
+
+  <input id="sku" placeholder="Enter EAN">
+  <button onclick="lookup()">Search</button>
+
+  <div id="result">Loading data...</div>
+
+</div>
+
+<script>
+
+const csvUrl =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQQa-6Tub9Q1Hgn5ecCBkB9HpvAaTy8I0u5L_F0xSMML6FRQVqmijau8XdnWLCHVn8dsXBhrxIxu0eR/pub?gid=0&single=true&output=csv";
+
+let index = {};
+let ready = false;
+
+// ✅ PROPER CSV PARSER (UNCHANGED)
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let char of line) {
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  result.push(current);
+  return result;
+}
+
+// Build index
+fetch(csvUrl)
+  .then(r => r.text())
+  .then(text => {
+
+    const lines = text.split(/\r?\n/);
+
+    for (let i = 1; i < lines.length; i++) {
+
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const cols = parseCSVLine(line);
+
+      const sku = (cols[0] || '').trim();
+      const loc = (cols[1] || '').trim();
+
+      if (!sku || !loc) continue;
+
+      if (!index[sku]) index[sku] = [];
+
+      index[sku].push(
+        ...loc.split(',').map(x => x.trim()).filter(Boolean)
+      );
+    }
+
+    ready = true;
+    document.getElementById('result').innerText = "Ready";
+  })
+  .catch(err => {
+    document.getElementById('result').innerText =
+      "CSV load failed";
+    console.error(err);
+  });
+
+// lookup (UNCHANGED)
+function lookup() {
+
+  if (!ready) {
+    document.getElementById('result').innerText =
+      "Still loading data...";
+    return;
+  }
+
+  const sku = document.getElementById('sku').value.trim();
+
+  const results = index[sku];
+
+  if (results && results.length) {
+    document.getElementById('result').innerText =
+      results.join("\n");
+  } else {
+    document.getElementById('result').innerText =
+      "Item not found";
+  }
+}
+
+// ENTER KEY (UNCHANGED)
+document.addEventListener("DOMContentLoaded", () => {
+
+  const input = document.getElementById("sku");
+
+  input.focus();
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      lookup();
+    }
+  });
+});
+
+</script>
+
+</body>
+</html>
