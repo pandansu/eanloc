@@ -48,20 +48,28 @@
       border-color: #4a90e2;
     }
 
-    .clear-x {
-      position: absolute;
-      right: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      font-size: 22px;
-      color: #999;
-      cursor: pointer;
-      user-select: none;
-    }
+.clear-x {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 38px;       /* Bigger icon */
+  color: #666;
+  cursor: pointer;
+  user-select: none;
+  background: #eee;      /* Add background */
+  border-radius: 50%;    /* Circle shape */
+  width: 42px;           /* Larger hit area */
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
-    .clear-x:hover {
-      color: #333;
-    }
+.clear-x:hover {
+  background: #ccc;      /* Highlight on hover */
+  color: #222;
+}
 
     button {
       width: 100%;
