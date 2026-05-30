@@ -1,82 +1,214 @@
-<div class="card">  <h2>Pick List Generator</h2>  <textarea
-    id="input"
-    placeholder="Paste from Excel&#10;6937224126107	12&#10;6937224111141	1"
-    style="
-      width:100%;
-      height:250px;
-      padding:12px;
-      font-family:Consolas,monospace;
-      font-size:15px;
-      border:1px solid #ddd;
-      border-radius:8px;
-      box-sizing:border-box;
-    "
-  ></textarea>  <button onclick="generate()">
-    Generate Pick List
-  </button>  <button onclick="copyResult()">
-    Copy Result
-  </button>  <div id="result"
-       style="
-         margin-top:20px;
-         white-space:pre-wrap;
-         font-family:Consolas,monospace;
-         font-size:18px;
-         text-align:left;
-       ">
-       Loading data...
-  </div></div><script>
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EAN Lookup</title>
 
-function generate() {
+  <style>
+    body {
+      font-family: Arial;
+      background: #f5f6f8;
+      margin: 0;
+      padding: 30px;
+      display: flex;
+      justify-content: center;
+    }
 
-if (!ready) {
-result.innerText = "Still loading data...";
-return;
+    .card {
+      width: 100%;
+      max-width: 420px;
+      background: white;
+      padding: 25px;
+      border-radius: 14px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    }
+
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    /* INPUT WRAP FOR X BUTTON */
+    .input-wrap {
+      position: relative;
+      width: 100%;
+    }
+
+    .input-wrap input {
+      width: 100%;
+      padding: 14px 35px 14px 14px;
+      font-size: 18px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-sizing: border-box;
+    }
+
+    .input-wrap input:focus {
+      outline: none;
+      border-color: #4a90e2;
+    }
+
+    .clear-x {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 22px;
+      color: #999;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .clear-x:hover {
+      color: #333;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 8px;
+      background: #4a90e2;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #3b7bd6;
+    }
+
+    #result {
+      margin-top: 25px;
+      font-size: 44px;
+      font-weight: bold;
+      white-space: pre-wrap;
+      line-height: 1.6;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="card">
+
+  <h2>EAN Lookup</h2>
+
+  <!-- INPUT WITH X BUTTON -->
+  <div class="input-wrap">
+    <input id="sku" placeholder="Enter EAN" inputmode="numeric" pattern="[0-9]*">
+    <span class="clear-x" onclick="document.getElementById('sku').value=''">×</span>
+  </div>
+
+  <button onclick="lookup()">Search</button>
+
+  <div id="result">Loading data...</div>
+
+</div>
+
+<script>
+
+const csvUrl =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQQa-6Tub9Q1Hgn5ecCBkB9HpvAaTy8I0u5L_F0xSMML6FRQVqmijau8XdnWLCHVn8dsXBhrxIxu0eR/pub?gid=0&single=true&output=csv";
+
+let index = {};
+let ready = false;
+
+// CSV PARSER (UNCHANGED)
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let char of line) {
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  result.push(current);
+  return result;
 }
 
-const rows =
-document.getElementById("input")
-.value
-.trim()
-.split(/\r?\n/);
+// Build index
+fetch(csvUrl)
+  .then(r => r.text())
+  .then(text => {
 
-const output = [];
+    const lines = text.split(/\r?\n/);
 
-for (const row of rows) {
+    for (let i = 1; i < lines.length; i++) {
 
-```
-if (!row.trim()) continue;
+      const line = lines[i].trim();
+      if (!line) continue;
 
-const cols = row.split(/\t+/);
+      const cols = parseCSVLine(line);
 
-if (cols.length < 2) continue;
+      const sku = (cols[0] || '').trim();
+      const loc = (cols[1] || '').trim();
 
-const ean = cols[0].trim();
-const qty = cols[1].trim();
+      if (!sku || !loc) continue;
 
-const code = ean.slice(-4);
+      if (!index[sku]) index[sku] = [];
 
-const locations = index[code];
+      index[sku].push(
+        ...loc.split(',').map(x => x.trim()).filter(Boolean)
+      );
+    }
 
-output.push(
-  `${locations ? locations.join(", ") : "NOT FOUND"}\t${qty}\t${ean}`
-);
-```
+    ready = true;
+    document.getElementById('result').innerText = "Ready";
+  })
+  .catch(err => {
+    document.getElementById('result').innerText =
+      "CSV load failed";
+    console.error(err);
+  });
 
+// lookup (UNCHANGED)
+function lookup() {
+
+  if (!ready) {
+    document.getElementById('result').innerText =
+      "Still loading data...";
+    return;
+  }
+
+  const sku = document.getElementById('sku').value.trim();
+
+  const results = index[sku];
+
+  if (results && results.length) {
+    document.getElementById('result').innerText =
+      results.join("\n");
+  } else {
+    document.getElementById('result').innerText =
+      "Item not found";
+  }
 }
 
-output.sort((a,b)=>a.localeCompare(b));
+// ENTER KEY (UNCHANGED)
+document.addEventListener("DOMContentLoaded", () => {
 
-document.getElementById("result").innerText =
-output.join("\n");
-}
+  const input = document.getElementById("sku");
 
-function copyResult() {
+  input.focus();
 
-navigator.clipboard.writeText(
-document.getElementById("result").innerText
-);
-
-alert("Copied");
-}
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      lookup();
+    }
+  });
+});
 
 </script>
+
+</body>
+</html>
