@@ -60,7 +60,6 @@ table {
   border-collapse: collapse;
   margin-top: 20px;
   font-size: 13px;
-  table-layout: fixed;
 }
 
 th {
@@ -76,30 +75,38 @@ td {
   vertical-align: top;
 }
 
-/* ✅ REQUIRED COLUMN (narrow + centered) */
+/* ✅ EAN WIDE (RESTORED) */
+th:nth-child(1),
+td:nth-child(1) {
+  width: 220px;
+  white-space: nowrap;
+  text-align: left;
+}
+
+/* ✅ REQUIRED (NARROW + CENTERED) */
 th:nth-child(2),
 td:nth-child(2) {
   width: 60px;
   text-align: center;
   font-weight: bold;
-  white-space: nowrap;
 }
 
-/* ✅ TICK COLUMN */
+/* TICK */
 th:nth-child(3),
 td:nth-child(3) {
   width: 40px;
   text-align: center;
 }
 
-/* ✅ LOCATION CENTERED */
+/* LOCATION */
 th:nth-child(4),
 td:nth-child(4) {
-  text-align: center;
   width: 120px;
+  text-align: center;
+  white-space: nowrap;
 }
 
-/* optional nice alignment for product */
+/* PRODUCT NAME */
 th:nth-child(5),
 td:nth-child(5) {
   text-align: left;
@@ -213,16 +220,10 @@ function generate() {
     if (locations.length) {
 
       for (const loc of locations) {
-        rows.push({
-          ean,
-          qty,
-          loc,
-          productName
-        });
+        rows.push({ ean, qty, loc, productName });
       }
 
     } else {
-
       rows.push({
         ean,
         qty,
@@ -232,7 +233,6 @@ function generate() {
     }
   }
 
-  // SORT BY LOCATION
   rows.sort((a, b) =>
     a.loc.localeCompare(b.loc, undefined, { numeric: true })
   );
