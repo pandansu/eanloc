@@ -33,7 +33,6 @@ h2 {
   position: relative;
 }
 
-/* TEXTAREA */
 textarea {
   width: 100%;
   height: 180px;
@@ -45,7 +44,7 @@ textarea {
   box-sizing: border-box;
 }
 
-/* ✅ GREY ROUNDED X BUTTON */
+/* CLEAR X */
 .clear-x {
   position: absolute;
   top: 10px;
@@ -54,24 +53,30 @@ textarea {
   height: 34px;
   background: #d6d6d6;
   color: #333;
-  border-radius: 6px; /* ← rounded corners */
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 18px;
   font-weight: bold;
   cursor: pointer;
-  user-select: none;
 }
 
 .clear-x:hover {
   background: #bdbdbd;
 }
 
-button {
-  width: 100%;
-  padding: 12px;
+/* BUTTON AREA */
+.btn-row {
+  display: flex;
+  gap: 10px;
   margin-top: 10px;
+}
+
+/* GENERATE BUTTON */
+#generateBtn {
+  flex: 1;
+  padding: 12px;
   border: none;
   border-radius: 8px;
   background: #4a90e2;
@@ -80,10 +85,34 @@ button {
   cursor: pointer;
 }
 
-button:hover {
-  background: #3b7bd6;
+#generateBtn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
 }
 
+/* AFTER GENERATE (SHRINK) */
+#generateBtn.shrunk {
+  flex: 0.6;
+}
+
+/* PRINT BUTTON */
+#printBtn {
+  flex: 0.4;
+  display: none;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  background: #2ecc71;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+#printBtn:hover {
+  background: #27ae60;
+}
+
+/* TABLE */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -121,14 +150,14 @@ td {
 
   <textarea id="input" placeholder="EAN[TAB]Qty"></textarea>
 
-  <!-- CLEAR BUTTON -->
-  <div class="clear-x" onclick="document.getElementById('input').value=''">
-    ×
-  </div>
+  <div class="clear-x" onclick="clearInput()">×</div>
 
 </div>
 
-<button onclick="generate()">Generate</button>
+<div class="btn-row">
+  <button id="generateBtn" disabled onclick="generate()">Generate</button>
+  <button id="printBtn" onclick="window.print()">Print</button>
+</div>
 
 <div id="result"></div>
 
@@ -142,6 +171,10 @@ const csvUrl =
 let index = {};
 let nameIndex = {};
 let ready = false;
+
+const input = document.getElementById("input");
+const generateBtn = document.getElementById("generateBtn");
+const printBtn = document.getElementById("printBtn");
 
 function parseCSVLine(line) {
   const result = [];
@@ -160,6 +193,19 @@ function parseCSVLine(line) {
 
   result.push(current);
   return result;
+}
+
+// ENABLE BUTTON WHEN TYPING
+input.addEventListener("input", () => {
+  generateBtn.disabled = input.value.trim().length === 0;
+});
+
+function clearInput() {
+  input.value = '';
+  generateBtn.disabled = true;
+  printBtn.style.display = "none";
+  generateBtn.classList.remove("shrunk");
+  document.getElementById("result").innerHTML = "";
 }
 
 // LOAD DATABASE
@@ -195,23 +241,16 @@ fetch(csvUrl)
     "<b>Ready ✔</b>";
 });
 
-// SORT HELPER
+// SORT
 function sortLocation(a, b) {
   return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
 }
 
 function generate() {
 
-  if (!ready) {
-    alert("Still loading database...");
-    return;
-  }
+  if (!ready) return;
 
-  const lines =
-    document.getElementById("input")
-      .value
-      .trim()
-      .split(/\r?\n/);
+  const lines = input.value.trim().split(/\r?\n/);
 
   let rows = [];
 
@@ -233,18 +272,11 @@ function generate() {
         rows.push({ ean, qty, loc, productName });
       }
     } else {
-      rows.push({
-        ean,
-        qty,
-        loc: "NOT FOUND",
-        productName
-      });
+      rows.push({ ean, qty, loc: "NOT FOUND", productName });
     }
   }
 
-  rows.sort((a, b) =>
-    sortLocation(a.loc, b.loc)
-  );
+  rows.sort((a, b) => sortLocation(a.loc, b.loc));
 
   let html = `
   <table>
@@ -272,6 +304,10 @@ function generate() {
   html += "</table>";
 
   document.getElementById("result").innerHTML = html;
+
+  // UI SWITCH
+  generateBtn.classList.add("shrunk");
+  printBtn.style.display = "block";
 }
 
 </script>
