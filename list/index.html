@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Create Pick List</title>
+<title>EAN Pick List</title>
 
 <style>
 body {
@@ -28,7 +28,7 @@ h2 {
   margin: 10px 0 15px;
 }
 
-/* INPUT AREA */
+/* INPUT */
 .textarea-wrap {
   position: relative;
 }
@@ -44,7 +44,7 @@ textarea {
   box-sizing: border-box;
 }
 
-/* CLEAR X BUTTON */
+/* CLEAR BUTTON */
 .clear-x {
   position: absolute;
   top: 10px;
@@ -119,7 +119,7 @@ td:nth-child(3), th:nth-child(3) { width: 28px; text-align: center; }
 td.loc { width: 140px; }
 td.name { width: 100%; }
 
-/* PRINT CLEAN */
+/* PRINT */
 @media print {
   body * { visibility: hidden; }
 
@@ -151,10 +151,10 @@ td.name { width: 100%; }
 
 <div class="card">
 
-<h2>Create Pick List</h2>
+<h2>EAN Pick List</h2>
 
 <div class="textarea-wrap">
-  <textarea id="input" placeholder="Copy and paste full EAN and quantity"></textarea>
+  <textarea id="input" placeholder="EAN[TAB]Qty"></textarea>
   <div class="clear-x" onclick="input.value=''">×</div>
 </div>
 
@@ -195,6 +195,14 @@ function parseCSVLine(line) {
   return result;
 }
 
+/* ✅ CLEAN PRODUCT NAME */
+function cleanName(name) {
+  return (name || "")
+    .replace(/Uniform color/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 fetch(csvUrl)
 .then(r => r.text())
 .then(text => {
@@ -215,7 +223,7 @@ fetch(csvUrl)
     }
 
     const ean = (cols[4] || '').trim();
-    const name = (cols[5] || '').trim();
+    const name = cleanName(cols[5]);
 
     if (ean && name) {
       nameIndex[ean] = name;
@@ -249,14 +257,13 @@ function generate() {
     const last4 = ean.slice(-4);
 
     const locations = index[last4] || [];
-    const productName = nameIndex[ean] || "—";
+    const loc = locations.length ? locations[0] : "NOT FOUND";
 
-    const loc = locations.length ? locations[0] : "* NOT FOUND * ";
+    const productName = nameIndex[ean] || "—";
 
     rows.push({ ean, qty, loc, productName });
   }
 
-  // SORT BY LOCATION
   rows.sort((a, b) => sortLocation(a.loc, b.loc));
 
   let html = `
