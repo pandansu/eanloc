@@ -81,7 +81,6 @@ textarea {
 
 #generateBtn:disabled {
   background: #ccc;
-  cursor: not-allowed;
 }
 
 #printBtn {
@@ -96,7 +95,7 @@ textarea {
   cursor: pointer;
 }
 
-/* TABLE CORE */
+/* TABLE */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -118,37 +117,41 @@ td {
   white-space: nowrap;
 }
 
-/* EAN - compact */
+/* =========================
+   COLUMN WIDTH CONTROL
+   ========================= */
+
+/* EAN (slightly wider now) */
 td:nth-child(1), th:nth-child(1) {
-  width: 1%;
+  width: 120px;
 }
 
-/* QTY - centered */
+/* Qty */
 td:nth-child(2), th:nth-child(2) {
   width: 1%;
   text-align: center;
 }
 
-/* TICK - ultra narrow */
+/* Tick (slightly wider now) */
 td:nth-child(3), th:nth-child(3) {
-  width: 14px;
-  padding: 0;
+  width: 32px;
   text-align: center;
+  padding: 0;
 }
 
-/* LOCATION - flexible */
+/* Location flexible */
 td.loc {
   white-space: nowrap;
 }
 
-/* PRODUCT NAME - truncate */
+/* Product name */
 td.name {
   max-width: 260px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* PRINT FIX */
+/* PRINT */
 @media print {
 
   body {
@@ -173,10 +176,8 @@ td.name {
 
   table {
     width: 100%;
-    table-layout: auto;
   }
 
-  /* remove header row */
   #result table tr:first-child {
     display: none;
   }
@@ -187,13 +188,16 @@ td.name {
     line-height: 1.1 !important;
   }
 
-  td:nth-child(2) {
-    text-align: center !important;
+  td:nth-child(1) {
+    width: 120px !important;
   }
 
   td:nth-child(3) {
-    width: 10px !important;
-    padding: 0 !important;
+    width: 30px !important;
+  }
+
+  td:nth-child(2) {
+    text-align: center !important;
   }
 
   td.loc {
