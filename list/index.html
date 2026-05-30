@@ -28,9 +28,6 @@ h2 {
   margin: 10px 0 15px;
 }
 
-/* INPUT */
-.textarea-wrap { position: relative; }
-
 textarea {
   width: 100%;
   height: 160px;
@@ -42,21 +39,7 @@ textarea {
   box-sizing: border-box;
 }
 
-.clear-x {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 34px;
-  height: 34px;
-  background: #d6d6d6;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  cursor: pointer;
-}
-
+/* BUTTONS */
 .btn-row {
   display: flex;
   gap: 10px;
@@ -70,6 +53,7 @@ textarea {
   border-radius: 8px;
   background: #4a90e2;
   color: white;
+  cursor: pointer;
 }
 
 #printBtn {
@@ -80,6 +64,7 @@ textarea {
   border-radius: 8px;
   background: #2ecc71;
   color: white;
+  cursor: pointer;
 }
 
 /* ================= TABLE ================= */
@@ -90,7 +75,7 @@ table {
   margin-top: 12px;
   font-size: 13px;
 
-  table-layout: fixed; /* CRITICAL */
+  table-layout: auto; /* 🔥 KEY FIX */
 }
 
 th {
@@ -103,48 +88,42 @@ th {
 td {
   border: 1px solid #ddd;
   padding: 4px 6px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+
   white-space: nowrap;
 }
 
-/* ================= HARD WIDTH CONTROL ================= */
+/* ================= COLUMN RULES ================= */
 
-/* EAN — STRICT FIXED WIDTH */
-th:nth-child(1),
-td:nth-child(1) {
-  width: 95px;           /* tighter */
-  max-width: 95px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* EAN — AUTO WIDTH, NEVER CUT */
+td:nth-child(1), th:nth-child(1) {
+  white-space: nowrap;
 }
 
-/* QTY */
-th:nth-child(2),
-td:nth-child(2) {
-  width: 45px;
+/* Qty */
+td:nth-child(2), th:nth-child(2) {
+  width: 50px;
   text-align: center;
 }
 
-/* TICK */
-th:nth-child(3),
-td:nth-child(3) {
+/* Tick */
+td:nth-child(3), th:nth-child(3) {
   width: 22px;
   text-align: center;
   padding: 0;
 }
 
-/* LOCATION — ALSO STRICT */
-th:nth-child(4),
+/* Location — compact but visible */
 td.loc {
-  width: 90px;           /* reduced strongly */
-  max-width: 90px;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* PRODUCT NAME — TAKES EVERYTHING ELSE */
-th:nth-child(5),
+/* Product name — takes remaining space */
 td.name {
-  width: auto;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ================= PRINT ================= */
@@ -173,7 +152,7 @@ td.name {
 
   table {
     width: 100%;
-    table-layout: fixed;
+    table-layout: auto;
   }
 
   #result table tr:first-child {
@@ -186,16 +165,12 @@ td.name {
     line-height: 1.1 !important;
   }
 
-  td:nth-child(1) {
-    width: 95px !important;
+  td.loc {
+    max-width: 120px !important;
   }
 
-  td:nth-child(4) {
-    width: 90px !important;
-  }
-
-  td:nth-child(3) {
-    width: 18px !important;
+  td.name {
+    width: auto !important;
   }
 }
 </style>
@@ -207,10 +182,7 @@ td.name {
 
 <h2>EAN Pick List</h2>
 
-<div class="textarea-wrap">
-  <textarea id="input" placeholder="EAN[TAB]Qty"></textarea>
-  <div class="clear-x" onclick="input.value=''">×</div>
-</div>
+<textarea id="input" placeholder="EAN[TAB]Qty"></textarea>
 
 <div class="btn-row">
   <button id="generateBtn" onclick="generate()">Generate</button>
@@ -280,10 +252,6 @@ fetch(csvUrl)
   document.getElementById("result").innerHTML = "<b>Ready ✔</b>";
 });
 
-function sortLocation(a, b) {
-  return a.localeCompare(b, undefined, { numeric: true });
-}
-
 function generate() {
 
   if (!ready) return;
@@ -313,8 +281,6 @@ function generate() {
       rows.push({ ean, qty, loc: "NOT FOUND", productName });
     }
   }
-
-  rows.sort((a, b) => sortLocation(a.loc, b.loc));
 
   let html = `
   <table>
