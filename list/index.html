@@ -229,3 +229,114 @@ function parseCSVLine(line) {
     else if (char === ',' && !inQuotes) {
       result.push(current);
       current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  result.push(current);
+  return result;
+}
+
+fetch(csvUrl)
+.then(r => r.text())
+.then(text => {
+
+  const lines = text.split(/\r?\n/);
+
+  for (let i = 1; i < lines.length; i++) {
+
+    const cols = parseCSVLine(lines[i]);
+    if (!cols || cols.length < 6) continue;
+
+    const sku = (cols[0] || '').trim();
+    const loc = (cols[1] || '').trim();
+
+    if (sku && loc) {
+      if (!index[sku]) index[sku] = [];
+      index[sku].push(loc);
+    }
+
+    const ean = (cols[4] || '').trim();
+    const name = (cols[5] || '').trim();
+
+    if (ean && name) {
+      nameIndex[ean] = name;
+    }
+  }
+
+  ready = true;
+  document.getElementById("result").innerHTML = "<b>Ready ✔</b>";
+});
+
+function sortLocation(a, b) {
+  return a.localeCompare(b, undefined, { numeric: true });
+}
+
+function generate() {
+
+  if (!ready) return;
+
+  const lines = input.value.trim().split(/\r?\n/);
+
+  let rows = [];
+
+  for (const line of lines) {
+
+    const cols = line.split(/\t+/);
+    if (cols.length < 2) continue;
+
+    const ean = cols[0].trim();
+    const qty = cols[1].trim();
+
+    const last4 = ean.slice(-4);
+
+    const locations = index[last4] || [];
+    const productName = nameIndex[ean] || "—";
+
+    if (locations.length) {
+      for (const loc of locations) {
+        rows.push({ ean, qty, loc, productName });
+      }
+    } else {
+      rows.push({ ean, qty, loc: "NOT FOUND", productName });
+    }
+  }
+
+  rows.sort((a, b) => sortLocation(a.loc, b.loc));
+
+  let html = `
+  <table>
+    <tr>
+      <th>EAN</th>
+      <th>Required</th>
+      <th>Tick</th>
+      <th>Location</th>
+      <th>Product Name</th>
+    </tr>
+  `;
+
+  for (const r of rows) {
+    html += `
+      <tr>
+        <td>${r.ean}</td>
+        <td>${r.qty}</td>
+        <td></td>
+        <td class="loc">${r.loc}</td>
+        <td class="name">${r.productName}</td>
+      </tr>
+    `;
+  }
+
+  html += "</table>";
+
+  document.getElementById("result").innerHTML = html;
+
+  generateBtn.classList.add("shrunk");
+  printBtn.style.display = "block";
+}
+
+</script>
+
+</body>
+</html>
