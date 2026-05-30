@@ -9,7 +9,7 @@ body {
   font-family: Arial;
   background: #f5f6f8;
   margin: 0;
-  padding: 20px; /* reduced */
+  padding: 20px;
   display: flex;
   justify-content: center;
 }
@@ -18,14 +18,14 @@ body {
   width: 100%;
   max-width: 1000px;
   background: white;
-  padding: 18px; /* reduced */
+  padding: 18px;
   border-radius: 14px;
   box-shadow: 0 8px 20px rgba(0,0,0,0.08);
 }
 
 h2 {
   text-align: center;
-  margin: 10px 0 15px 0; /* reduced */
+  margin: 10px 0 15px;
 }
 
 /* INPUT */
@@ -35,7 +35,7 @@ h2 {
 
 textarea {
   width: 100%;
-  height: 160px; /* slightly smaller */
+  height: 160px;
   font-family: monospace;
   font-size: 14px;
   padding: 10px;
@@ -65,7 +65,7 @@ textarea {
 .btn-row {
   display: flex;
   gap: 10px;
-  margin-top: 8px; /* reduced */
+  margin-top: 8px;
 }
 
 #generateBtn {
@@ -81,10 +81,7 @@ textarea {
 
 #generateBtn:disabled {
   background: #ccc;
-}
-
-#generateBtn.shrunk {
-  flex: 0.6;
+  cursor: not-allowed;
 }
 
 #printBtn {
@@ -99,11 +96,11 @@ textarea {
   cursor: pointer;
 }
 
-/* TABLE */
+/* TABLE CORE */
 table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 14px; /* reduced */
+  margin-top: 12px;
   font-size: 13px;
   table-layout: auto;
 }
@@ -121,40 +118,37 @@ td {
   white-space: nowrap;
 }
 
-/* COLUMN CONTROL */
-
-/* EAN */
+/* EAN - compact */
 td:nth-child(1), th:nth-child(1) {
   width: 1%;
-  white-space: nowrap;
 }
 
-/* REQUIRED (CENTER) */
+/* QTY - centered */
 td:nth-child(2), th:nth-child(2) {
   width: 1%;
   text-align: center;
 }
 
-/* TICK COLUMN (VERY NARROW) */
+/* TICK - ultra narrow */
 td:nth-child(3), th:nth-child(3) {
-  width: 18px;
-  text-align: center;
+  width: 14px;
   padding: 0;
+  text-align: center;
 }
 
-/* LOCATION */
+/* LOCATION - flexible */
 td.loc {
   white-space: nowrap;
 }
 
-/* PRODUCT NAME */
+/* PRODUCT NAME - truncate */
 td.name {
   max-width: 260px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* PRINT OPTIMISATION */
+/* PRINT FIX */
 @media print {
 
   body {
@@ -179,9 +173,10 @@ td.name {
 
   table {
     width: 100%;
+    table-layout: auto;
   }
 
-  /* REMOVE HEADER ROW */
+  /* remove header row */
   #result table tr:first-child {
     display: none;
   }
@@ -197,7 +192,7 @@ td.name {
   }
 
   td:nth-child(3) {
-    width: 12px !important;
+    width: 10px !important;
     padding: 0 !important;
   }
 
@@ -271,6 +266,7 @@ function parseCSVLine(line) {
   return result;
 }
 
+// LOAD DB
 fetch(csvUrl)
 .then(r => r.text())
 .then(text => {
@@ -365,7 +361,6 @@ function generate() {
 
   document.getElementById("result").innerHTML = html;
 
-  generateBtn.classList.add("shrunk");
   printBtn.style.display = "block";
 }
 
