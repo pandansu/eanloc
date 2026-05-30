@@ -28,6 +28,11 @@ h2 {
   margin: 10px 0 15px;
 }
 
+/* INPUT AREA */
+.textarea-wrap {
+  position: relative;
+}
+
 textarea {
   width: 100%;
   height: 160px;
@@ -39,6 +44,24 @@ textarea {
   box-sizing: border-box;
 }
 
+/* CLEAR X BUTTON */
+.clear-x {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 34px;
+  height: 34px;
+  background: #d6d6d6;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* BUTTONS */
 .btn-row {
   display: flex;
   gap: 10px;
@@ -130,7 +153,10 @@ td.name { width: 100%; }
 
 <h2>EAN Pick List</h2>
 
-<textarea id="input" placeholder="EAN[TAB]Qty"></textarea>
+<div class="textarea-wrap">
+  <textarea id="input" placeholder="EAN[TAB]Qty"></textarea>
+  <div class="clear-x" onclick="input.value=''">×</div>
+</div>
 
 <div class="btn-row">
   <button id="generateBtn" onclick="generate()">Generate</button>
@@ -230,7 +256,7 @@ function generate() {
     rows.push({ ean, qty, loc, productName });
   }
 
-  // ✅ NOW SORT WORKS PROPERLY
+  // SORT BY LOCATION
   rows.sort((a, b) => sortLocation(a.loc, b.loc));
 
   let html = `
