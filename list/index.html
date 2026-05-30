@@ -191,4 +191,90 @@ fetch(csvUrl)
   }
 
   ready = true;
-  document.getElementById("result").innerHT
+  document.getElementById("result").innerHTML =
+    "<b>Ready ✔</b>";
+});
+
+// SORT HELPER
+function sortLocation(a, b) {
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+}
+
+function generate() {
+
+  if (!ready) {
+    alert("Still loading database...");
+    return;
+  }
+
+  const lines =
+    document.getElementById("input")
+      .value
+      .trim()
+      .split(/\r?\n/);
+
+  let rows = [];
+
+  for (const line of lines) {
+
+    const cols = line.split(/\t+/);
+    if (cols.length < 2) continue;
+
+    const ean = cols[0].trim();
+    const qty = cols[1].trim();
+
+    const last4 = ean.slice(-4);
+
+    const locations = index[last4] || [];
+    const productName = nameIndex[ean] || "—";
+
+    if (locations.length) {
+      for (const loc of locations) {
+        rows.push({ ean, qty, loc, productName });
+      }
+    } else {
+      rows.push({
+        ean,
+        qty,
+        loc: "NOT FOUND",
+        productName
+      });
+    }
+  }
+
+  rows.sort((a, b) =>
+    sortLocation(a.loc, b.loc)
+  );
+
+  let html = `
+  <table>
+    <tr>
+      <th>EAN</th>
+      <th>Required</th>
+      <th>Tick</th>
+      <th>Location</th>
+      <th>Product Name</th>
+    </tr>
+  `;
+
+  for (const r of rows) {
+    html += `
+      <tr>
+        <td>${r.ean}</td>
+        <td>${r.qty}</td>
+        <td class="check"></td>
+        <td>${r.loc}</td>
+        <td>${r.productName}</td>
+      </tr>
+    `;
+  }
+
+  html += "</table>";
+
+  document.getElementById("result").innerHTML = html;
+}
+
+</script>
+
+</body>
+</html>
