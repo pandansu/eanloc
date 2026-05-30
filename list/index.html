@@ -41,10 +41,9 @@ textarea {
   padding: 10px;
   border: 1px solid #ddd;
   border-radius: 8px;
-  box-sizing: border-box;
 }
 
-/* CLEAR X */
+/* CLEAR */
 .clear-x {
   position: absolute;
   top: 10px;
@@ -52,12 +51,10 @@ textarea {
   width: 34px;
   height: 34px;
   background: #d6d6d6;
-  color: #333;
   border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
   font-weight: bold;
   cursor: pointer;
 }
@@ -75,7 +72,6 @@ textarea {
   border-radius: 8px;
   background: #4a90e2;
   color: white;
-  font-size: 15px;
   cursor: pointer;
 }
 
@@ -87,7 +83,6 @@ textarea {
   border-radius: 8px;
   background: #2ecc71;
   color: white;
-  font-size: 15px;
   cursor: pointer;
 }
 
@@ -99,7 +94,7 @@ table {
   margin-top: 12px;
   font-size: 13px;
 
-  table-layout: fixed; /* IMPORTANT: enables real column control */
+  table-layout: fixed; /* IMPORTANT */
 }
 
 th {
@@ -112,41 +107,44 @@ th {
 td {
   border: 1px solid #ddd;
   padding: 4px 6px;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-/* EAN — slightly wider but not wasteful */
+/* ================= COLUMN CONTROL ================= */
+
+/* EAN (compact but readable) */
 th:nth-child(1),
 td:nth-child(1) {
-  width: 140px;
+  width: 110px;
 }
 
-/* QTY — centered */
+/* Qty */
 th:nth-child(2),
 td:nth-child(2) {
-  width: 50px;
+  width: 45px;
   text-align: center;
 }
 
-/* TICK — minimal but usable */
+/* Tick */
 th:nth-child(3),
 td:nth-child(3) {
-  width: 26px;
+  width: 22px;
   text-align: center;
   padding: 0;
 }
 
-/* LOCATION — FLEX COLUMN (KEY FIX) */
+/* Location (medium width, not dominant) */
 th:nth-child(4),
 td.loc {
-  width: auto;
+  width: 140px;
 }
 
-/* PRODUCT NAME — controlled overflow */
+/* Product name (MAIN COLUMN — takes remaining space) */
+th:nth-child(5),
 td.name {
-  width: 260px;
+  width: auto;
 }
 
 /* ================= PRINT ================= */
@@ -168,8 +166,8 @@ td.name {
 
   #result {
     position: absolute;
-    left: 0;
     top: 0;
+    left: 0;
     width: 100%;
   }
 
@@ -188,28 +186,24 @@ td.name {
     line-height: 1.1 !important;
   }
 
-  td:nth-child(1) {
-    width: 130px !important;
-  }
-
   td:nth-child(2) {
-    width: 40px !important;
     text-align: center !important;
   }
 
   td:nth-child(3) {
-    width: 20px !important;
+    width: 18px !important;
+  }
+
+  td:nth-child(1) {
+    width: 110px !important;
   }
 
   td.loc {
-    width: auto !important;
-    white-space: nowrap !important;
+    width: 140px !important;
   }
 
   td.name {
-    width: 240px !important;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    width: auto !important;
   }
 }
 </style>
@@ -243,10 +237,6 @@ const csvUrl =
 let index = {};
 let nameIndex = {};
 let ready = false;
-
-const input = document.getElementById("input");
-const generateBtn = document.getElementById("generateBtn");
-const printBtn = document.getElementById("printBtn");
 
 function parseCSVLine(line) {
   const result = [];
