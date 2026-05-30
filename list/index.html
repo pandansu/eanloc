@@ -5,7 +5,7 @@
 <title>EAN Pick List</title>
 
 <style>
-body {F
+body {
   font-family: Arial;
   background: #f5f6f8;
   margin: 0;
@@ -72,7 +72,6 @@ table {
   border-collapse: collapse;
   margin-top: 12px;
   font-size: 13px;
-  table-layout: auto;
 }
 
 th {
@@ -90,11 +89,11 @@ td {
   text-overflow: ellipsis;
 }
 
-/* column tuning */
+/* COLUMN WIDTHS */
 td:nth-child(1), th:nth-child(1) { width: 110px; }
 td:nth-child(2), th:nth-child(2) { width: 50px; text-align: center; }
-td:nth-child(3), th:nth-child(3) { width: 26px; text-align: center; }
-td.loc { max-width: 180px; }
+td:nth-child(3), th:nth-child(3) { width: 28px; text-align: center; }
+td.loc { width: 140px; }
 td.name { width: 100%; }
 
 /* PRINT CLEAN */
@@ -119,6 +118,7 @@ td.name { width: 100%; }
   td {
     padding: 2px 4px !important;
     font-size: 11px !important;
+    line-height: 1.1 !important;
   }
 }
 </style>
@@ -200,6 +200,10 @@ fetch(csvUrl)
   document.getElementById("result").innerHTML = "<b>Ready ✔</b>";
 });
 
+function sortLocation(a, b) {
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+}
+
 function generate() {
 
   if (!ready) return;
@@ -207,7 +211,6 @@ function generate() {
   const lines = input.value.trim().split(/\n/);
 
   let rows = [];
-  let seen = new Set(); // 🔥 prevents duplicate EAN rows
 
   for (const line of lines) {
 
@@ -217,21 +220,18 @@ function generate() {
     const ean = cols[0].trim();
     const qty = cols[1].trim();
 
-    if (seen.has(ean)) continue; // 🔥 one row per EAN
-    seen.add(ean);
-
     const last4 = ean.slice(-4);
 
     const locations = index[last4] || [];
     const productName = nameIndex[ean] || "—";
 
-    rows.push({
-      ean,
-      qty,
-      loc: locations.length ? locations.join(", ") : "NOT FOUND",
-      productName
-    });
+    const loc = locations.length ? locations[0] : "NOT FOUND";
+
+    rows.push({ ean, qty, loc, productName });
   }
+
+  // ✅ NOW SORT WORKS PROPERLY
+  rows.sort((a, b) => sortLocation(a.loc, b.loc));
 
   let html = `
   <table>
