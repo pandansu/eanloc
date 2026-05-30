@@ -23,7 +23,6 @@ body {
   box-shadow: 0 8px 20px rgba(0,0,0,0.08);
 }
 
-/* TITLE (VISIBLE ONLY ON SCREEN) */
 h2 {
   text-align: center;
   margin-bottom: 20px;
@@ -63,7 +62,6 @@ textarea {
   cursor: pointer;
 }
 
-/* BUTTONS */
 .btn-row {
   display: flex;
   gap: 10px;
@@ -108,35 +106,52 @@ table {
   border-collapse: collapse;
   margin-top: 20px;
   font-size: 13px;
+  table-layout: auto;
 }
 
 th {
   background: #4a90e2;
   color: white;
-  padding: 8px;
+  padding: 6px;
   text-align: left;
 }
 
 td {
   border: 1px solid #ddd;
-  padding: 6px;
+  padding: 4px 6px;
   vertical-align: top;
-}
-
-/* FORCE SINGLE LINE LOCATION */
-.loc {
   white-space: nowrap;
 }
 
-/* TRUNCATE PRODUCT NAME (screen + print safe) */
-.name {
-  max-width: 280px;
+/* COLUMN CONTROL */
+td:nth-child(1), th:nth-child(1) {
+  width: 1%;
   white-space: nowrap;
+}
+
+td:nth-child(2), th:nth-child(2) {
+  width: 1%;
+  white-space: nowrap;
+}
+
+td:nth-child(3), th:nth-child(3) {
+  width: 30px;
+  text-align: center;
+}
+
+td.loc {
+  white-space: nowrap;
+  width: 1%;
+}
+
+td.name {
+  max-width: 260px;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* PRINT OPTIMISATION */
+/* PRINT MODE */
 @media print {
 
   body * {
@@ -154,29 +169,31 @@ td {
     width: 100%;
   }
 
-  /* REMOVE HEADER ROW */
+  table {
+    width: 100%;
+    table-layout: auto;
+  }
+
+  /* remove header row */
   #result table tr:first-child {
     display: none;
   }
 
-  /* COMPACT ROWS */
   td {
     padding: 2px 4px !important;
     font-size: 11px !important;
     line-height: 1.1 !important;
   }
 
-  /* FORCE SINGLE LINE IN PRINT */
-  .loc {
+  td.loc {
     white-space: nowrap !important;
   }
 
-  /* TRUNCATE LONG TEXT IN PRINT */
-  .name {
+  td.name {
     max-width: 240px;
-    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 </style>
@@ -238,6 +255,7 @@ function parseCSVLine(line) {
   return result;
 }
 
+// LOAD DB
 fetch(csvUrl)
 .then(r => r.text())
 .then(text => {
@@ -269,6 +287,7 @@ fetch(csvUrl)
   document.getElementById("result").innerHTML = "<b>Ready ✔</b>";
 });
 
+// SORT
 function sortLocation(a, b) {
   return a.localeCompare(b, undefined, { numeric: true });
 }
