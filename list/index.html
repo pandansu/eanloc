@@ -157,6 +157,11 @@ fetch(csvUrl)
     "<b>Ready ✔</b>";
 });
 
+// SORT HELPER (natural sort for A01-10 etc.)
+function sortLocation(a, b) {
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+}
+
 function generate() {
 
   if (!ready) {
@@ -170,16 +175,7 @@ function generate() {
       .trim()
       .split(/\r?\n/);
 
-  let html = `
-  <table>
-    <tr>
-      <th>EAN</th>
-      <th>Required</th>
-      <th>Tick</th>
-      <th>Location</th>
-      <th>Product Name</th>
-    </tr>
-  `;
+  let rows = [];
 
   for (const line of lines) {
 
@@ -197,30 +193,51 @@ function generate() {
     if (locations.length) {
 
       for (const loc of locations) {
-
-        html += `
-          <tr>
-            <td>${ean}</td>
-            <td>${qty}</td>
-            <td class="check"></td>
-            <td>${loc}</td>
-            <td>${productName}</td>
-          </tr>
-        `;
+        rows.push({
+          ean,
+          qty,
+          loc,
+          productName
+        });
       }
 
     } else {
 
-      html += `
-        <tr>
-          <td>${ean}</td>
-          <td>${qty}</td>
-          <td class="check"></td>
-          <td><b>NOT FOUND</b></td>
-          <td>${productName}</td>
-        </tr>
-      `;
+      rows.push({
+        ean,
+        qty,
+        loc: "NOT FOUND",
+        productName
+      });
     }
+  }
+
+  // ✅ SORT BY LOCATION (IMPORTANT PART)
+  rows.sort((a, b) => sortLocation(a.loc, b.loc));
+
+  // BUILD TABLE
+  let html = `
+  <table>
+    <tr>
+      <th>EAN</th>
+      <th>Required</th>
+      <th>Tick</th>
+      <th>Location</th>
+      <th>Product Name</th>
+    </tr>
+  `;
+
+  for (const r of rows) {
+
+    html += `
+      <tr>
+        <td>${r.ean}</td>
+        <td>${r.qty}</td>
+        <td class="check"></td>
+        <td>${r.loc}</td>
+        <td>${r.productName}</td>
+      </tr>
+    `;
   }
 
   html += "</table>";
