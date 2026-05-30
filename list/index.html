@@ -75,15 +75,16 @@ td {
   vertical-align: top;
 }
 
-/* ✅ EAN WIDE (RESTORED) */
+/* ✅ EAN (optimized for 15 digits) */
 th:nth-child(1),
 td:nth-child(1) {
-  width: 220px;
+  width: 160px;
   white-space: nowrap;
   text-align: left;
+  font-family: monospace;
 }
 
-/* ✅ REQUIRED (NARROW + CENTERED) */
+/* REQUIRED */
 th:nth-child(2),
 td:nth-child(2) {
   width: 60px;
