@@ -203,3 +203,32 @@ function generate() {
             <td>${ean}</td>
             <td>${qty}</td>
             <td class="check"></td>
+            <td>${loc}</td>
+            <td>${productName}</td>
+          </tr>
+        `;
+      }
+
+    } else {
+
+      html += `
+        <tr>
+          <td>${ean}</td>
+          <td>${qty}</td>
+          <td class="check"></td>
+          <td><b>NOT FOUND</b></td>
+          <td>${productName}</td>
+        </tr>
+      `;
+    }
+  }
+
+  html += "</table>";
+
+  document.getElementById("result").innerHTML = html;
+}
+
+</script>
+
+</body>
+</html>
