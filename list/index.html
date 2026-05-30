@@ -1,197 +1,170 @@
-<!DOCTYPE html><html lang="en">
-
+<!DOCTYPE html>
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>EAN Pick List Generator</title><style>
-body{
-    font-family:Arial,sans-serif;
-    background:#f5f6f8;
-    margin:0;
-    padding:20px;
-    display:flex;
-    justify-content:center;
-}
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>EAN Pick List</title>
 
-.card{
-width:100%;
-max-width:900px;
-background:#fff;
-padding:25px;
-border-radius:14px;
-box-shadow:0 8px 20px rgba(0,0,0,.08);
-}
+  <style>
+    body {
+      font-family: Arial;
+      background: #f5f6f8;
+      margin: 0;
+      padding: 30px;
+      display: flex;
+      justify-content: center;
+    }
 
-h2{
-margin-top:0;
-}
+    .card {
+      width: 100%;
+      max-width: 600px;
+      background: white;
+      padding: 25px;
+      border-radius: 14px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+    }
 
-textarea{
-width:100%;
-height:250px;
-padding:12px;
-font-family:Consolas, monospace;
-font-size:14px;
-border:1px solid #ddd;
-border-radius:8px;
-box-sizing:border-box;
-}
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
 
-button{
-padding:12px 18px;
-border:none;
-border-radius:8px;
-background:#4a90e2;
-color:white;
-cursor:pointer;
-margin-top:10px;
-margin-right:10px;
-}
+    textarea {
+      width: 100%;
+      height: 220px;
+      font-size: 16px;
+      font-family: monospace;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      box-sizing: border-box;
+    }
 
-button:hover
+    button {
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      margin-top: 10px;
+      border: none;
+      border-radius: 8px;
+      background: #4a90e2;
+      color: white;
+      cursor: pointer;
+    }
 
-#status{
-margin-top:10px;
-font-weight:bold;
-}
+    button:hover {
+      background: #3b7bd6;
+    }
 
-#result{
-margin-top:20px;
-white-space:pre-wrap;
-font-family:Consolas, monospace;
-background:#fafafa;
-border:1px solid #ddd;
-border-radius:8px;
-padding:15px;
-min-height:200px;
-} </style></head>
+    #result {
+      margin-top: 20px;
+      white-space: pre-wrap;
+      font-family: monospace;
+      font-size: 16px;
+      background: #fafafa;
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+    }
+  </style>
+</head>
 
-<body><div class="card"><h2>EAN Pick List Generator</h2><p>
-Paste directly from Excel/WPS:
-</p><textarea id="input">
-6937224111141	1
-6937224114722	1
-6937224115446	16
-</textarea><button onclick="generate()">Generate Pick List</button><button onclick="copyResult()">Copy Result</button><div id="status">Loading location database...</div><div id="result"></div></div><script>
+<body>
+
+<div class="card">
+
+  <h2>EAN Pick List Generator</h2>
+
+  <textarea id="input" placeholder="Paste from Excel:
+6937224126107    12
+6937224111141    1"></textarea>
+
+  <button onclick="generate()">Generate Pick List</button>
+
+  <div id="result">Loading data...</div>
+
+</div>
+
+<script>
 
 const csvUrl =
-"[https://docs.google.com/spreadsheets/d/e/2PACX-1vQQa-6Tub9Q1Hgn5ecCBkB9HpvAaTy8I0u5L_F0xSMML6FRQVqmijau8XdnWLCHVn8dsXBhrxIxu0eR/pub?gid=0&single=true&output=csv](https://docs.google.com/spreadsheets/d/e/2PACX-1vQQa-6Tub9Q1Hgn5ecCBkB9HpvAaTy8I0u5L_F0xSMML6FRQVqmijau8XdnWLCHVn8dsXBhrxIxu0eR/pub?gid=0&single=true&output=csv)";
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vQQa-6Tub9Q1Hgn5ecCBkB9HpvAaTy8I0u5L_F0xSMML6FRQVqmijau8XdnWLCHVn8dsXBhrxIxu0eR/pub?gid=0&single=true&output=csv";
 
 let index = {};
 let ready = false;
 
+// SAME LOADER STYLE AS YOUR WORKING CODE
 function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
 
-```
-const result = [];
-let current = "";
-let inQuotes = false;
-
-for (let char of line) {
-
+  for (let char of line) {
     if (char === '"') {
-        inQuotes = !inQuotes;
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      result.push(current);
+      current = '';
+    } else {
+      current += char;
     }
-    else if (char === ',' && !inQuotes) {
-        result.push(current);
-        current = "";
-    }
-    else {
-        current += char;
-    }
+  }
+
+  result.push(current);
+  return result;
 }
 
-result.push(current);
-
-return result;
-```
-
-}
-
+// LOAD DATABASE (UNCHANGED STRUCTURE)
 fetch(csvUrl)
-.then(r => r.text())
-.then(text => {
+  .then(r => r.text())
+  .then(text => {
 
-```
-const lines = text.split(/\r?\n/);
+    const lines = text.split(/\r?\n/);
 
-for (let i = 0; i < lines.length; i++) {
+    for (let i = 1; i < lines.length; i++) {
 
-    const line = lines[i].trim();
+      const line = lines[i].trim();
+      if (!line) continue;
 
-    if (!line) continue;
+      const cols = parseCSVLine(line);
 
-    const cols = parseCSVLine(line);
+      const sku = (cols[0] || '').trim();
+      const loc = (cols[1] || '').trim();
 
-    if (cols.length < 2) continue;
+      if (!sku || !loc) continue;
 
-    const code =
-        (cols[0] || "")
-        .trim()
-        .replace(/^'+/, "")
-        .padStart(4,"0");
+      if (!index[sku]) index[sku] = [];
 
-    const location =
-        (cols[1] || "")
-        .trim();
-
-    if (!code || !location) continue;
-
-    if (!index[code]) {
-        index[code] = [];
+      index[sku].push(loc);
     }
 
-    index[code].push(location);
-}
+    ready = true;
+    document.getElementById("result").innerText = "Ready ✔";
+  })
+  .catch(err => {
+    document.getElementById("result").innerText = "CSV load failed";
+    console.error(err);
+  });
 
-ready = true;
-
-document.getElementById("status").innerText =
-    "Location database loaded";
-```
-
-})
-.catch(err => {
-
-```
-console.error(err);
-
-document.getElementById("status").innerText =
-    "Failed to load Google Sheet";
-```
-
-});
-
+// PICK LIST GENERATOR (NEW PART ONLY)
 function generate() {
 
-```
-if (!ready) {
-
+  if (!ready) {
     document.getElementById("result").innerText =
-        "Location database still loading...";
-
+      "Still loading database...";
     return;
-}
+  }
 
-const input =
+  const lines =
     document.getElementById("input")
-    .value
-    .trim();
+      .value
+      .trim()
+      .split(/\r?\n/);
 
-if (!input) return;
+  let output = "";
 
-const rows = input.split(/\r?\n/);
+  for (const line of lines) {
 
-const output = [];
-
-output.push("LOCATION\tQTY\tEAN");
-
-for (const row of rows) {
-
-    if (!row.trim()) continue;
-
-    const cols = row.split(/\t+/);
-
+    const cols = line.split(/\t+/);
     if (cols.length < 2) continue;
 
     const ean = cols[0].trim();
@@ -201,58 +174,21 @@ for (const row of rows) {
 
     const locations = index[last4];
 
-    if (!locations || !locations.length) {
+    if (locations && locations.length) {
 
-        output.push(
-            `NOT FOUND\t${qty}\t${ean}`
-        );
+      for (const loc of locations) {
+        output += `${loc}\t${qty}\t${ean}\n`;
+      }
 
-        continue;
+    } else {
+      output += `NOT FOUND\t${qty}\t${ean}\n`;
     }
+  }
 
-    for (const loc of locations) {
-
-        output.push(
-            `${loc}\t${qty}\t${ean}`
-        );
-    }
+  document.getElementById("result").innerText = output;
 }
 
-const header = output.shift();
+</script>
 
-output.sort((a,b) => {
-
-    const locA = a.split("\t")[0];
-    const locB = b.split("\t")[0];
-
-    return locA.localeCompare(
-        locB,
-        undefined,
-        {numeric:true}
-    );
-});
-
-document.getElementById("result").innerText =
-    header + "\n" + output.join("\n");
-```
-
-}
-
-function copyResult() {
-
-```
-const text =
-    document.getElementById("result").innerText;
-
-if (!text) return;
-
-navigator.clipboard.writeText(text);
-
-alert("Copied to clipboard");
-```
-
-}
-
-</script></body>
-
+</body>
 </html>
