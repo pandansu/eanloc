@@ -136,7 +136,6 @@ fetch(csvUrl)
     const cols = parseCSVLine(lines[i]);
     if (!cols || cols.length < 6) continue;
 
-    // COLUMN A = last 4 digits → location
     const sku = (cols[0] || '').trim();
     const loc = (cols[1] || '').trim();
 
@@ -145,7 +144,6 @@ fetch(csvUrl)
       index[sku].push(loc);
     }
 
-    // COLUMN E = EAN, COLUMN F = NAME
     const ean = (cols[4] || '').trim();
     const name = (cols[5] || '').trim();
 
@@ -176,10 +174,10 @@ function generate() {
   <table>
     <tr>
       <th>EAN</th>
-      <th>Product</th>
       <th>Required</th>
       <th>Tick</th>
       <th>Location</th>
+      <th>Product Name</th>
     </tr>
   `;
 
@@ -194,7 +192,6 @@ function generate() {
     const last4 = ean.slice(-4);
 
     const locations = index[last4] || [];
-
     const productName = nameIndex[ean] || "—";
 
     if (locations.length) {
@@ -204,34 +201,5 @@ function generate() {
         html += `
           <tr>
             <td>${ean}</td>
-            <td>${productName}</td>
             <td>${qty}</td>
             <td class="check"></td>
-            <td>${loc}</td>
-          </tr>
-        `;
-      }
-
-    } else {
-
-      html += `
-        <tr>
-          <td>${ean}</td>
-          <td>${productName}</td>
-          <td>${qty}</td>
-          <td class="check"></td>
-          <td><b>NOT FOUND</b></td>
-        </tr>
-      `;
-    }
-  }
-
-  html += "</table>";
-
-  document.getElementById("result").innerHTML = html;
-}
-
-</script>
-
-</body>
-</html>
