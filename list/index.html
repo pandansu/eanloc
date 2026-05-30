@@ -79,10 +79,6 @@ textarea {
   cursor: pointer;
 }
 
-#generateBtn:disabled {
-  background: #ccc;
-}
-
 #printBtn {
   flex: 0.4;
   display: none;
@@ -95,13 +91,15 @@ textarea {
   cursor: pointer;
 }
 
-/* TABLE */
+/* ================= TABLE ================= */
+
 table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 12px;
   font-size: 13px;
-  table-layout: auto;
+
+  table-layout: fixed; /* IMPORTANT: enables real column control */
 }
 
 th {
@@ -114,49 +112,50 @@ th {
 td {
   border: 1px solid #ddd;
   padding: 4px 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-/* =========================
-   COLUMN WIDTH CONTROL
-   ========================= */
-
-/* EAN (slightly wider now) */
-td:nth-child(1), th:nth-child(1) {
-  width: 120px;
+/* EAN — slightly wider but not wasteful */
+th:nth-child(1),
+td:nth-child(1) {
+  width: 140px;
 }
 
-/* Qty */
-td:nth-child(2), th:nth-child(2) {
-  width: 1%;
+/* QTY — centered */
+th:nth-child(2),
+td:nth-child(2) {
+  width: 50px;
   text-align: center;
 }
 
-/* Tick (slightly wider now) */
-td:nth-child(3), th:nth-child(3) {
-  width: 32px;
+/* TICK — minimal but usable */
+th:nth-child(3),
+td:nth-child(3) {
+  width: 26px;
   text-align: center;
   padding: 0;
 }
 
-/* Location flexible */
+/* LOCATION — FLEX COLUMN (KEY FIX) */
+th:nth-child(4),
 td.loc {
-  white-space: nowrap;
+  width: auto;
 }
 
-/* Product name */
+/* PRODUCT NAME — controlled overflow */
 td.name {
-  max-width: 260px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  width: 260px;
 }
 
-/* PRINT */
+/* ================= PRINT ================= */
+
 @media print {
 
   body {
-    margin: 0 !important;
-    padding: 0 !important;
+    margin: 0;
+    padding: 0;
   }
 
   body * {
@@ -176,6 +175,7 @@ td.name {
 
   table {
     width: 100%;
+    table-layout: fixed;
   }
 
   #result table tr:first-child {
@@ -189,26 +189,27 @@ td.name {
   }
 
   td:nth-child(1) {
-    width: 120px !important;
-  }
-
-  td:nth-child(3) {
-    width: 30px !important;
+    width: 130px !important;
   }
 
   td:nth-child(2) {
+    width: 40px !important;
     text-align: center !important;
   }
 
+  td:nth-child(3) {
+    width: 20px !important;
+  }
+
   td.loc {
+    width: auto !important;
     white-space: nowrap !important;
   }
 
   td.name {
-    max-width: 240px;
+    width: 240px !important;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
   }
 }
 </style>
@@ -226,7 +227,7 @@ td.name {
 </div>
 
 <div class="btn-row">
-  <button id="generateBtn" disabled onclick="generate()">Generate</button>
+  <button id="generateBtn" onclick="generate()">Generate</button>
   <button id="printBtn" onclick="window.print()">Print</button>
 </div>
 
@@ -247,10 +248,6 @@ const input = document.getElementById("input");
 const generateBtn = document.getElementById("generateBtn");
 const printBtn = document.getElementById("printBtn");
 
-input.addEventListener("input", () => {
-  generateBtn.disabled = input.value.trim().length === 0;
-});
-
 function parseCSVLine(line) {
   const result = [];
   let current = '';
@@ -270,7 +267,6 @@ function parseCSVLine(line) {
   return result;
 }
 
-// LOAD DB
 fetch(csvUrl)
 .then(r => r.text())
 .then(text => {
