@@ -9,7 +9,7 @@ body {
   font-family: Arial;
   background: #f5f6f8;
   margin: 0;
-  padding: 30px;
+  padding: 20px; /* reduced */
   display: flex;
   justify-content: center;
 }
@@ -18,14 +18,14 @@ body {
   width: 100%;
   max-width: 1000px;
   background: white;
-  padding: 25px;
+  padding: 18px; /* reduced */
   border-radius: 14px;
   box-shadow: 0 8px 20px rgba(0,0,0,0.08);
 }
 
 h2 {
   text-align: center;
-  margin-bottom: 20px;
+  margin: 10px 0 15px 0; /* reduced */
 }
 
 /* INPUT */
@@ -35,7 +35,7 @@ h2 {
 
 textarea {
   width: 100%;
-  height: 180px;
+  height: 160px; /* slightly smaller */
   font-family: monospace;
   font-size: 14px;
   padding: 10px;
@@ -65,23 +65,22 @@ textarea {
 .btn-row {
   display: flex;
   gap: 10px;
-  margin-top: 10px;
+  margin-top: 8px; /* reduced */
 }
 
 #generateBtn {
   flex: 1;
-  padding: 12px;
+  padding: 10px;
   border: none;
   border-radius: 8px;
   background: #4a90e2;
   color: white;
-  font-size: 16px;
+  font-size: 15px;
   cursor: pointer;
 }
 
 #generateBtn:disabled {
   background: #ccc;
-  cursor: not-allowed;
 }
 
 #generateBtn.shrunk {
@@ -91,12 +90,12 @@ textarea {
 #printBtn {
   flex: 0.4;
   display: none;
-  padding: 12px;
+  padding: 10px;
   border: none;
   border-radius: 8px;
   background: #2ecc71;
   color: white;
-  font-size: 16px;
+  font-size: 15px;
   cursor: pointer;
 }
 
@@ -104,7 +103,7 @@ textarea {
 table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 20px;
+  margin-top: 14px; /* reduced */
   font-size: 13px;
   table-layout: auto;
 }
@@ -112,47 +111,56 @@ table {
 th {
   background: #4a90e2;
   color: white;
-  padding: 6px;
+  padding: 5px;
   text-align: left;
 }
 
 td {
   border: 1px solid #ddd;
   padding: 4px 6px;
-  vertical-align: top;
   white-space: nowrap;
 }
 
 /* COLUMN CONTROL */
+
+/* EAN */
 td:nth-child(1), th:nth-child(1) {
   width: 1%;
   white-space: nowrap;
 }
 
+/* REQUIRED (CENTER) */
 td:nth-child(2), th:nth-child(2) {
   width: 1%;
-  white-space: nowrap;
-}
-
-td:nth-child(3), th:nth-child(3) {
-  width: 30px;
   text-align: center;
 }
 
-td.loc {
-  white-space: nowrap;
-  width: 1%;
+/* TICK COLUMN (VERY NARROW) */
+td:nth-child(3), th:nth-child(3) {
+  width: 18px;
+  text-align: center;
+  padding: 0;
 }
 
+/* LOCATION */
+td.loc {
+  white-space: nowrap;
+}
+
+/* PRODUCT NAME */
 td.name {
   max-width: 260px;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-/* PRINT MODE */
+/* PRINT OPTIMISATION */
 @media print {
+
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
 
   body * {
     visibility: hidden;
@@ -171,10 +179,9 @@ td.name {
 
   table {
     width: 100%;
-    table-layout: auto;
   }
 
-  /* remove header row */
+  /* REMOVE HEADER ROW */
   #result table tr:first-child {
     display: none;
   }
@@ -183,6 +190,15 @@ td.name {
     padding: 2px 4px !important;
     font-size: 11px !important;
     line-height: 1.1 !important;
+  }
+
+  td:nth-child(2) {
+    text-align: center !important;
+  }
+
+  td:nth-child(3) {
+    width: 12px !important;
+    padding: 0 !important;
   }
 
   td.loc {
@@ -255,7 +271,6 @@ function parseCSVLine(line) {
   return result;
 }
 
-// LOAD DB
 fetch(csvUrl)
 .then(r => r.text())
 .then(text => {
@@ -287,7 +302,6 @@ fetch(csvUrl)
   document.getElementById("result").innerHTML = "<b>Ready ✔</b>";
 });
 
-// SORT
 function sortLocation(a, b) {
   return a.localeCompare(b, undefined, { numeric: true });
 }
@@ -328,8 +342,8 @@ function generate() {
   <table>
     <tr>
       <th>EAN</th>
-      <th>Required</th>
-      <th>Tick</th>
+      <th>Qty</th>
+      <th></th>
       <th>Location</th>
       <th>Product Name</th>
     </tr>
