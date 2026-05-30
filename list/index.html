@@ -23,12 +23,7 @@ body {
   box-shadow: 0 8px 20px rgba(0,0,0,0.08);
 }
 
-h2 {
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-/* WRAPPER */
+/* INPUT */
 .textarea-wrap {
   position: relative;
 }
@@ -62,18 +57,13 @@ textarea {
   cursor: pointer;
 }
 
-.clear-x:hover {
-  background: #bdbdbd;
-}
-
-/* BUTTON AREA */
+/* BUTTONS */
 .btn-row {
   display: flex;
   gap: 10px;
   margin-top: 10px;
 }
 
-/* GENERATE BUTTON */
 #generateBtn {
   flex: 1;
   padding: 12px;
@@ -90,12 +80,10 @@ textarea {
   cursor: not-allowed;
 }
 
-/* AFTER GENERATE (SHRINK) */
 #generateBtn.shrunk {
   flex: 0.6;
 }
 
-/* PRINT BUTTON */
 #printBtn {
   flex: 0.4;
   display: none;
@@ -106,10 +94,6 @@ textarea {
   color: white;
   font-size: 16px;
   cursor: pointer;
-}
-
-#printBtn:hover {
-  background: #27ae60;
 }
 
 /* TABLE */
@@ -130,12 +114,30 @@ th {
 td {
   border: 1px solid #ddd;
   padding: 6px;
-  vertical-align: top;
 }
 
-.check {
-  width: 40px;
-  text-align: center;
+/* PRINT RULES */
+@media print {
+
+  body * {
+    visibility: hidden;
+  }
+
+  #result, #result * {
+    visibility: visible;
+  }
+
+  #result {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  /* ❌ hide header row when printing */
+  #result table tr:first-child {
+    display: none;
+  }
 }
 </style>
 </head>
@@ -144,14 +146,9 @@ td {
 
 <div class="card">
 
-<h2>EAN Pick List</h2>
-
 <div class="textarea-wrap">
-
-  <textarea id="input" placeholder="EAN[TAB]Qty"></textarea>
-
-  <div class="clear-x" onclick="clearInput()">×</div>
-
+  <textarea id="input" placeholder="Cut PAste"></textarea>
+  <div class="clear-x" onclick="input.value=''">×</div>
 </div>
 
 <div class="btn-row">
@@ -176,6 +173,10 @@ const input = document.getElementById("input");
 const generateBtn = document.getElementById("generateBtn");
 const printBtn = document.getElementById("printBtn");
 
+input.addEventListener("input", () => {
+  generateBtn.disabled = input.value.trim().length === 0;
+});
+
 function parseCSVLine(line) {
   const result = [];
   let current = '';
@@ -193,19 +194,6 @@ function parseCSVLine(line) {
 
   result.push(current);
   return result;
-}
-
-// ENABLE BUTTON WHEN TYPING
-input.addEventListener("input", () => {
-  generateBtn.disabled = input.value.trim().length === 0;
-});
-
-function clearInput() {
-  input.value = '';
-  generateBtn.disabled = true;
-  printBtn.style.display = "none";
-  generateBtn.classList.remove("shrunk");
-  document.getElementById("result").innerHTML = "";
 }
 
 // LOAD DATABASE
@@ -237,13 +225,11 @@ fetch(csvUrl)
   }
 
   ready = true;
-  document.getElementById("result").innerHTML =
-    "<b>Ready ✔</b>";
+  document.getElementById("result").innerHTML = "<b>Ready ✔</b>";
 });
 
-// SORT
 function sortLocation(a, b) {
-  return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+  return a.localeCompare(b, undefined, { numeric: true });
 }
 
 function generate() {
@@ -294,7 +280,7 @@ function generate() {
       <tr>
         <td>${r.ean}</td>
         <td>${r.qty}</td>
-        <td class="check"></td>
+        <td></td>
         <td>${r.loc}</td>
         <td>${r.productName}</td>
       </tr>
@@ -305,7 +291,6 @@ function generate() {
 
   document.getElementById("result").innerHTML = html;
 
-  // UI SWITCH
   generateBtn.classList.add("shrunk");
   printBtn.style.display = "block";
 }
