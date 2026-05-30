@@ -75,42 +75,9 @@ td {
   vertical-align: top;
 }
 
-/* ✅ EAN (optimized for 15 digits) */
-th:nth-child(1),
-td:nth-child(1) {
-  width: 140px;
-  white-space: nowrap;
-  text-align: left;
-  font-family: monospace;
-}
-
-/* REQUIRED */
-th:nth-child(2),
-td:nth-child(2) {
-  width: 60px;
-  text-align: center;
-  font-weight: bold;
-}
-
-/* TICK */
-th:nth-child(3),
-td:nth-child(3) {
+.check {
   width: 40px;
   text-align: center;
-}
-
-/* LOCATION */
-th:nth-child(4),
-td:nth-child(4) {
-  width: 120px;
-  text-align: center;
-  white-space: nowrap;
-}
-
-/* PRODUCT NAME */
-th:nth-child(5),
-td:nth-child(5) {
-  text-align: left;
 }
 </style>
 </head>
@@ -190,6 +157,11 @@ fetch(csvUrl)
     "<b>Ready ✔</b>";
 });
 
+// SORT HELPER (natural sort for A01-10 etc.)
+function sortLocation(a, b) {
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+}
+
 function generate() {
 
   if (!ready) {
@@ -221,10 +193,16 @@ function generate() {
     if (locations.length) {
 
       for (const loc of locations) {
-        rows.push({ ean, qty, loc, productName });
+        rows.push({
+          ean,
+          qty,
+          loc,
+          productName
+        });
       }
 
     } else {
+
       rows.push({
         ean,
         qty,
@@ -234,10 +212,10 @@ function generate() {
     }
   }
 
-  rows.sort((a, b) =>
-    a.loc.localeCompare(b.loc, undefined, { numeric: true })
-  );
+  // ✅ SORT BY LOCATION (IMPORTANT PART)
+  rows.sort((a, b) => sortLocation(a.loc, b.loc));
 
+  // BUILD TABLE
   let html = `
   <table>
     <tr>
@@ -255,7 +233,7 @@ function generate() {
       <tr>
         <td>${r.ean}</td>
         <td>${r.qty}</td>
-        <td></td>
+        <td class="check"></td>
         <td>${r.loc}</td>
         <td>${r.productName}</td>
       </tr>
