@@ -1,103 +1,98 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>EAN Pick List</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EAN Pick List</title>
 
-  <style>
-    body {
-      font-family: Arial;
-      background: #f5f6f8;
-      margin: 0;
-      padding: 30px;
-      display: flex;
-      justify-content: center;
-    }
+<style>
+body {
+  font-family: Arial;
+  background: #f5f6f8;
+  margin: 0;
+  padding: 30px;
+  display: flex;
+  justify-content: center;
+}
 
-    .card {
-      width: 100%;
-      max-width: 900px;
-      background: white;
-      padding: 25px;
-      border-radius: 14px;
-      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
-    }
+.card {
+  width: 100%;
+  max-width: 1000px;
+  background: white;
+  padding: 25px;
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+}
 
-    h2 {
-      text-align: center;
-      margin-bottom: 20px;
-    }
+h2 {
+  text-align: center;
+  margin-bottom: 20px;
+}
 
-    textarea {
-      width: 100%;
-      height: 200px;
-      font-family: monospace;
-      font-size: 14px;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      box-sizing: border-box;
-    }
+textarea {
+  width: 100%;
+  height: 180px;
+  font-family: monospace;
+  font-size: 14px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
 
-    button {
-      width: 100%;
-      padding: 12px;
-      font-size: 16px;
-      margin-top: 10px;
-      border: none;
-      border-radius: 8px;
-      background: #4a90e2;
-      color: white;
-      cursor: pointer;
-    }
+button {
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
+  border: none;
+  border-radius: 8px;
+  background: #4a90e2;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+}
 
-    button:hover {
-      background: #3b7bd6;
-    }
+button:hover {
+  background: #3b7bd6;
+}
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 20px;
-      font-size: 14px;
-    }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  font-size: 13px;
+}
 
-    th {
-      background: #4a90e2;
-      color: white;
-      padding: 10px;
-      text-align: left;
-    }
+th {
+  background: #4a90e2;
+  color: white;
+  padding: 8px;
+  text-align: left;
+}
 
-    td {
-      border: 1px solid #ddd;
-      padding: 8px;
-    }
+td {
+  border: 1px solid #ddd;
+  padding: 6px;
+  vertical-align: top;
+}
 
-    tr:nth-child(even) {
-      background: #f9f9f9;
-    }
-
-    .check {
-      width: 40px;
-      text-align: center;
-    }
-  </style>
+.check {
+  width: 40px;
+  text-align: center;
+}
+</style>
 </head>
 
 <body>
 
 <div class="card">
 
-  <h2>EAN Pick List</h2>
+<h2>EAN Pick List</h2>
 
-  <textarea id="input" placeholder="Paste from Excel:
-6937224126107    12
-6937224111141    1"></textarea>
+<textarea id="input" placeholder="EAN[TAB]Qty"></textarea>
 
-  <button onclick="generate()">Generate</button>
+<button onclick="generate()">Generate</button>
 
-  <div id="result"></div>
+<div id="result"></div>
 
 </div>
 
@@ -107,6 +102,7 @@ const csvUrl =
 "https://docs.google.com/spreadsheets/d/e/2PACX-1vQQa-6Tub9Q1Hgn5ecCBkB9HpvAaTy8I0u5L_F0xSMML6FRQVqmijau8XdnWLCHVn8dsXBhrxIxu0eR/pub?gid=0&single=true&output=csv";
 
 let index = {};
+let nameIndex = {};
 let ready = false;
 
 function parseCSVLine(line) {
@@ -115,9 +111,8 @@ function parseCSVLine(line) {
   let inQuotes = false;
 
   for (let char of line) {
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) {
+    if (char === '"') inQuotes = !inQuotes;
+    else if (char === ',' && !inQuotes) {
       result.push(current);
       current = '';
     } else {
@@ -129,35 +124,40 @@ function parseCSVLine(line) {
   return result;
 }
 
-// LOAD DB (UNCHANGED LOGIC STYLE)
+// LOAD DATABASE
 fetch(csvUrl)
-  .then(r => r.text())
-  .then(text => {
+.then(r => r.text())
+.then(text => {
 
-    const lines = text.split(/\r?\n/);
+  const lines = text.split(/\r?\n/);
 
-    for (let i = 1; i < lines.length; i++) {
+  for (let i = 1; i < lines.length; i++) {
 
-      const line = lines[i].trim();
-      if (!line) continue;
+    const cols = parseCSVLine(lines[i]);
+    if (!cols || cols.length < 6) continue;
 
-      const cols = parseCSVLine(line);
+    // COLUMN A = last 4 digits → location
+    const sku = (cols[0] || '').trim();
+    const loc = (cols[1] || '').trim();
 
-      const sku = (cols[0] || '').trim();
-      const loc = (cols[1] || '').trim();
-
-      if (!sku || !loc) continue;
-
+    if (sku && loc) {
       if (!index[sku]) index[sku] = [];
-
       index[sku].push(loc);
     }
 
-    ready = true;
+    // COLUMN E = EAN, COLUMN F = NAME
+    const ean = (cols[4] || '').trim();
+    const name = (cols[5] || '').trim();
 
-    document.getElementById("result").innerHTML =
-      "<p><b>Ready ✔</b></p>";
-  });
+    if (ean && name) {
+      nameIndex[ean] = name;
+    }
+  }
+
+  ready = true;
+  document.getElementById("result").innerHTML =
+    "<b>Ready ✔</b>";
+});
 
 function generate() {
 
@@ -176,6 +176,7 @@ function generate() {
   <table>
     <tr>
       <th>EAN</th>
+      <th>Product</th>
       <th>Required</th>
       <th>Tick</th>
       <th>Location</th>
@@ -189,17 +190,21 @@ function generate() {
 
     const ean = cols[0].trim();
     const qty = cols[1].trim();
+
     const last4 = ean.slice(-4);
 
-    const locations = index[last4];
+    const locations = index[last4] || [];
 
-    if (locations && locations.length) {
+    const productName = nameIndex[ean] || "—";
+
+    if (locations.length) {
 
       for (const loc of locations) {
 
         html += `
           <tr>
             <td>${ean}</td>
+            <td>${productName}</td>
             <td>${qty}</td>
             <td class="check"></td>
             <td>${loc}</td>
@@ -212,6 +217,7 @@ function generate() {
       html += `
         <tr>
           <td>${ean}</td>
+          <td>${productName}</td>
           <td>${qty}</td>
           <td class="check"></td>
           <td><b>NOT FOUND</b></td>
