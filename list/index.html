@@ -39,7 +39,6 @@ textarea {
   box-sizing: border-box;
 }
 
-/* BUTTONS */
 .btn-row {
   display: flex;
   gap: 10px;
@@ -67,15 +66,13 @@ textarea {
   cursor: pointer;
 }
 
-/* ================= TABLE ================= */
-
+/* TABLE */
 table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 12px;
   font-size: 13px;
-
-  table-layout: auto; /* 🔥 KEY FIX */
+  table-layout: auto;
 }
 
 th {
@@ -88,56 +85,21 @@ th {
 td {
   border: 1px solid #ddd;
   padding: 4px 6px;
-
   white-space: nowrap;
-}
-
-/* ================= COLUMN RULES ================= */
-
-/* EAN — AUTO WIDTH, NEVER CUT */
-td:nth-child(1), th:nth-child(1) {
-  white-space: nowrap;
-}
-
-/* Qty */
-td:nth-child(2), th:nth-child(2) {
-  width: 50px;
-  text-align: center;
-}
-
-/* Tick */
-td:nth-child(3), th:nth-child(3) {
-  width: 22px;
-  text-align: center;
-  padding: 0;
-}
-
-/* Location — compact but visible */
-td.loc {
-  max-width: 120px;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Product name — takes remaining space */
-td.name {
-  width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+/* column tuning */
+td:nth-child(1), th:nth-child(1) { width: 110px; }
+td:nth-child(2), th:nth-child(2) { width: 50px; text-align: center; }
+td:nth-child(3), th:nth-child(3) { width: 22px; text-align: center; }
+td.loc { max-width: 180px; }
+td.name { width: 100%; }
 
-/* ================= PRINT ================= */
-
+/* PRINT CLEAN */
 @media print {
-
-  body {
-    margin: 0;
-    padding: 0;
-  }
-
-  body * {
-    visibility: hidden;
-  }
+  body * { visibility: hidden; }
 
   #result, #result * {
     visibility: visible;
@@ -150,11 +112,6 @@ td.name {
     width: 100%;
   }
 
-  table {
-    width: 100%;
-    table-layout: auto;
-  }
-
   #result table tr:first-child {
     display: none;
   }
@@ -162,15 +119,6 @@ td.name {
   td {
     padding: 2px 4px !important;
     font-size: 11px !important;
-    line-height: 1.1 !important;
-  }
-
-  td.loc {
-    max-width: 120px !important;
-  }
-
-  td.name {
-    width: auto !important;
   }
 }
 </style>
@@ -259,6 +207,7 @@ function generate() {
   const lines = input.value.trim().split(/\n/);
 
   let rows = [];
+  let seen = new Set(); // 🔥 prevents duplicate EAN rows
 
   for (const line of lines) {
 
@@ -268,18 +217,20 @@ function generate() {
     const ean = cols[0].trim();
     const qty = cols[1].trim();
 
+    if (seen.has(ean)) continue; // 🔥 one row per EAN
+    seen.add(ean);
+
     const last4 = ean.slice(-4);
 
     const locations = index[last4] || [];
     const productName = nameIndex[ean] || "—";
 
-    if (locations.length) {
-      for (const loc of locations) {
-        rows.push({ ean, qty, loc, productName });
-      }
-    } else {
-      rows.push({ ean, qty, loc: "NOT FOUND", productName });
-    }
+    rows.push({
+      ean,
+      qty,
+      loc: locations.length ? locations.join(", ") : "NOT FOUND",
+      productName
+    });
   }
 
   let html = `
