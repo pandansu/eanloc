@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EAN Location Finder</title>
+
+<style>
+body{
+    font-family:Arial,sans-serif;
+    margin:20px;
+    background:#f5f5f5;
+}
+
+.container{
+    max-width:1200px;
+    margin:auto;
+}
+
+.card{
+    background:#fff;
+    padding:20px;
+    border-radius:8px;
+    box-shadow:0 2px 8px rgba(0,0,0,.1);
+    margin-bottom:20px;
+}
+
+textarea{
+    width:100%;
+    min-height:250px;
+    font-family:Consolas,monospace;
+    font-size:14px;
+    padding:10px;
+    box-sizing:border-box;
+}
+
+button{
+    background:#0078d7;
+    color:white;
+    border:none;
+    padding:10px 20px;
+    margin-right:10px;
+    cursor:pointer;
+    border-radius:4px;
+}
+
+button:hover{
+    background:#005fa3;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+th{
+    background:#0078d7;
+    color:white;
+    padding:10px;
+    text-align:left;
+}
+
+td{
+    border:1px solid #ddd;
+    padding:8px;
+}
+
+tr:nth-child(even){
+    background:#fafafa;
+}
+
+.not-found{
+    background:#ffe0e0;
+}
+
+#status{
+    margin-top:10px;
+    font-weight:bold;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<div class="card">
+
+<h2>EAN Location Finder</h2>
+
+<p>Paste directly from Excel / WPS:</p>
+
+<textarea id="eanInput">
+6937224111141	1
+6937224114722	1
+6937224115446	16
+</textarea>
+
+<br><br>
+
+<button onclick="generateResults()">Generate Locations</button>
+<button onclick="copyResults()">Copy Results</button>
+
+<div id="status"></div>
+
+</div>
+
+<div class="card">
+
+<table id="resultsTable">
+<thead>
+<tr>
+<th>EAN</th>
+<th>Qty</th>
+<th>Last 4</th>
+<th>Location(s)</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+
+</div>
+
+</div>
+
+<script>
+
+const SHELF_CSV_URL =
+"https://docs.google.com/spreadsheets/d/e/2PACX-1vQQa-6Tub9Q1Hgn5ecCBkB9HpvAaTy8I0u5L_F0xSMML6FRQVqmijau8XdnWLCHVn8dsXBhrxIxu0eR/pub?gid=0&single=true&output=csv";
+
+async function loadShelfMap() {
+
+    const response = await fetch(SHELF_CSV_URL);
+    const csv = await response.text();
+
+    const shelfMap = {};
+
+    const lines = csv.split(/\r?\n/);
+
+    lines.forEach(line => {
+
+        if(!line.trim()) return;
+
+        const cols = line.split(",");
+
+        if(cols.length < 2) return;
+
+        const code = cols[0].trim().replace(/"/g,'');
+        const location = col
