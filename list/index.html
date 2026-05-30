@@ -257,7 +257,7 @@ function generate() {
     const last4 = ean.slice(-4);
 
     const locations = index[last4] || [];
-    const loc = locations.length ? locations[0] : "NOT FOUND";
+    const loc = locations.length ? locations[0] : "* NOT FOUND *";
 
     const productName = nameIndex[ean] || "—";
 
