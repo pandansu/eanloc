@@ -60,6 +60,7 @@ table {
   border-collapse: collapse;
   margin-top: 20px;
   font-size: 13px;
+  table-layout: fixed;
 }
 
 th {
@@ -75,9 +76,33 @@ td {
   vertical-align: top;
 }
 
-.check {
+/* ✅ REQUIRED COLUMN (narrow + centered) */
+th:nth-child(2),
+td:nth-child(2) {
+  width: 60px;
+  text-align: center;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+/* ✅ TICK COLUMN */
+th:nth-child(3),
+td:nth-child(3) {
   width: 40px;
   text-align: center;
+}
+
+/* ✅ LOCATION CENTERED */
+th:nth-child(4),
+td:nth-child(4) {
+  text-align: center;
+  width: 120px;
+}
+
+/* optional nice alignment for product */
+th:nth-child(5),
+td:nth-child(5) {
+  text-align: left;
 }
 </style>
 </head>
@@ -157,11 +182,6 @@ fetch(csvUrl)
     "<b>Ready ✔</b>";
 });
 
-// SORT HELPER (natural sort for A01-10 etc.)
-function sortLocation(a, b) {
-  return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
-}
-
 function generate() {
 
   if (!ready) {
@@ -212,10 +232,11 @@ function generate() {
     }
   }
 
-  // ✅ SORT BY LOCATION (IMPORTANT PART)
-  rows.sort((a, b) => sortLocation(a.loc, b.loc));
+  // SORT BY LOCATION
+  rows.sort((a, b) =>
+    a.loc.localeCompare(b.loc, undefined, { numeric: true })
+  );
 
-  // BUILD TABLE
   let html = `
   <table>
     <tr>
@@ -233,7 +254,7 @@ function generate() {
       <tr>
         <td>${r.ean}</td>
         <td>${r.qty}</td>
-        <td class="check"></td>
+        <td></td>
         <td>${r.loc}</td>
         <td>${r.productName}</td>
       </tr>
