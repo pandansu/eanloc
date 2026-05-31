@@ -94,37 +94,45 @@ table {
   margin-top: 12px;
   font-size: 13px;
 
-  /* IMPORTANT FIX */
-  table-layout: fixed;
+  /* IMPORTANT: enables natural sizing */
+  table-layout: auto;
 }
 
-th, td {
+th {
+  background: #4a90e2;
+  color: white;
+  padding: 6px;
+  text-align: left; /* FIX HEADER ALIGNMENT */
+}
+
+td {
   border: 1px solid #ddd;
   padding: 5px;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-/* EAN COLUMN FIXED WIDTH */
+/* ===== COLUMN CONTROLS ===== */
+
+/* EAN = auto-fit (tight, not wide) */
 th:first-child,
 td:first-child {
-  width: 140px;
+  width: 1%;
+  white-space: nowrap;
 }
 
-/* SCANNED + REQUIRED SHRINK */
+/* Scanned + Required = compact */
 th:nth-child(2),
 td:nth-child(2),
 th:nth-child(3),
 td:nth-child(3) {
-  width: 90px;
+  width: 80px;
   text-align: center;
 }
 
-/* PRODUCT NAME TAKES REMAINING SPACE */
+/* Product name = takes remaining space */
 th:nth-child(4),
 td:nth-child(4) {
-  width: auto;
+  width: 100%;
 }
 
 /* COLORS */
@@ -208,7 +216,6 @@ fetch(csvUrl)
   const lines = text.split(/\r?\n/);
 
   for (let i = 1; i < lines.length; i++) {
-
     const cols = lines[i].split(",");
 
     const ean = (cols[4] || '').trim();
