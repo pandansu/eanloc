@@ -93,6 +93,14 @@ table {
   border-collapse: collapse;
   margin-top: 12px;
   font-size: 13px;
+  table-layout: auto;
+}
+
+/* FIX: EAN COLUMN WIDTH CONTROL */
+td:first-child,
+th:first-child {
+  white-space: nowrap;
+  width: 1%;
 }
 
 th {
@@ -166,21 +174,12 @@ td {
 
 <script>
 
-/* CSV SOURCE */
 const csvUrl =
 "https://docs.google.com/spreadsheets/d/e/2PACX-1vQQa-6Tub9Q1Hgn5ecCBkB9HpvAaTy8I0u5L_F0xSMML6FRQVqmijau8XdnWLCHVn8dsXBhrxIxu0eR/pub?gid=0&single=true&output=csv";
 
 let nameIndex = {};
 let serialIndex = {};
 let requiredRows = [];
-
-/* =========================
-   PERSISTENT DATA RESTORE
-   ========================= */
-const saved = localStorage.getItem("serialIndex");
-if (saved) {
-  serialIndex = JSON.parse(saved);
-}
 
 /* CLEAN NAME */
 function cleanName(name) {
@@ -234,15 +233,14 @@ function loadExcel(e) {
 
     for (let i = 1; i < rows.length; i++) {
 
-      const serial = String(rows[i][0] || "").trim();   // Col A
-      const product = cleanName(String(rows[i][7] || "").trim()); // Col H
+      const serial = String(rows[i][0] || "").trim();
+      const product = cleanName(String(rows[i][7] || "").trim());
 
       if (serial) {
         serialIndex[serial] = product;
       }
     }
 
-    /* SAVE FOR PERSISTENCE */
     localStorage.setItem("serialIndex", JSON.stringify(serialIndex));
   };
 
