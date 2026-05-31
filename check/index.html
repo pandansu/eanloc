@@ -39,6 +39,10 @@ h2 {
   flex: 1;
 }
 
+.serial-container {
+  position: relative;
+}
+
 label {
   display: block;
   margin-bottom: 6px;
@@ -57,6 +61,10 @@ textarea {
   resize: vertical;
 }
 
+#serials {
+  padding-right: 90px;
+}
+
 .clear-x {
   position: absolute;
   top: 34px;
@@ -70,6 +78,23 @@ textarea {
   justify-content: center;
   font-weight: bold;
   cursor: pointer;
+  z-index: 3;
+}
+
+.upload-inside-btn {
+  position: absolute;
+  top: 10px;
+  right: 50px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: #4a90e2;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  z-index: 2;
 }
 
 .btn-row {
@@ -85,10 +110,18 @@ button {
   cursor: pointer;
 }
 
-#generateBtn { flex: 1; background: #4a90e2; color: white; }
-#checkBtn { flex: 1; background: #ff9800; color: white; }
+#generateBtn {
+  flex: 1;
+  background: #4a90e2;
+  color: white;
+}
 
-/* TOP ROW (BROWSE + HIDE DONE SAME LINE) */
+#checkBtn {
+  flex: 1;
+  background: #ff9800;
+  color: white;
+}
+
 .top-row {
   display: flex;
   justify-content: space-between;
@@ -113,7 +146,6 @@ button {
   margin-left: auto;
 }
 
-/* TABLE */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -136,20 +168,25 @@ th {
   text-align: left;
 }
 
-/* column widths */
-th:first-child, td:first-child { width: 140px; }
-th:nth-child(2), td:nth-child(2),
-th:nth-child(3), td:nth-child(3) {
+th:first-child,
+td:first-child {
+  width: 140px;
+}
+
+th:nth-child(2),
+td:nth-child(2),
+th:nth-child(3),
+td:nth-child(3) {
   width: 120px;
   text-align: center;
 }
 
-th:nth-child(4), td:nth-child(4) {
+th:nth-child(4),
+td:nth-child(4) {
   width: auto;
   min-width: 200px;
 }
 
-/* colors */
 .ok { background: #e8f7e8; }
 .warn { background: #fff4e5; }
 .bad { background: #ffe6e6; }
@@ -161,7 +198,9 @@ th:nth-child(4), td:nth-child(4) {
 }
 
 @media (max-width: 700px) {
-  .textarea-row { flex-direction: column; }
+  .textarea-row {
+    flex-direction: column;
+  }
 }
 </style>
 </head>
@@ -181,14 +220,34 @@ th:nth-child(4), td:nth-child(4) {
   </div>
 
   <div class="textarea-wrap">
+
     <label>Serial Numbers</label>
-    <textarea id="serials"></textarea>
+
+    <div class="serial-container">
+
+      <textarea id="serials"></textarea>
+
+      <button
+        type="button"
+        class="upload-inside-btn"
+        onclick="document.getElementById('serialImportFile').click()">
+        📁
+      </button>
+
+      <input
+        type="file"
+        id="serialImportFile"
+        accept=".xlsx,.xls"
+        style="display:none">
+
+    </div>
+
     <div class="clear-x" onclick="serials.value=''">×</div>
+
   </div>
 
 </div>
 
-<!-- BROWSE + HIDE DONE (SAME ROW) -->
 <div class="top-row">
 
   <div class="upload-box">
@@ -222,8 +281,8 @@ let nameIndex = {};
 let serialIndex = {};
 let requiredRows = [];
 
-/* RESTORE STORAGE */
 const saved = localStorage.getItem("serialIndex");
+
 if (saved) {
   try {
     serialIndex = JSON.parse(saved);
@@ -238,8 +297,8 @@ function cleanName(name) {
     .replace(/\s{2,}/g, " ")
     .trim();
 }
-
 /* CSV */
+
 fetch(csvUrl)
 .then(r => r.text())
 .then(text => {
@@ -247,19 +306,24 @@ fetch(csvUrl)
   const lines = text.split(/\r?\n/);
 
   for (let i = 1; i < lines.length; i++) {
+
     const cols = lines[i].split(",");
 
     const ean = (cols[4] || '').trim();
     const name = cleanName(cols[5] || '');
 
-    if (ean && name) nameIndex[ean] = name;
+    if (ean && name) {
+      nameIndex[ean] = name;
+    }
   }
 
   document.getElementById("generateBtn").disabled = false;
 });
 
-/* EXCEL */
-document.getElementById("excelFile").addEventListener("change", loadExcel);
+/* EXCEL PRODUCT FILE */
+
+document.getElementById("excelFile")
+  .addEventListener("change", loadExcel);
 
 function loadExcel(e) {
 
@@ -281,26 +345,78 @@ function loadExcel(e) {
     for (let i = 1; i < rows.length; i++) {
 
       const serial = String(rows[i][0] || "").trim();
-      const product = cleanName(String(rows[i][7] || "").trim());
+      const product = cleanName(
+        String(rows[i][7] || "").trim()
+      );
 
-      if (serial) serialIndex[serial] = product;
+      if (serial) {
+        serialIndex[serial] = product;
+      }
     }
 
-    localStorage.setItem("serialIndex", JSON.stringify(serialIndex));
+    localStorage.setItem(
+      "serialIndex",
+      JSON.stringify(serialIndex)
+    );
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+
+/* SERIAL IMPORT TO TEXTAREA */
+
+document
+  .getElementById("serialImportFile")
+  .addEventListener("change", importSerialsToTextarea);
+
+function importSerialsToTextarea(e) {
+
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = function(evt) {
+
+    const data = new Uint8Array(evt.target.result);
+    const workbook = XLSX.read(data, { type: "array" });
+
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+    const serialList = [];
+
+    for (let i = 1; i < rows.length; i++) {
+
+      const serial =
+        String(rows[i][0] || "").trim();
+
+      if (serial) {
+        serialList.push(serial);
+      }
+    }
+
+    document.getElementById("serials").value =
+      serialList.join("\n");
   };
 
   reader.readAsArrayBuffer(file);
 }
 
 /* GENERATE */
+
 function generate() {
 
-  const lines = input.value.trim().split("\n");
+  const lines =
+    input.value.trim().split("\n");
+
   requiredRows = [];
 
   for (const line of lines) {
 
-    const cols = line.trim().split(/\s+/);
+    const cols =
+      line.trim().split(/\s+/);
+
     if (cols.length < 2) continue;
 
     const ean = cols[0];
@@ -309,7 +425,8 @@ function generate() {
     requiredRows.push({
       ean,
       qty,
-      productName: cleanName(nameIndex[ean] || "—"),
+      productName:
+        cleanName(nameIndex[ean] || "—"),
       scanned: 0
     });
   }
@@ -318,11 +435,16 @@ function generate() {
 }
 
 /* CHECK */
+
 function checkSerials() {
 
-  for (const r of requiredRows) r.scanned = 0;
+  for (const r of requiredRows) {
+    r.scanned = 0;
+  }
 
-  const list = serials.value.trim().split("\n");
+  const list =
+    serials.value.trim().split("\n");
+
   const used = new Set();
 
   let notFound = [];
@@ -331,11 +453,15 @@ function checkSerials() {
   for (const s of list) {
 
     const serial = s.trim();
-    if (!serial || used.has(serial)) continue;
+
+    if (!serial || used.has(serial)) {
+      continue;
+    }
 
     used.add(serial);
 
-    const product = serialIndex[serial];
+    const product =
+      serialIndex[serial];
 
     if (!product) {
       notFound.push(serial);
@@ -345,6 +471,7 @@ function checkSerials() {
     let matched = false;
 
     for (const r of requiredRows) {
+
       if (r.productName === product) {
         r.scanned++;
         matched = true;
@@ -353,18 +480,22 @@ function checkSerials() {
     }
 
     if (!matched) {
-      wrongItems.push(serial + " → " + product);
+      wrongItems.push(
+        serial + " → " + product
+      );
     }
   }
 
   renderTable();
   renderErrors(notFound, wrongItems);
 }
-
 /* TABLE */
+
 function renderTable() {
 
-  const hideDone = document.getElementById("hideDone").checked;
+  const hideDone =
+    document.getElementById("hideDone")
+    .checked;
 
   let totalScanned = 0;
   let totalRequired = 0;
@@ -387,11 +518,18 @@ function renderTable() {
   for (const r of requiredRows) {
 
     let cls = "";
-    if (r.scanned === r.qty) cls = "ok";
-    else if (r.scanned > r.qty) cls = "bad";
-    else cls = "warn";
 
-    if (hideDone && cls === "ok") continue;
+    if (r.scanned === r.qty) {
+      cls = "ok";
+    } else if (r.scanned > r.qty) {
+      cls = "bad";
+    } else {
+      cls = "warn";
+    }
+
+    if (hideDone && cls === "ok") {
+      continue;
+    }
 
     html += `
       <tr class="${cls}">
@@ -404,22 +542,41 @@ function renderTable() {
   }
 
   html += "</table>";
+
   result.innerHTML = html;
 }
 
 /* ERRORS */
-function renderErrors(notFound, wrongItems) {
+
+function renderErrors(
+  notFound,
+  wrongItems
+) {
 
   let html = "";
 
   if (notFound.length) {
-    html += "<h3>❌ Not Found in Excel</h3>";
-    html += notFound.map(x => `<div class="errorItem">${x}</div>`).join("");
+
+    html +=
+      "<h3>❌ Not Found in Excel</h3>";
+
+    html += notFound
+      .map(x =>
+        `<div class="errorItem">${x}</div>`
+      )
+      .join("");
   }
 
   if (wrongItems.length) {
-    html += "<h3>⚠️ Wrong Item List</h3>";
-    html += wrongItems.map(x => `<div class="errorItem">${x}</div>`).join("");
+
+    html +=
+      "<h3>⚠️ Wrong Item List</h3>";
+
+    html += wrongItems
+      .map(x =>
+        `<div class="errorItem">${x}</div>`
+      )
+      .join("");
   }
 
   errors.innerHTML = html;
