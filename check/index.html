@@ -1,26 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Check Pick Quantities</title>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+
+<style>
+body {
+  font-family: Arial;
+  background: #f5f6f8;
+  margin: 0;
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+.card {
+  width: 100%;
+  max-width: 1000px;
+  background: white;
+  padding: 18px;
+  border-radius: 14px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+}
+
+h2 {
+  text-align: center;
+}
+
+.textarea-row {
+  display: flex;
+  gap: 12px;
+}
+
+.textarea-wrap {
+  position: relative;
+  flex: 1;
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: bold;
+}
+
+textarea {
+  width: 100%;
+  height: 160px;
+  font-family: monospace;
+  font-size: 14px;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.clear-x {
+  position: absolute;
+  top: 34px;
+  right: 10px;
+  width: 34px;
+  height: 34px;
+  background: #d6d6d6;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.btn-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+button {
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+#generateBtn { flex: 1; background: #4a90e2; color: white; }
+#checkBtn { flex: 1; background: #ff9800; color: white; }
+
 table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 12px;
   font-size: 13px;
 
-  /* KEY FIX */
+  /* IMPORTANT FIX */
   table-layout: fixed;
 }
 
 th, td {
+  border: 1px solid #ddd;
+  padding: 5px;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-/* EAN column = tight fixed width */
+/* EAN COLUMN FIXED WIDTH */
 th:first-child,
 td:first-child {
   width: 140px;
 }
 
-/* Scanned / Required */
+/* SCANNED + REQUIRED SHRINK */
 th:nth-child(2),
 td:nth-child(2),
 th:nth-child(3),
@@ -29,8 +121,279 @@ td:nth-child(3) {
   text-align: center;
 }
 
-/* Product name takes remaining space */
+/* PRODUCT NAME TAKES REMAINING SPACE */
 th:nth-child(4),
 td:nth-child(4) {
   width: auto;
 }
+
+/* COLORS */
+.ok { background: #e8f7e8; }
+.warn { background: #fff4e5; }
+.bad { background: #ffe6e6; }
+
+.errorItem {
+  font-size: 13px;
+  padding: 3px 0;
+  border-bottom: 1px solid #eee;
+}
+
+@media (max-width: 700px) {
+  .textarea-row {
+    flex-direction: column;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+<h2>Check Pick Quantities</h2>
+
+<div class="textarea-row">
+
+  <div class="textarea-wrap">
+    <label>Required Items</label>
+    <textarea id="input"></textarea>
+    <div class="clear-x" onclick="input.value=''">×</div>
+  </div>
+
+  <div class="textarea-wrap">
+    <label>Serial Numbers</label>
+    <textarea id="serials"></textarea>
+    <div class="clear-x" onclick="serials.value=''">×</div>
+  </div>
+
+</div>
+
+<div style="margin-top:10px;">
+  <label><b>Upload Excel (Serials + Product Names)</b></label>
+  <input type="file" id="excelFile" accept=".xlsx,.xls">
+</div>
+
+<div class="btn-row">
+  <button id="generateBtn" onclick="generate()">Generate</button>
+  <button id="checkBtn" onclick="checkSerials()">Check Serials</button>
+</div>
+
+<div id="result"></div>
+<div id="errors"></div>
+
+</div>
+
+<script>
+
+const csvUrl =
+"https://docs.google.com/spreadsheets/d/e/2PACX-1vQQa-6Tub9Q1Hgn5ecCBkB9HpvAaTy8I0u5L_F0xSMML6FRQVqmijau8XdnWLCHVn8dsXBhrxIxu0eR/pub?gid=0&single=true&output=csv";
+
+let nameIndex = {};
+let serialIndex = {};
+let requiredRows = [];
+
+/* CLEAN NAME */
+function cleanName(name) {
+  return (name || "")
+    .replace(/Uniform color/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+/* LOAD CSV */
+fetch(csvUrl)
+.then(r => r.text())
+.then(text => {
+
+  const lines = text.split(/\r?\n/);
+
+  for (let i = 1; i < lines.length; i++) {
+
+    const cols = lines[i].split(",");
+
+    const ean = (cols[4] || '').trim();
+    const name = cleanName(cols[5] || '');
+
+    if (ean && name) {
+      nameIndex[ean] = name;
+    }
+  }
+
+  document.getElementById("generateBtn").disabled = false;
+});
+
+/* LOAD EXCEL */
+document.getElementById("excelFile").addEventListener("change", loadExcel);
+
+function loadExcel(e) {
+
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+
+  reader.onload = function(evt) {
+
+    const data = new Uint8Array(evt.target.result);
+    const workbook = XLSX.read(data, { type: "array" });
+
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+    serialIndex = {};
+
+    for (let i = 1; i < rows.length; i++) {
+
+      const serial = String(rows[i][0] || "").trim();
+      const product = cleanName(String(rows[i][7] || "").trim());
+
+      if (serial) {
+        serialIndex[serial] = product;
+      }
+    }
+
+    localStorage.setItem("serialIndex", JSON.stringify(serialIndex));
+  };
+
+  reader.readAsArrayBuffer(file);
+}
+
+/* GENERATE */
+function generate() {
+
+  const lines = input.value.trim().split("\n");
+  requiredRows = [];
+
+  for (const line of lines) {
+
+    const cols = line.trim().split(/\s+/);
+    if (cols.length < 2) continue;
+
+    const ean = cols[0];
+    const qty = parseInt(cols[1], 10) || 0;
+
+    const productName = cleanName(nameIndex[ean] || "—");
+
+    requiredRows.push({
+      ean,
+      qty,
+      productName,
+      scanned: 0
+    });
+  }
+
+  renderTable();
+}
+
+/* CHECK SERIALS */
+function checkSerials() {
+
+  for (const r of requiredRows) {
+    r.scanned = 0;
+  }
+
+  const list = serials.value.trim().split("\n");
+  const used = new Set();
+
+  let notFound = [];
+  let wrongItems = [];
+
+  for (const s of list) {
+
+    const serial = s.trim();
+    if (!serial || used.has(serial)) continue;
+
+    used.add(serial);
+
+    const product = serialIndex[serial];
+
+    if (!product) {
+      notFound.push(serial);
+      continue;
+    }
+
+    let matched = false;
+
+    for (const r of requiredRows) {
+      if (r.productName === product) {
+        r.scanned++;
+        matched = true;
+        break;
+      }
+    }
+
+    if (!matched) {
+      wrongItems.push(serial + " → " + product);
+    }
+  }
+
+  renderTable();
+  renderErrors(notFound, wrongItems);
+}
+
+/* TABLE */
+function renderTable() {
+
+  let totalScanned = 0;
+  let totalRequired = 0;
+
+  for (const r of requiredRows) {
+    totalScanned += r.scanned;
+    totalRequired += r.qty;
+  }
+
+  let html = `
+  <table>
+    <tr>
+      <th>EAN</th>
+      <th>Scanned (${totalScanned})</th>
+      <th>Required (${totalRequired})</th>
+      <th>Product Name</th>
+    </tr>
+  `;
+
+  for (const r of requiredRows) {
+
+    let cls = "";
+
+    if (r.scanned === r.qty) cls = "ok";
+    else if (r.scanned > r.qty) cls = "bad";
+    else cls = "warn";
+
+    html += `
+      <tr class="${cls}">
+        <td>${r.ean}</td>
+        <td>${r.scanned}</td>
+        <td>${r.qty}</td>
+        <td>${r.productName}</td>
+      </tr>
+    `;
+  }
+
+  html += "</table>";
+
+  result.innerHTML = html;
+}
+
+/* ERRORS */
+function renderErrors(notFound, wrongItems) {
+
+  let html = "";
+
+  if (notFound.length) {
+    html += "<h3>❌ Not Found in Excel</h3>";
+    html += notFound.map(x => `<div class="errorItem">${x}</div>`).join("");
+  }
+
+  if (wrongItems.length) {
+    html += "<h3>⚠️ Wrong Item List</h3>";
+    html += wrongItems.map(x => `<div class="errorItem">${x}</div>`).join("");
+  }
+
+  errors.innerHTML = html;
+}
+
+</script>
+
+</body>
+</html>
