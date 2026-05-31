@@ -16,7 +16,7 @@ body {
 
 .card {
   width: 100%;
-  max-width: 1000px;
+  max-width: 1100px;
   background: white;
   padding: 18px;
   border-radius: 14px;
@@ -65,11 +65,13 @@ textarea {
   cursor: pointer;
 }
 
+/* TABLE FIX */
 table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 12px;
   font-size: 13px;
+  table-layout: auto;
 }
 
 th {
@@ -83,14 +85,24 @@ td {
   border: 1px solid #ddd;
   padding: 5px;
   vertical-align: top;
+  white-space: nowrap; /* 🔥 force single line */
 }
 
+/* LOCATION COLUMN */
 td.loc {
-  width: 220px;
+  white-space: nowrap;
+  min-width: 350px;
 }
 
+/* NAME COLUMN */
 td.name {
+  white-space: nowrap;
   width: 100%;
+}
+
+/* allow horizontal scroll if needed */
+#result {
+  overflow-x: auto;
 }
 </style>
 </head>
@@ -169,7 +181,7 @@ fetch(csvUrl)
       index[sku].push(loc);
     }
 
-    // N2: product name by full EAN
+    // N2: product name
     if (ean && name) {
       nameIndex[ean] = name;
     }
@@ -198,24 +210,21 @@ function generate() {
     const ean = cols[0].trim();
     const qty = cols[1].trim();
 
-    // N1: match by last 4 digits
     const last4 = ean.slice(-4);
 
     let allLocations = [];
 
-    // collect ALL SKUs that match last4
+    // match ALL SKUs ending in same last4
     for (const key in index) {
       if (key.endsWith(last4)) {
         allLocations = allLocations.concat(index[key]);
       }
     }
 
-    // remove duplicates
     const loc = allLocations.length
       ? [...new Set(allLocations)].sort(sortLocation).join(", ")
       : "* NOT FOUND *";
 
-    // N2: full EAN name
     const productName = nameIndex[ean] || "—";
 
     rows.push({ ean, qty, loc, productName });
