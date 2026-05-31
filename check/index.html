@@ -118,7 +118,7 @@ th:nth-child(3), td:nth-child(3) {
   text-align: center;
 }
 
-/* product name */
+/* product */
 th:nth-child(4), td:nth-child(4) {
   width: auto;
   min-width: 200px;
@@ -187,6 +187,16 @@ let nameIndex = {};
 let serialIndex = {};
 let requiredRows = [];
 
+/* RESTORE PERSISTED EXCEL */
+const saved = localStorage.getItem("serialIndex");
+if (saved) {
+  try {
+    serialIndex = JSON.parse(saved);
+  } catch (e) {
+    serialIndex = {};
+  }
+}
+
 function cleanName(name) {
   return (name || "")
     .replace(/Uniform color/gi, "")
@@ -194,7 +204,7 @@ function cleanName(name) {
     .trim();
 }
 
-/* LOAD CSV */
+/* CSV LOAD */
 fetch(csvUrl)
 .then(r => r.text())
 .then(text => {
@@ -213,8 +223,10 @@ fetch(csvUrl)
   document.getElementById("generateBtn").disabled = false;
 });
 
-/* LOAD EXCEL */
-document.getElementById("excelFile").addEventListener("change", function (e) {
+/* EXCEL LOAD */
+document.getElementById("excelFile").addEventListener("change", loadExcel);
+
+function loadExcel(e) {
 
   const file = e.target.files[0];
   if (!file) return;
@@ -238,10 +250,13 @@ document.getElementById("excelFile").addEventListener("change", function (e) {
 
       if (serial) serialIndex[serial] = product;
     }
+
+    /* SAVE (overwrite) */
+    localStorage.setItem("serialIndex", JSON.stringify(serialIndex));
   };
 
   reader.readAsArrayBuffer(file);
-});
+}
 
 /* GENERATE */
 function generate() {
