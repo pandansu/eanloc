@@ -252,7 +252,7 @@ function generate() {
 
   for (const line of lines) {
 
-    const cols = line.split(/\t+/);
+    const cols = line.trim().split(/\s+/);
     if (cols.length < 2) continue;
 
     const ean = cols[0].trim();
