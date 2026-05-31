@@ -249,6 +249,7 @@ function generate() {
 
   const lines = input.value.trim().split(/\n/);
   let rows = [];
+  let totalQty = 0;
 
   for (const line of lines) {
 
@@ -257,6 +258,7 @@ function generate() {
 
     const ean = cols[0].trim();
     const qty = cols[1].trim();
+    totalQty += parseInt(qty, 10) || 0;
 
     const last4 = ean.slice(-4);
 
@@ -279,15 +281,16 @@ function generate() {
 
   rows.sort((a, b) => a.loc.localeCompare(b.loc));
 
-  let html = `
-  <table>
-    <tr>
-      <th>EAN</th>
-      <th>Qty</th>
-      <th>Location</th>
-      <th>Product Name</th>
-    </tr>
-  `;
+let html = `
+<table>
+  <tr>
+    <th>EAN</th>
+    <th>Qty</th>
+    <th>Location</th>
+    <th>Product Name &nbsp;&nbsp; Total ${totalQty} items</th>
+  </tr>
+`;
+
 
   for (const r of rows) {
     html += `
