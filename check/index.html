@@ -109,7 +109,7 @@ td {
   white-space: nowrap;
 }
 
-/* COLOURS */
+/* COLORS */
 .ok { background: #e8f7e8; }     /* green = finished */
 .warn { background: #fff4e5; }   /* orange = unfinished */
 .bad { background: #ffe6e6; }    /* red = overpicked */
@@ -168,6 +168,7 @@ td {
 
 <script>
 
+/* REQUIRED DATA SOURCE */
 const csvUrl =
 "https://docs.google.com/spreadsheets/d/e/2PACX-1vQQa-6Tub9Q1Hgn5ecCBkB9HpvAaTy8I0u5L_F0xSMML6FRQVqmijau8XdnWLCHVn8dsXBhrxIxu0eR/pub?gid=0&single=true&output=csv";
 
@@ -176,6 +177,13 @@ let serialIndex = {};
 let requiredRows = [];
 let ready = false;
 
+/* RESTORE EXCEL FROM LOCALSTORAGE ON LOAD */
+const savedExcel = localStorage.getItem("serialIndex");
+if (savedExcel) {
+  serialIndex = JSON.parse(savedExcel);
+}
+
+/* CLEAN PRODUCT NAME */
 function cleanName(name) {
   return (name || "")
     .replace(/Uniform color/gi, "")
@@ -206,7 +214,7 @@ fetch(csvUrl)
   result.innerHTML = "<b>Ready ✔</b>";
 });
 
-/* LOAD EXCEL */
+/* LOAD EXCEL FILE */
 document.getElementById("excelFile").addEventListener("change", loadExcel);
 
 function loadExcel(e) {
@@ -235,6 +243,9 @@ function loadExcel(e) {
         serialIndex[serial] = product;
       }
     }
+
+    /* SAVE TO LOCALSTORAGE (OVERWRITE EACH TIME) */
+    localStorage.setItem("serialIndex", JSON.stringify(serialIndex));
 
     alert("Loaded " + Object.keys(serialIndex).length + " serials");
   };
@@ -269,19 +280,18 @@ function generate() {
   renderTable();
 }
 
-/* CHECK SERIALS */
+/* CHECK SERIALS (FULL RESET EACH RUN) */
 function checkSerials() {
+
+  for (const r of requiredRows) {
+    r.scanned = 0;
+  }
 
   const list = serials.value.trim().split("\n");
   let usedSerials = new Set();
 
   let notFound = [];
   let wrongItems = [];
-
-  // RESET EACH RUN
-  for (const r of requiredRows) {
-    r.scanned = 0;
-  }
 
   for (const s of list) {
 
@@ -335,13 +345,13 @@ function renderTable() {
     let cls = "";
 
     if (r.scanned === r.qty) {
-      cls = "ok";      // green = finished
+      cls = "ok";
     } 
     else if (r.scanned > r.qty) {
-      cls = "bad";     // red = overpicked
+      cls = "bad";
     } 
     else {
-      cls = "warn";    // orange = unfinished
+      cls = "warn";
     }
 
     html += `
@@ -360,7 +370,7 @@ function renderTable() {
   printBtn.style.display = "block";
 }
 
-/* ERRORS */
+/* ERROR DISPLAY */
 function renderErrors(notFound, wrongItems) {
 
   let html = "";
