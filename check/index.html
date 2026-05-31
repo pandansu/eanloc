@@ -93,14 +93,23 @@ table {
   border-collapse: collapse;
   margin-top: 12px;
   font-size: 13px;
-  table-layout: auto;
+  table-layout: fixed;
 }
 
-/* FIX: EAN COLUMN WIDTH CONTROL */
-td:first-child,
-th:first-child {
+/* EAN column */
+td:first-child, th:first-child {
+  width: 160px;
   white-space: nowrap;
-  width: 1%;
+}
+
+/* SCANNED + REQUIRED shrink */
+td:nth-child(2),
+td:nth-child(3),
+th:nth-child(2),
+th:nth-child(3) {
+  width: 90px;
+  text-align: center;
+  white-space: nowrap;
 }
 
 th {
@@ -114,6 +123,8 @@ td {
   border: 1px solid #ddd;
   padding: 5px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* COLORS */
@@ -181,7 +192,6 @@ let nameIndex = {};
 let serialIndex = {};
 let requiredRows = [];
 
-/* CLEAN NAME */
 function cleanName(name) {
   return (name || "")
     .replace(/Uniform color/gi, "")
@@ -189,7 +199,7 @@ function cleanName(name) {
     .trim();
 }
 
-/* LOAD CSV */
+/* CSV LOAD */
 fetch(csvUrl)
 .then(r => r.text())
 .then(text => {
@@ -211,7 +221,7 @@ fetch(csvUrl)
   document.getElementById("generateBtn").disabled = false;
 });
 
-/* LOAD EXCEL */
+/* EXCEL LOAD */
 document.getElementById("excelFile").addEventListener("change", loadExcel);
 
 function loadExcel(e) {
@@ -274,7 +284,7 @@ function generate() {
   renderTable();
 }
 
-/* CHECK SERIALS */
+/* CHECK */
 function checkSerials() {
 
   for (const r of requiredRows) {
@@ -282,7 +292,7 @@ function checkSerials() {
   }
 
   const list = serials.value.trim().split("\n");
-  const usedSerials = new Set();
+  const used = new Set();
 
   let notFound = [];
   let wrongItems = [];
@@ -290,9 +300,9 @@ function checkSerials() {
   for (const s of list) {
 
     const serial = s.trim();
-    if (!serial || usedSerials.has(serial)) continue;
+    if (!serial || used.has(serial)) continue;
 
-    usedSerials.add(serial);
+    used.add(serial);
 
     const product = serialIndex[serial];
 
@@ -320,15 +330,23 @@ function checkSerials() {
   renderErrors(notFound, wrongItems);
 }
 
-/* TABLE */
+/* TABLE WITH TOTALS */
 function renderTable() {
+
+  let totalScanned = 0;
+  let totalRequired = 0;
+
+  for (const r of requiredRows) {
+    totalScanned += r.scanned;
+    totalRequired += r.qty;
+  }
 
   let html = `
   <table>
     <tr>
       <th>EAN</th>
-      <th>Scanned</th>
-      <th>Required</th>
+      <th>Scanned (${totalScanned})</th>
+      <th>Required (${totalRequired})</th>
       <th>Product Name</th>
     </tr>
   `;
