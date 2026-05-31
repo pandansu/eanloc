@@ -88,6 +88,32 @@ button {
 #generateBtn { flex: 1; background: #4a90e2; color: white; }
 #checkBtn { flex: 1; background: #ff9800; color: white; }
 
+/* TOP ROW (BROWSE + HIDE DONE SAME LINE) */
+.top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  gap: 10px;
+}
+
+.upload-box {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hide-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  white-space: nowrap;
+  margin-left: auto;
+}
+
+/* TABLE */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -110,7 +136,7 @@ th {
   text-align: left;
 }
 
-/* columns */
+/* column widths */
 th:first-child, td:first-child { width: 140px; }
 th:nth-child(2), td:nth-child(2),
 th:nth-child(3), td:nth-child(3) {
@@ -118,7 +144,6 @@ th:nth-child(3), td:nth-child(3) {
   text-align: center;
 }
 
-/* product */
 th:nth-child(4), td:nth-child(4) {
   width: auto;
   min-width: 200px;
@@ -163,9 +188,19 @@ th:nth-child(4), td:nth-child(4) {
 
 </div>
 
-<div style="margin-top:10px;">
-  <label><b>Upload Excel (Serials + Product Names)</b></label>
-  <input type="file" id="excelFile" accept=".xlsx,.xls">
+<!-- BROWSE + HIDE DONE (SAME ROW) -->
+<div class="top-row">
+
+  <div class="upload-box">
+    <label><b>Upload Excel (Serials + Product Names)</b></label>
+    <input type="file" id="excelFile" accept=".xlsx,.xls">
+  </div>
+
+  <label class="hide-box">
+    <input type="checkbox" id="hideDone" onchange="renderTable()">
+    Hide Done
+  </label>
+
 </div>
 
 <div class="btn-row">
@@ -187,7 +222,7 @@ let nameIndex = {};
 let serialIndex = {};
 let requiredRows = [];
 
-/* RESTORE PERSISTED EXCEL */
+/* RESTORE STORAGE */
 const saved = localStorage.getItem("serialIndex");
 if (saved) {
   try {
@@ -204,7 +239,7 @@ function cleanName(name) {
     .trim();
 }
 
-/* CSV LOAD */
+/* CSV */
 fetch(csvUrl)
 .then(r => r.text())
 .then(text => {
@@ -223,7 +258,7 @@ fetch(csvUrl)
   document.getElementById("generateBtn").disabled = false;
 });
 
-/* EXCEL LOAD */
+/* EXCEL */
 document.getElementById("excelFile").addEventListener("change", loadExcel);
 
 function loadExcel(e) {
@@ -251,7 +286,6 @@ function loadExcel(e) {
       if (serial) serialIndex[serial] = product;
     }
 
-    /* SAVE (overwrite) */
     localStorage.setItem("serialIndex", JSON.stringify(serialIndex));
   };
 
@@ -330,6 +364,8 @@ function checkSerials() {
 /* TABLE */
 function renderTable() {
 
+  const hideDone = document.getElementById("hideDone").checked;
+
   let totalScanned = 0;
   let totalRequired = 0;
 
@@ -354,6 +390,8 @@ function renderTable() {
     if (r.scanned === r.qty) cls = "ok";
     else if (r.scanned > r.qty) cls = "bad";
     else cls = "warn";
+
+    if (hideDone && cls === "ok") continue;
 
     html += `
       <tr class="${cls}">
