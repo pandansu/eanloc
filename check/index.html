@@ -88,7 +88,6 @@ button {
 #generateBtn { flex: 1; background: #4a90e2; color: white; }
 #checkBtn { flex: 1; background: #ff9800; color: white; }
 
-/* ===== TABLE CORE ===== */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -97,7 +96,7 @@ table {
   table-layout: fixed;
 }
 
-/* SINGLE LINE EVERYWHERE */
+/* GENERAL CELL RULES */
 th, td {
   border: 1px solid #ddd;
   padding: 6px;
@@ -106,7 +105,7 @@ th, td {
   text-overflow: ellipsis;
 }
 
-/* HEADER STYLE */
+/* HEADER */
 th {
   background: #4a90e2;
   color: white;
@@ -114,21 +113,25 @@ th {
 }
 
 /* EAN */
-th:first-child, td:first-child {
+th:first-child,
+td:first-child {
   width: 140px;
 }
 
 /* SCANNED + REQUIRED */
-th:nth-child(2), td:nth-child(2),
-th:nth-child(3), td:nth-child(3) {
+th:nth-child(2),
+td:nth-child(2),
+th:nth-child(3),
+td:nth-child(3) {
   width: 120px;
   text-align: center;
 }
 
-/* PRODUCT NAME TRUNCATION */
-th:nth-child(4), td:nth-child(4) {
+/* PRODUCT NAME (FIXED WORKING VERSION) */
+th:nth-child(4),
+td:nth-child(4) {
   width: auto;
-  max-width: 0; /* forces ellipsis behavior in fixed tables */
+  min-width: 200px;
 }
 
 /* COLORS */
@@ -203,7 +206,7 @@ function cleanName(name) {
     .trim();
 }
 
-/* CSV */
+/* CSV LOAD */
 fetch(csvUrl)
 .then(r => r.text())
 .then(text => {
@@ -224,7 +227,7 @@ fetch(csvUrl)
   document.getElementById("generateBtn").disabled = false;
 });
 
-/* EXCEL */
+/* EXCEL LOAD */
 document.getElementById("excelFile").addEventListener("change", loadExcel);
 
 function loadExcel(e) {
@@ -348,4 +351,54 @@ function renderTable() {
   <table>
     <tr>
       <th>EAN</th>
-      <
+      <th>Scanned (${totalScanned})</th>
+      <th>Required (${totalRequired})</th>
+      <th>Product Name</th>
+    </tr>
+  `;
+
+  for (const r of requiredRows) {
+
+    let cls = "";
+
+    if (r.scanned === r.qty) cls = "ok";
+    else if (r.scanned > r.qty) cls = "bad";
+    else cls = "warn";
+
+    html += `
+      <tr class="${cls}">
+        <td>${r.ean}</td>
+        <td>${r.scanned}</td>
+        <td>${r.qty}</td>
+        <td>${r.productName}</td>
+      </tr>
+    `;
+  }
+
+  html += "</table>";
+
+  result.innerHTML = html;
+}
+
+/* ERRORS */
+function renderErrors(notFound, wrongItems) {
+
+  let html = "";
+
+  if (notFound.length) {
+    html += "<h3>❌ Not Found in Excel</h3>";
+    html += notFound.map(x => `<div class="errorItem">${x}</div>`).join("");
+  }
+
+  if (wrongItems.length) {
+    html += "<h3>⚠️ Wrong Item List</h3>";
+    html += wrongItems.map(x => `<div class="errorItem">${x}</div>`).join("");
+  }
+
+  errors.innerHTML = html;
+}
+
+</script>
+
+</body>
+</html>
