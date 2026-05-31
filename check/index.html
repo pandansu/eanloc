@@ -88,51 +88,47 @@ button {
 #generateBtn { flex: 1; background: #4a90e2; color: white; }
 #checkBtn { flex: 1; background: #ff9800; color: white; }
 
+/* ===== TABLE CORE ===== */
 table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 12px;
   font-size: 13px;
-
-  /* IMPORTANT: enables natural sizing */
-  table-layout: auto;
+  table-layout: fixed;
 }
 
+/* SINGLE LINE EVERYWHERE */
+th, td {
+  border: 1px solid #ddd;
+  padding: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* HEADER STYLE */
 th {
   background: #4a90e2;
   color: white;
-  padding: 6px;
-  text-align: left; /* FIX HEADER ALIGNMENT */
+  text-align: left;
 }
 
-td {
-  border: 1px solid #ddd;
-  padding: 5px;
-  white-space: nowrap;
+/* EAN */
+th:first-child, td:first-child {
+  width: 140px;
 }
 
-/* ===== COLUMN CONTROLS ===== */
-
-/* EAN = auto-fit (tight, not wide) */
-th:first-child,
-td:first-child {
-  width: 1%;
-  white-space: nowrap;
-}
-
-/* Scanned + Required = compact */
-th:nth-child(2),
-td:nth-child(2),
-th:nth-child(3),
-td:nth-child(3) {
-  width: 80px;
+/* SCANNED + REQUIRED */
+th:nth-child(2), td:nth-child(2),
+th:nth-child(3), td:nth-child(3) {
+  width: 120px;
   text-align: center;
 }
 
-/* Product name = takes remaining space */
-th:nth-child(4),
-td:nth-child(4) {
-  width: 100%;
+/* PRODUCT NAME TRUNCATION */
+th:nth-child(4), td:nth-child(4) {
+  width: auto;
+  max-width: 0; /* forces ellipsis behavior in fixed tables */
 }
 
 /* COLORS */
@@ -200,7 +196,6 @@ let nameIndex = {};
 let serialIndex = {};
 let requiredRows = [];
 
-/* CLEAN NAME */
 function cleanName(name) {
   return (name || "")
     .replace(/Uniform color/gi, "")
@@ -208,7 +203,7 @@ function cleanName(name) {
     .trim();
 }
 
-/* LOAD CSV */
+/* CSV */
 fetch(csvUrl)
 .then(r => r.text())
 .then(text => {
@@ -229,7 +224,7 @@ fetch(csvUrl)
   document.getElementById("generateBtn").disabled = false;
 });
 
-/* LOAD EXCEL */
+/* EXCEL */
 document.getElementById("excelFile").addEventListener("change", loadExcel);
 
 function loadExcel(e) {
@@ -292,7 +287,7 @@ function generate() {
   renderTable();
 }
 
-/* CHECK SERIALS */
+/* CHECK */
 function checkSerials() {
 
   for (const r of requiredRows) {
@@ -353,54 +348,4 @@ function renderTable() {
   <table>
     <tr>
       <th>EAN</th>
-      <th>Scanned (${totalScanned})</th>
-      <th>Required (${totalRequired})</th>
-      <th>Product Name</th>
-    </tr>
-  `;
-
-  for (const r of requiredRows) {
-
-    let cls = "";
-
-    if (r.scanned === r.qty) cls = "ok";
-    else if (r.scanned > r.qty) cls = "bad";
-    else cls = "warn";
-
-    html += `
-      <tr class="${cls}">
-        <td>${r.ean}</td>
-        <td>${r.scanned}</td>
-        <td>${r.qty}</td>
-        <td>${r.productName}</td>
-      </tr>
-    `;
-  }
-
-  html += "</table>";
-
-  result.innerHTML = html;
-}
-
-/* ERRORS */
-function renderErrors(notFound, wrongItems) {
-
-  let html = "";
-
-  if (notFound.length) {
-    html += "<h3>❌ Not Found in Excel</h3>";
-    html += notFound.map(x => `<div class="errorItem">${x}</div>`).join("");
-  }
-
-  if (wrongItems.length) {
-    html += "<h3>⚠️ Wrong Item List</h3>";
-    html += wrongItems.map(x => `<div class="errorItem">${x}</div>`).join("");
-  }
-
-  errors.innerHTML = html;
-}
-
-</script>
-
-</body>
-</html>
+      <
