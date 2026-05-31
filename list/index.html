@@ -25,12 +25,6 @@ body {
 
 h2 {
   text-align: center;
-  margin: 10px 0 15px;
-}
-
-/* INPUT */
-.textarea-wrap {
-  position: relative;
 }
 
 textarea {
@@ -44,24 +38,6 @@ textarea {
   box-sizing: border-box;
 }
 
-/* CLEAR BUTTON */
-.clear-x {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 34px;
-  height: 34px;
-  background: #d6d6d6;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  cursor: pointer;
-  user-select: none;
-}
-
-/* BUTTONS */
 .btn-row {
   display: flex;
   gap: 10px;
@@ -89,7 +65,6 @@ textarea {
   cursor: pointer;
 }
 
-/* TABLE */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -100,49 +75,22 @@ table {
 th {
   background: #4a90e2;
   color: white;
-  padding: 5px;
+  padding: 6px;
   text-align: left;
 }
 
 td {
   border: 1px solid #ddd;
-  padding: 4px 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  padding: 5px;
+  vertical-align: top;
 }
 
-/* COLUMN WIDTHS */
-td:nth-child(1), th:nth-child(1) { width: 110px; }
-td:nth-child(2), th:nth-child(2) { width: 50px; text-align: center; }
-td:nth-child(3), th:nth-child(3) { width: 28px; text-align: center; }
-td.loc { width: 140px; }
-td.name { width: 100%; }
+td.loc {
+  width: 220px;
+}
 
-/* PRINT */
-@media print {
-  body * { visibility: hidden; }
-
-  #result, #result * {
-    visibility: visible;
-  }
-
-  #result {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-  }
-
-  #result table tr:first-child {
-    display: none;
-  }
-
-  td {
-    padding: 2px 4px !important;
-    font-size: 11px !important;
-    line-height: 1.1 !important;
-  }
+td.name {
+  width: 100%;
 }
 </style>
 </head>
@@ -153,10 +101,7 @@ td.name { width: 100%; }
 
 <h2>Create Pick List</h2>
 
-<div class="textarea-wrap">
-  <textarea id="input" placeholder="Paste full EAN and quantity from Excel"></textarea>
-  <div class="clear-x" onclick="input.value=''">×</div>
-</div>
+<textarea id="input" placeholder="EAN + Qty (tab separated)"></textarea>
 
 <div class="btn-row">
   <button id="generateBtn" onclick="generate()">Generate</button>
@@ -190,12 +135,10 @@ function parseCSVLine(line) {
       current += c;
     }
   }
-
   result.push(current);
   return result;
 }
 
-/* ✅ CLEAN PRODUCT NAME */
 function cleanName(name) {
   return (name || "")
     .replace(/Uniform color/gi, "")
@@ -203,6 +146,7 @@ function cleanName(name) {
     .trim();
 }
 
+// LOAD CSV
 fetch(csvUrl)
 .then(r => r.text())
 .then(text => {
@@ -216,15 +160,16 @@ fetch(csvUrl)
 
     const sku = (cols[0] || '').trim();
     const loc = (cols[1] || '').trim();
+    const ean = (cols[4] || '').trim();
+    const name = cleanName(cols[5]);
 
+    // N1: store ALL locations per SKU
     if (sku && loc) {
       if (!index[sku]) index[sku] = [];
       index[sku].push(loc);
     }
 
-    const ean = (cols[4] || '').trim();
-    const name = cleanName(cols[5]);
-
+    // N2: product name by full EAN
     if (ean && name) {
       nameIndex[ean] = name;
     }
@@ -243,7 +188,6 @@ function generate() {
   if (!ready) return;
 
   const lines = input.value.trim().split(/\n/);
-
   let rows = [];
 
   for (const line of lines) {
@@ -254,24 +198,36 @@ function generate() {
     const ean = cols[0].trim();
     const qty = cols[1].trim();
 
+    // N1: match by last 4 digits
     const last4 = ean.slice(-4);
 
-    const locations = index[last4] || [];
-    const loc = locations.length ? locations[0] : "* NOT FOUND *";
+    let allLocations = [];
 
+    // collect ALL SKUs that match last4
+    for (const key in index) {
+      if (key.endsWith(last4)) {
+        allLocations = allLocations.concat(index[key]);
+      }
+    }
+
+    // remove duplicates
+    const loc = allLocations.length
+      ? [...new Set(allLocations)].sort(sortLocation).join(", ")
+      : "* NOT FOUND *";
+
+    // N2: full EAN name
     const productName = nameIndex[ean] || "—";
 
     rows.push({ ean, qty, loc, productName });
   }
 
-  rows.sort((a, b) => sortLocation(a.loc, b.loc));
+  rows.sort((a, b) => a.loc.localeCompare(b.loc));
 
   let html = `
   <table>
     <tr>
       <th>EAN</th>
       <th>Qty</th>
-      <th></th>
       <th>Location</th>
       <th>Product Name</th>
     </tr>
@@ -282,7 +238,6 @@ function generate() {
       <tr>
         <td>${r.ean}</td>
         <td>${r.qty}</td>
-        <td></td>
         <td class="loc">${r.loc}</td>
         <td class="name">${r.productName}</td>
       </tr>
