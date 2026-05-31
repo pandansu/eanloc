@@ -88,6 +88,28 @@ button {
 #generateBtn { flex: 1; background: #4a90e2; color: white; }
 #checkBtn { flex: 1; background: #ff9800; color: white; }
 
+/* TOP CONTROL ROW */
+.top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  gap: 10px;
+}
+
+.top-row input[type="file"] {
+  flex: 1;
+}
+
+.hide-box {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* TABLE */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -96,7 +118,6 @@ table {
   table-layout: fixed;
 }
 
-/* GENERAL CELL RULES */
 th, td {
   border: 1px solid #ddd;
   padding: 6px;
@@ -105,36 +126,19 @@ th, td {
   text-overflow: ellipsis;
 }
 
-/* HEADER */
 th {
   background: #4a90e2;
   color: white;
   text-align: left;
 }
 
-/* EAN */
-th:first-child,
-td:first-child {
-  width: 140px;
-}
-
-/* SCANNED + REQUIRED */
-th:nth-child(2),
-td:nth-child(2),
-th:nth-child(3),
-td:nth-child(3) {
+th:first-child, td:first-child { width: 140px; }
+th:nth-child(2), td:nth-child(2),
+th:nth-child(3), td:nth-child(3) {
   width: 120px;
   text-align: center;
 }
 
-/* PRODUCT NAME (FIXED WORKING VERSION) */
-th:nth-child(4),
-td:nth-child(4) {
-  width: auto;
-  min-width: 200px;
-}
-
-/* COLORS */
 .ok { background: #e8f7e8; }
 .warn { background: #fff4e5; }
 .bad { background: #ffe6e6; }
@@ -145,10 +149,13 @@ td:nth-child(4) {
   border-bottom: 1px solid #eee;
 }
 
+.hiddenRow {
+  display: none;
+}
+
 @media (max-width: 700px) {
-  .textarea-row {
-    flex-direction: column;
-  }
+  .textarea-row { flex-direction: column; }
+  .top-row { flex-direction: column; align-items: flex-start; }
 }
 </style>
 </head>
@@ -175,13 +182,18 @@ td:nth-child(4) {
 
 </div>
 
-<div style="margin-top:10px;">
-  <label><b>Upload Excel (Serials + Product Names)</b></label>
+<!-- TOP ROW (UPLOAD + CHECKBOX) -->
+<div class="top-row">
   <input type="file" id="excelFile" accept=".xlsx,.xls">
+
+  <label class="hide-box">
+    <input type="checkbox" id="hideDone" onchange="renderTable()">
+    Hide Done
+  </label>
 </div>
 
 <div class="btn-row">
-  <button id="generateBtn" onclick="generate()">Generate</button>
+  <button id="generateBtn" onclick="generate()">Generate List</button>
   <button id="checkBtn" onclick="checkSerials()">Check Serials</button>
 </div>
 
@@ -206,7 +218,7 @@ function cleanName(name) {
     .trim();
 }
 
-/* CSV LOAD */
+/* CSV */
 fetch(csvUrl)
 .then(r => r.text())
 .then(text => {
@@ -227,7 +239,7 @@ fetch(csvUrl)
   document.getElementById("generateBtn").disabled = false;
 });
 
-/* EXCEL LOAD */
+/* EXCEL */
 document.getElementById("excelFile").addEventListener("change", loadExcel);
 
 function loadExcel(e) {
@@ -252,12 +264,8 @@ function loadExcel(e) {
       const serial = String(rows[i][0] || "").trim();
       const product = cleanName(String(rows[i][7] || "").trim());
 
-      if (serial) {
-        serialIndex[serial] = product;
-      }
+      if (serial) serialIndex[serial] = product;
     }
-
-    localStorage.setItem("serialIndex", JSON.stringify(serialIndex));
   };
 
   reader.readAsArrayBuffer(file);
@@ -293,15 +301,10 @@ function generate() {
 /* CHECK */
 function checkSerials() {
 
-  for (const r of requiredRows) {
-    r.scanned = 0;
-  }
+  for (const r of requiredRows) r.scanned = 0;
 
   const list = serials.value.trim().split("\n");
   const used = new Set();
-
-  let notFound = [];
-  let wrongItems = [];
 
   for (const s of list) {
 
@@ -311,33 +314,23 @@ function checkSerials() {
     used.add(serial);
 
     const product = serialIndex[serial];
-
-    if (!product) {
-      notFound.push(serial);
-      continue;
-    }
-
-    let matched = false;
+    if (!product) continue;
 
     for (const r of requiredRows) {
       if (r.productName === product) {
         r.scanned++;
-        matched = true;
         break;
       }
-    }
-
-    if (!matched) {
-      wrongItems.push(serial + " → " + product);
     }
   }
 
   renderTable();
-  renderErrors(notFound, wrongItems);
 }
 
-/* TABLE */
+/* RENDER */
 function renderTable() {
+
+  const hideDone = document.getElementById("hideDone").checked;
 
   let totalScanned = 0;
   let totalRequired = 0;
@@ -360,45 +353,11 @@ function renderTable() {
   for (const r of requiredRows) {
 
     let cls = "";
-
     if (r.scanned === r.qty) cls = "ok";
     else if (r.scanned > r.qty) cls = "bad";
     else cls = "warn";
 
-    html += `
-      <tr class="${cls}">
-        <td>${r.ean}</td>
-        <td>${r.scanned}</td>
-        <td>${r.qty}</td>
-        <td>${r.productName}</td>
-      </tr>
-    `;
-  }
-
-  html += "</table>";
-
-  result.innerHTML = html;
-}
-
-/* ERRORS */
-function renderErrors(notFound, wrongItems) {
-
-  let html = "";
-
-  if (notFound.length) {
-    html += "<h3>❌ Not Found in Excel</h3>";
-    html += notFound.map(x => `<div class="errorItem">${x}</div>`).join("");
-  }
-
-  if (wrongItems.length) {
-    html += "<h3>⚠️ Wrong Item List</h3>";
-    html += wrongItems.map(x => `<div class="errorItem">${x}</div>`).join("");
-  }
-
-  errors.innerHTML = html;
-}
-
-</script>
-
-</body>
-</html>
+    if (hideDone && cls === "ok") {
+      html += `<tr class="hiddenRow"></tr>`;
+      continue;
+    }
