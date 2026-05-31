@@ -113,10 +113,6 @@ td {
 .warn { background: #fff4e5; }
 .bad { background: #ffe6e6; }
 
-.errorBox {
-  margin-top: 15px;
-}
-
 .errorItem {
   font-size: 13px;
   padding: 3px 0;
@@ -175,11 +171,9 @@ const csvUrl =
 "https://docs.google.com/spreadsheets/d/e/2PACX-1vQQa-6Tub9Q1Hgn5ecCBkB9HpvAaTy8I0u5L_F0xSMML6FRQVqmijau8XdnWLCHVn8dsXBhrxIxu0eR/pub?gid=0&single=true&output=csv";
 
 let nameIndex = {};
-let ready = false;
-
 let serialIndex = {};
 let requiredRows = [];
-let usedSerials = new Set();
+let ready = false;
 
 function cleanName(name) {
   return (name || "")
@@ -234,7 +228,7 @@ function loadExcel(e) {
     for (let i = 1; i < rows.length; i++) {
 
       const serial = String(rows[i][0] || "").trim(); // Col A
-      const product = cleanName(String(rows[i][7] || "")); // Col H
+      const product = cleanName(String(rows[i][7] || "").trim()); // Col H
 
       if (serial) {
         serialIndex[serial] = product;
@@ -277,11 +271,11 @@ function generate() {
 /* CHECK SERIALS */
 function checkSerials() {
 
-  usedSerials = new Set();
+  const list = serials.value.trim().split("\n");
+  let usedSerials = new Set();
+
   let notFound = [];
   let wrongItems = [];
-
-  const list = serials.value.trim().split("\n");
 
   for (const s of list) {
 
