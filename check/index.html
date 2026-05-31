@@ -227,8 +227,8 @@ function loadExcel(e) {
 
     for (let i = 1; i < rows.length; i++) {
 
-      const serial = String(rows[i][0] || "").trim(); // Col A
-      const product = cleanName(String(rows[i][7] || "").trim()); // Col H
+      const serial = String(rows[i][0] || "").trim(); // Column A
+      const product = cleanName(String(rows[i][7] || "").trim()); // Column H
 
       if (serial) {
         serialIndex[serial] = product;
@@ -268,14 +268,19 @@ function generate() {
   renderTable();
 }
 
-/* CHECK SERIALS */
+/* CHECK SERIALS (FULL RESET EACH RUN) */
 function checkSerials() {
 
-  const list = serials.value.trim().split("\n");
-  let usedSerials = new Set();
+  // reset scan state completely
+  for (const r of requiredRows) {
+    r.scanned = 0;
+  }
 
+  let usedSerials = new Set();
   let notFound = [];
   let wrongItems = [];
+
+  const list = serials.value.trim().split("\n");
 
   for (const s of list) {
 
@@ -296,7 +301,7 @@ function checkSerials() {
     for (const r of requiredRows) {
 
       if (r.productName === product) {
-        r.scanned++;
+        r.scanned = r.scanned + 1;
         matched = true;
         break;
       }
