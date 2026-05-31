@@ -287,7 +287,12 @@ let html = `
     <th>EAN</th>
     <th>Qty</th>
     <th>Location</th>
-    <th>Product Name &nbsp;&nbsp; Total ${totalQty} items</th>
+    <th>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span>Product Name</span>
+        <span>Total ${totalQty} items</span>
+      </div>
+    </th>
   </tr>
 `;
 
