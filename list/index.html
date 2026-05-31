@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>EAN Pick List</title>
+<title>Create Pick List</title>
 
 <style>
 body {
@@ -28,7 +28,6 @@ h2 {
   margin: 10px 0 15px;
 }
 
-/* INPUT */
 .textarea-wrap {
   position: relative;
 }
@@ -44,7 +43,6 @@ textarea {
   box-sizing: border-box;
 }
 
-/* CLEAR BUTTON */
 .clear-x {
   position: absolute;
   top: 10px;
@@ -61,7 +59,6 @@ textarea {
   user-select: none;
 }
 
-/* BUTTONS */
 .btn-row {
   display: flex;
   gap: 10px;
@@ -89,7 +86,6 @@ textarea {
   cursor: pointer;
 }
 
-/* TABLE */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -112,14 +108,12 @@ td {
   text-overflow: ellipsis;
 }
 
-/* COLUMN WIDTHS */
 td:nth-child(1), th:nth-child(1) { width: 110px; }
 td:nth-child(2), th:nth-child(2) { width: 50px; text-align: center; }
 td:nth-child(3), th:nth-child(3) { width: 28px; text-align: center; }
 td.loc { width: 140px; }
 td.name { width: 100%; }
 
-/* PRINT */
 @media print {
   body * { visibility: hidden; }
 
@@ -137,7 +131,7 @@ td.name { width: 100%; }
   #result table tr:first-child {
     display: none;
   }
-
+S
   td {
     padding: 2px 4px !important;
     font-size: 11px !important;
@@ -151,7 +145,7 @@ td.name { width: 100%; }
 
 <div class="card">
 
-<h2>EAN Pick List</h2>
+<h2>Create Pick List</h2>
 
 <div class="textarea-wrap">
   <textarea id="input" placeholder="Paste full EAN and quantity from Excel"></textarea>
@@ -195,12 +189,28 @@ function parseCSVLine(line) {
   return result;
 }
 
-/* ✅ CLEAN PRODUCT NAME */
 function cleanName(name) {
   return (name || "")
     .replace(/Uniform color/gi, "")
     .replace(/\s{2,}/g, " ")
     .trim();
+}
+
+/* Convert Excel scientific notation to normal digits */
+function normalizeEAN(value) {
+  value = (value || "").trim();
+
+  if (/e[+-]/i.test(value)) {
+    const num = Number(value);
+
+    if (!isNaN(num)) {
+      return num.toLocaleString('fullwide', {
+        useGrouping: false
+      });
+    }
+  }
+
+  return value;
 }
 
 fetch(csvUrl)
@@ -222,7 +232,7 @@ fetch(csvUrl)
       index[sku].push(loc);
     }
 
-    const ean = (cols[4] || '').trim();
+    const ean = normalizeEAN(cols[4]);
     const name = cleanName(cols[5]);
 
     if (ean && name) {
@@ -235,7 +245,11 @@ fetch(csvUrl)
 });
 
 function sortLocation(a, b) {
-  return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+  return a.localeCompare(
+    b,
+    undefined,
+    { numeric: true, sensitivity: "base" }
+  );
 }
 
 function generate() {
@@ -251,20 +265,30 @@ function generate() {
     const cols = line.split(/\t+/);
     if (cols.length < 2) continue;
 
-    const ean = cols[0].trim();
+    const ean = normalizeEAN(cols[0]);
     const qty = cols[1].trim();
 
     const last4 = ean.slice(-4);
 
     const locations = index[last4] || [];
-    const loc = locations.length ? locations[0] : "* NOT FOUND *";
+    const loc = locations.length
+      ? locations[0]
+      : "* NOT FOUND *";
 
-    const productName = nameIndex[ean] || "—";
+    const productName =
+      nameIndex[ean] || "—";
 
-    rows.push({ ean, qty, loc, productName });
+    rows.push({
+      ean,
+      qty,
+      loc,
+      productName
+    });
   }
 
-  rows.sort((a, b) => sortLocation(a.loc, b.loc));
+  rows.sort((a, b) =>
+    sortLocation(a.loc, b.loc)
+  );
 
   let html = `
   <table>
