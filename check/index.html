@@ -85,19 +85,8 @@ button {
   cursor: pointer;
 }
 
-#generateBtn {
-  flex: 1;
-  background: #4a90e2;
-  color: white;
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-#checkBtn {
-  flex: 1;
-  background: #ff9800;
-  color: white;
-}
+#generateBtn { flex: 1; background: #4a90e2; color: white; }
+#checkBtn { flex: 1; background: #ff9800; color: white; }
 
 table {
   width: 100%;
@@ -166,7 +155,7 @@ td {
 </div>
 
 <div class="btn-row">
-  <button id="generateBtn" onclick="generate()" disabled>Generate</button>
+  <button id="generateBtn" onclick="generate()">Generate</button>
   <button id="checkBtn" onclick="checkSerials()">Check Serials</button>
 </div>
 
@@ -185,7 +174,15 @@ let nameIndex = {};
 let serialIndex = {};
 let requiredRows = [];
 
-/* CLEAN PRODUCT NAME */
+/* =========================
+   PERSISTENT DATA RESTORE
+   ========================= */
+const saved = localStorage.getItem("serialIndex");
+if (saved) {
+  serialIndex = JSON.parse(saved);
+}
+
+/* CLEAN NAME */
 function cleanName(name) {
   return (name || "")
     .replace(/Uniform color/gi, "")
@@ -193,7 +190,7 @@ function cleanName(name) {
     .trim();
 }
 
-/* LOAD CSV (ENABLE GENERATE ONLY HERE) */
+/* LOAD CSV */
 fetch(csvUrl)
 .then(r => r.text())
 .then(text => {
@@ -212,11 +209,7 @@ fetch(csvUrl)
     }
   }
 
-  // ENABLE GENERATE ONLY AFTER CSV LOADS
-  const btn = document.getElementById("generateBtn");
-  btn.disabled = false;
-  btn.style.opacity = "1";
-  btn.style.cursor = "pointer";
+  document.getElementById("generateBtn").disabled = false;
 });
 
 /* LOAD EXCEL */
@@ -241,14 +234,15 @@ function loadExcel(e) {
 
     for (let i = 1; i < rows.length; i++) {
 
-      const serial = String(rows[i][0] || "").trim();
-      const product = cleanName(String(rows[i][7] || "").trim());
+      const serial = String(rows[i][0] || "").trim();   // Col A
+      const product = cleanName(String(rows[i][7] || "").trim()); // Col H
 
       if (serial) {
         serialIndex[serial] = product;
       }
     }
 
+    /* SAVE FOR PERSISTENCE */
     localStorage.setItem("serialIndex", JSON.stringify(serialIndex));
   };
 
