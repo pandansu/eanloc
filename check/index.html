@@ -85,8 +85,19 @@ button {
   cursor: pointer;
 }
 
-#generateBtn { flex: 1; background: #4a90e2; color: white; }
-#checkBtn { flex: 1; background: #ff9800; color: white; opacity: 0.5; cursor: not-allowed; }
+#generateBtn {
+  flex: 1;
+  background: #4a90e2;
+  color: white;
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+#checkBtn {
+  flex: 1;
+  background: #ff9800;
+  color: white;
+}
 
 table {
   width: 100%;
@@ -166,7 +177,7 @@ td {
 
 <script>
 
-/* DATA */
+/* CSV SOURCE */
 const csvUrl =
 "https://docs.google.com/spreadsheets/d/e/2PACX-1vQQa-6Tub9Q1Hgn5ecCBkB9HpvAaTy8I0u5L_F0xSMML6FRQVqmijau8XdnWLCHVn8dsXBhrxIxu0eR/pub?gid=0&single=true&output=csv";
 
@@ -174,16 +185,7 @@ let nameIndex = {};
 let serialIndex = {};
 let requiredRows = [];
 
-/* RESTORE FROM LOCAL STORAGE */
-const savedExcel = localStorage.getItem("serialIndex");
-if (savedExcel) {
-  serialIndex = JSON.parse(savedExcel);
-  document.getElementById("generateBtn").disabled = false;
-  document.getElementById("generateBtn").style.opacity = "1";
-  document.getElementById("generateBtn").style.cursor = "pointer";
-}
-
-/* CLEAN NAME */
+/* CLEAN PRODUCT NAME */
 function cleanName(name) {
   return (name || "")
     .replace(/Uniform color/gi, "")
@@ -191,7 +193,7 @@ function cleanName(name) {
     .trim();
 }
 
-/* LOAD CSV */
+/* LOAD CSV (ENABLE GENERATE ONLY HERE) */
 fetch(csvUrl)
 .then(r => r.text())
 .then(text => {
@@ -210,10 +212,11 @@ fetch(csvUrl)
     }
   }
 
-  /* enable generate AFTER CSV loads */
-  document.getElementById("generateBtn").disabled = false;
-  document.getElementById("generateBtn").style.opacity = "1";
-  document.getElementById("generateBtn").style.cursor = "pointer";
+  // ENABLE GENERATE ONLY AFTER CSV LOADS
+  const btn = document.getElementById("generateBtn");
+  btn.disabled = false;
+  btn.style.opacity = "1";
+  btn.style.cursor = "pointer";
 });
 
 /* LOAD EXCEL */
@@ -247,11 +250,6 @@ function loadExcel(e) {
     }
 
     localStorage.setItem("serialIndex", JSON.stringify(serialIndex));
-
-    // enable generate button after excel upload too
-    document.getElementById("generateBtn").disabled = false;
-    document.getElementById("generateBtn").style.opacity = "1";
-    document.getElementById("generateBtn").style.cursor = "pointer";
   };
 
   reader.readAsArrayBuffer(file);
