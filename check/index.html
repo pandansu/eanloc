@@ -86,8 +86,7 @@ button {
 }
 
 #generateBtn { flex: 1; background: #4a90e2; color: white; }
-#checkBtn { flex: 1; background: #ff9800; color: white; }
-#printBtn { flex: 0.4; background: #2ecc71; color: white; display: none; }
+#checkBtn { flex: 1; background: #ff9800; color: white; opacity: 0.5; cursor: not-allowed; }
 
 table {
   width: 100%;
@@ -110,9 +109,9 @@ td {
 }
 
 /* COLORS */
-.ok { background: #e8f7e8; }     /* green = finished */
-.warn { background: #fff4e5; }   /* orange = unfinished */
-.bad { background: #ffe6e6; }    /* red = overpicked */
+.ok { background: #e8f7e8; }
+.warn { background: #fff4e5; }
+.bad { background: #ffe6e6; }
 
 .errorItem {
   font-size: 13px;
@@ -156,9 +155,8 @@ td {
 </div>
 
 <div class="btn-row">
-  <button id="generateBtn" onclick="generate()">Generate</button>
+  <button id="generateBtn" onclick="generate()" disabled>Generate</button>
   <button id="checkBtn" onclick="checkSerials()">Check Serials</button>
-  <button id="printBtn" onclick="window.print()">Print</button>
 </div>
 
 <div id="result"></div>
@@ -168,22 +166,24 @@ td {
 
 <script>
 
-/* REQUIRED DATA SOURCE */
+/* DATA */
 const csvUrl =
 "https://docs.google.com/spreadsheets/d/e/2PACX-1vQQa-6Tub9Q1Hgn5ecCBkB9HpvAaTy8I0u5L_F0xSMML6FRQVqmijau8XdnWLCHVn8dsXBhrxIxu0eR/pub?gid=0&single=true&output=csv";
 
 let nameIndex = {};
 let serialIndex = {};
 let requiredRows = [];
-let ready = false;
 
-/* RESTORE EXCEL FROM LOCALSTORAGE ON LOAD */
+/* RESTORE FROM LOCAL STORAGE */
 const savedExcel = localStorage.getItem("serialIndex");
 if (savedExcel) {
   serialIndex = JSON.parse(savedExcel);
+  document.getElementById("generateBtn").disabled = false;
+  document.getElementById("generateBtn").style.opacity = "1";
+  document.getElementById("generateBtn").style.cursor = "pointer";
 }
 
-/* CLEAN PRODUCT NAME */
+/* CLEAN NAME */
 function cleanName(name) {
   return (name || "")
     .replace(/Uniform color/gi, "")
@@ -191,7 +191,7 @@ function cleanName(name) {
     .trim();
 }
 
-/* LOAD REQUIRED DATA */
+/* LOAD CSV */
 fetch(csvUrl)
 .then(r => r.text())
 .then(text => {
@@ -210,11 +210,13 @@ fetch(csvUrl)
     }
   }
 
-  ready = true;
-  result.innerHTML = "<b>Ready ✔</b>";
+  /* enable generate AFTER CSV loads */
+  document.getElementById("generateBtn").disabled = false;
+  document.getElementById("generateBtn").style.opacity = "1";
+  document.getElementById("generateBtn").style.cursor = "pointer";
 });
 
-/* LOAD EXCEL FILE */
+/* LOAD EXCEL */
 document.getElementById("excelFile").addEventListener("change", loadExcel);
 
 function loadExcel(e) {
@@ -236,24 +238,26 @@ function loadExcel(e) {
 
     for (let i = 1; i < rows.length; i++) {
 
-      const serial = String(rows[i][0] || "").trim(); // Column A
-      const product = cleanName(String(rows[i][7] || "").trim()); // Column H
+      const serial = String(rows[i][0] || "").trim();
+      const product = cleanName(String(rows[i][7] || "").trim());
 
       if (serial) {
         serialIndex[serial] = product;
       }
     }
 
-    /* SAVE TO LOCALSTORAGE (OVERWRITE EACH TIME) */
     localStorage.setItem("serialIndex", JSON.stringify(serialIndex));
 
-    alert("Loaded " + Object.keys(serialIndex).length + " serials");
+    // enable generate button after excel upload too
+    document.getElementById("generateBtn").disabled = false;
+    document.getElementById("generateBtn").style.opacity = "1";
+    document.getElementById("generateBtn").style.cursor = "pointer";
   };
 
   reader.readAsArrayBuffer(file);
 }
 
-/* GENERATE TABLE */
+/* GENERATE */
 function generate() {
 
   const lines = input.value.trim().split("\n");
@@ -280,7 +284,7 @@ function generate() {
   renderTable();
 }
 
-/* CHECK SERIALS (FULL RESET EACH RUN) */
+/* CHECK SERIALS */
 function checkSerials() {
 
   for (const r of requiredRows) {
@@ -288,7 +292,7 @@ function checkSerials() {
   }
 
   const list = serials.value.trim().split("\n");
-  let usedSerials = new Set();
+  const usedSerials = new Set();
 
   let notFound = [];
   let wrongItems = [];
@@ -310,7 +314,6 @@ function checkSerials() {
     let matched = false;
 
     for (const r of requiredRows) {
-
       if (r.productName === product) {
         r.scanned++;
         matched = true;
@@ -327,7 +330,7 @@ function checkSerials() {
   renderErrors(notFound, wrongItems);
 }
 
-/* RENDER TABLE */
+/* TABLE */
 function renderTable() {
 
   let html = `
@@ -344,15 +347,9 @@ function renderTable() {
 
     let cls = "";
 
-    if (r.scanned === r.qty) {
-      cls = "ok";
-    } 
-    else if (r.scanned > r.qty) {
-      cls = "bad";
-    } 
-    else {
-      cls = "warn";
-    }
+    if (r.scanned === r.qty) cls = "ok";
+    else if (r.scanned > r.qty) cls = "bad";
+    else cls = "warn";
 
     html += `
       <tr class="${cls}">
@@ -367,10 +364,9 @@ function renderTable() {
   html += "</table>";
 
   result.innerHTML = html;
-  printBtn.style.display = "block";
 }
 
-/* ERROR DISPLAY */
+/* ERRORS */
 function renderErrors(notFound, wrongItems) {
 
   let html = "";
