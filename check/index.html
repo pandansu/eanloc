@@ -109,9 +109,10 @@ td {
   white-space: nowrap;
 }
 
-.ok { background: #e8f7e8; }
-.warn { background: #fff4e5; }
-.bad { background: #ffe6e6; }
+/* COLOURS */
+.ok { background: #e8f7e8; }     /* green = finished */
+.warn { background: #fff4e5; }   /* orange = unfinished */
+.bad { background: #ffe6e6; }    /* red = overpicked */
 
 .errorItem {
   font-size: 13px;
@@ -268,19 +269,19 @@ function generate() {
   renderTable();
 }
 
-/* CHECK SERIALS (FULL RESET EACH RUN) */
+/* CHECK SERIALS */
 function checkSerials() {
 
-  // reset scan state completely
-  for (const r of requiredRows) {
-    r.scanned = 0;
-  }
-
+  const list = serials.value.trim().split("\n");
   let usedSerials = new Set();
+
   let notFound = [];
   let wrongItems = [];
 
-  const list = serials.value.trim().split("\n");
+  // RESET EACH RUN
+  for (const r of requiredRows) {
+    r.scanned = 0;
+  }
 
   for (const s of list) {
 
@@ -301,7 +302,7 @@ function checkSerials() {
     for (const r of requiredRows) {
 
       if (r.productName === product) {
-        r.scanned = r.scanned + 1;
+        r.scanned++;
         matched = true;
         break;
       }
@@ -332,9 +333,16 @@ function renderTable() {
   for (const r of requiredRows) {
 
     let cls = "";
-    if (r.scanned === r.qty) cls = "ok";
-    else if (r.scanned > r.qty) cls = "warn";
-    else cls = "bad";
+
+    if (r.scanned === r.qty) {
+      cls = "ok";      // green = finished
+    } 
+    else if (r.scanned > r.qty) {
+      cls = "bad";     // red = overpicked
+    } 
+    else {
+      cls = "warn";    // orange = unfinished
+    }
 
     html += `
       <tr class="${cls}">
