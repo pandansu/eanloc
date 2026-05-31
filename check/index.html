@@ -88,31 +88,6 @@ button {
 #generateBtn { flex: 1; background: #4a90e2; color: white; }
 #checkBtn { flex: 1; background: #ff9800; color: white; }
 
-/* TOP ROW */
-.top-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 10px;
-  gap: 10px;
-}
-
-.upload-box {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.hide-box {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  white-space: nowrap;
-}
-
-/* TABLE */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -135,7 +110,7 @@ th {
   text-align: left;
 }
 
-/* COLUMN WIDTHS */
+/* columns */
 th:first-child, td:first-child { width: 140px; }
 th:nth-child(2), td:nth-child(2),
 th:nth-child(3), td:nth-child(3) {
@@ -143,18 +118,16 @@ th:nth-child(3), td:nth-child(3) {
   text-align: center;
 }
 
-/* PRODUCT NAME */
+/* product name */
 th:nth-child(4), td:nth-child(4) {
   width: auto;
   min-width: 200px;
 }
 
-/* COLORS */
+/* colors */
 .ok { background: #e8f7e8; }
 .warn { background: #fff4e5; }
 .bad { background: #ffe6e6; }
-
-.hiddenRow { display: none; }
 
 .errorItem {
   font-size: 13px;
@@ -164,7 +137,6 @@ th:nth-child(4), td:nth-child(4) {
 
 @media (max-width: 700px) {
   .textarea-row { flex-direction: column; }
-  .top-row { flex-direction: column; align-items: flex-start; }
 }
 </style>
 </head>
@@ -191,19 +163,9 @@ th:nth-child(4), td:nth-child(4) {
 
 </div>
 
-<!-- UPLOAD + CHECKBOX -->
-<div class="top-row">
-
-  <div class="upload-box">
-    <label><b>Upload Excel (Serials + Product Names)</b></label>
-    <input type="file" id="excelFile" accept=".xlsx,.xls">
-  </div>
-
-  <label class="hide-box">
-    <input type="checkbox" id="hideDone" onchange="renderTable()">
-    Hide Done
-  </label>
-
+<div style="margin-top:10px;">
+  <label><b>Upload Excel (Serials + Product Names)</b></label>
+  <input type="file" id="excelFile" accept=".xlsx,.xls">
 </div>
 
 <div class="btn-row">
@@ -232,7 +194,7 @@ function cleanName(name) {
     .trim();
 }
 
-/* CSV */
+/* LOAD CSV */
 fetch(csvUrl)
 .then(r => r.text())
 .then(text => {
@@ -251,10 +213,8 @@ fetch(csvUrl)
   document.getElementById("generateBtn").disabled = false;
 });
 
-/* EXCEL */
-document.getElementById("excelFile").addEventListener("change", loadExcel);
-
-function loadExcel(e) {
+/* LOAD EXCEL */
+document.getElementById("excelFile").addEventListener("change", function (e) {
 
   const file = e.target.files[0];
   if (!file) return;
@@ -272,14 +232,16 @@ function loadExcel(e) {
     serialIndex = {};
 
     for (let i = 1; i < rows.length; i++) {
+
       const serial = String(rows[i][0] || "").trim();
       const product = cleanName(String(rows[i][7] || "").trim());
+
       if (serial) serialIndex[serial] = product;
     }
   };
 
   reader.readAsArrayBuffer(file);
-}
+});
 
 /* GENERATE */
 function generate() {
@@ -314,6 +276,9 @@ function checkSerials() {
   const list = serials.value.trim().split("\n");
   const used = new Set();
 
+  let notFound = [];
+  let wrongItems = [];
+
   for (const s of list) {
 
     const serial = s.trim();
@@ -322,23 +287,33 @@ function checkSerials() {
     used.add(serial);
 
     const product = serialIndex[serial];
-    if (!product) continue;
+
+    if (!product) {
+      notFound.push(serial);
+      continue;
+    }
+
+    let matched = false;
 
     for (const r of requiredRows) {
       if (r.productName === product) {
         r.scanned++;
+        matched = true;
         break;
       }
+    }
+
+    if (!matched) {
+      wrongItems.push(serial + " → " + product);
     }
   }
 
   renderTable();
+  renderErrors(notFound, wrongItems);
 }
 
-/* RENDER */
+/* TABLE */
 function renderTable() {
-
-  const hideDone = document.getElementById("hideDone").checked;
 
   let totalScanned = 0;
   let totalRequired = 0;
@@ -360,14 +335,10 @@ function renderTable() {
 
   for (const r of requiredRows) {
 
-    let cls = r.scanned === r.qty ? "ok"
-             : r.scanned > r.qty ? "bad"
-             : "warn";
-
-    if (hideDone && cls === "ok") {
-      html += `<tr class="hiddenRow"></tr>`;
-      continue;
-    }
+    let cls = "";
+    if (r.scanned === r.qty) cls = "ok";
+    else if (r.scanned > r.qty) cls = "bad";
+    else cls = "warn";
 
     html += `
       <tr class="${cls}">
@@ -381,6 +352,24 @@ function renderTable() {
 
   html += "</table>";
   result.innerHTML = html;
+}
+
+/* ERRORS */
+function renderErrors(notFound, wrongItems) {
+
+  let html = "";
+
+  if (notFound.length) {
+    html += "<h3>❌ Not Found in Excel</h3>";
+    html += notFound.map(x => `<div class="errorItem">${x}</div>`).join("");
+  }
+
+  if (wrongItems.length) {
+    html += "<h3>⚠️ Wrong Item List</h3>";
+    html += wrongItems.map(x => `<div class="errorItem">${x}</div>`).join("");
+  }
+
+  errors.innerHTML = html;
 }
 
 </script>
