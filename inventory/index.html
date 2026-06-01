@@ -80,7 +80,7 @@
 <div class="panel">
 
     <div class="subpanel">
-        <h2>Lookup Stock (Column D → Column G)</h2>
+        <h2>Lookup Stock</h2>
 
         <input type="file" id="lookupFile" accept=".xlsx,.xls">
         <input type="text" id="searchKeyStock" maxlength="4" placeholder="Last 4 digits">
@@ -179,6 +179,14 @@ document.getElementById('searchBtnStock').onclick = () => {
     document.getElementById('lookupResultStock').innerHTML =
         v ? `<span class="success">${v}</span>` : `<span class="error">Not found</span>`;
 };
+
+// Allow Enter key to trigger search
+document.getElementById('searchKeyStock').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        document.getElementById('searchBtnStock').click();
+    }
+});
+
 
 /* ================= DELIVERY PIVOT ================= */
 
