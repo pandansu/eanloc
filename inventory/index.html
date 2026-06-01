@@ -33,6 +33,328 @@
         border-right: none;
     }
 
+    /* LEFT SPLIT PANELS */
+    .subpanel {
+        margin-bottom: 20px;
+        padding-bottom: 20px;
+        border-bottom: 2px solid #eee;
+    }
+
+    h2 { margin-top: 0; }
+
+    input, button {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 10px;
+        font-size: 14px;
+    }
+
+    button {
+        background: #0078d4;
+        color: white;
+        border: none;
+        cursor: pointer;
+    }
+
+    button:hover {
+        background: #005ea6;
+    }
+
+    .box {
+        padding: 12px;
+        background: #fafafa;
+        border: 1px solid #ddd;
+        min-height: 60px;
+    }
+
+    .success { color: green; font-weight: bold; }
+    .error { color: red; }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<!-- ================= LEFT PANEL (SPLIT) ================= -->
+<div class="panel">
+
+    <!-- ===== TOP: STOCK LOOKUP ===== -->
+    <div class="subpanel">
+        <h2>Lookup Stock (Column D → Column G)</h2>
+
+        <input type="file" id="lookupFile" accept=".xlsx,.xls">
+
+        <input type="text" id="searchKeyStock" maxlength="4" placeholder="Last 4 digits">
+
+        <button id="searchBtnStock">Search Stock</button>
+
+        <div class="box" id="lookupResultStock">No file loaded</div>
+    </div>
+
+    <!-- ===== BOTTOM: DELIVERY LOOKUP ===== -->
+    <div class="subpanel">
+        <h2>Lookup Delivery (Column D → Column G)</h2>
+
+        <input type="text" id="searchKeyDelivery" maxlength="4" placeholder="Last 4 digits">
+
+        <button id="searchBtnDelivery">Search Delivery</button>
+
+        <div class="box" id="lookupResultDelivery">No file loaded</div>
+    </div>
+
+</div>
+
+<!-- ================= MIDDLE PANEL ================= -->
+<div class="panel">
+    <h2>Sales Inventory</h2>
+
+    <input type="file" id="inventoryFile" accept=".xlsx,.xls">
+
+    <button id="processBtn">Update Column J</button>
+
+    <div class="box" id="randomOutput">No file processed yet</div>
+</div>
+
+<!-- ================= RIGHT PANEL ================= -->
+<div class="panel">
+    <h2>Finance Inventory</h2>
+
+    <input type="file" id="financeFile" accept=".xlsx,.xls">
+
+    <button id="financeProcessBtn">Update Column J</button>
+
+    <div class="box" id="financeRandomOutput">No file processed yet</div>
+</div>
+
+</div>
+
+<script>
+
+/* ================= LOOKUP MAP ================= */
+
+let last4Map = {};
+let fullMap = {};
+
+/* ================= SHEETS ================= */
+
+let salesSheet = null;
+let financeSheet = null;
+
+/* ================= LOAD LOOKUP FILE (shared) ================= */
+
+document.getElementById('lookupFile')
+.addEventListener('change', async (e) => {
+
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, {
+        header: 1,
+        defval: ''
+    });
+
+    last4Map = {};
+    fullMap = {};
+
+    rows.forEach(r => {
+
+        const colD = String(r[3] || '').trim();
+        const colG = r[6];
+
+        if (!colD) return;
+
+        fullMap[colD] = colG;
+        last4Map[colD.slice(-4)] = colG;
+    });
+
+    document.getElementById('lookupResultStock').innerHTML =
+        `Loaded ${Object.keys(fullMap).length} records`;
+
+    document.getElementById('lookupResultDelivery').innerHTML =
+        `Loaded ${Object.keys(fullMap).length} records`;
+});
+
+/* ================= STOCK SEARCH ================= */
+
+document.getElementById('searchBtnStock').onclick = () => {
+
+    const k = document.getElementById('searchKeyStock').value.trim();
+
+    if (!/^\d{4}$/.test(k)) {
+        document.getElementById('lookupResultStock').innerHTML =
+            '<span class="error">Enter 4 digits</span>';
+        return;
+    }
+
+    const v = last4Map[k];
+
+    document.getElementById('lookupResultStock').innerHTML =
+        v ? `<span class="success">${v}</span>`
+          : `<span class="error">Not found</span>`;
+};
+
+/* ================= DELIVERY SEARCH ================= */
+
+document.getElementById('searchBtnDelivery').onclick = () => {
+
+    const k = document.getElementById('searchKeyDelivery').value.trim();
+
+    if (!/^\d{4}$/.test(k)) {
+        document.getElementById('lookupResultDelivery').innerHTML =
+            '<span class="error">Enter 4 digits</span>';
+        return;
+    }
+
+    const v = last4Map[k];
+
+    document.getElementById('lookupResultDelivery').innerHTML =
+        v ? `<span class="success">${v}</span>`
+          : `<span class="error">Not found</span>`;
+};
+
+/* ================= RANDOM FUNCTION ================= */
+
+function getRandomNonZeroItems(sheet, colA, colV, count = 10) {
+
+    const range = XLSX.utils.decode_range(sheet['!ref']);
+    const results = [];
+
+    for (let r = 1; r <= range.e.r; r++) {
+
+        const aCell = XLSX.utils.encode_cell({ r, c: colA });
+        const vCell = XLSX.utils.encode_cell({ r, c: colV });
+
+        const key = sheet[aCell]?.v ? String(sheet[aCell].v).trim() : '';
+        const value = Number(sheet[vCell]?.v ?? 0);
+
+        if (!key) continue;
+        if (value === 0) continue;
+
+        results.push({ A: key, V: value });
+    }
+
+    for (let i = results.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [results[i], results[j]] = [results[j], results[i]];
+    }
+
+    return results.slice(0, count);
+}
+
+/* ================= SALES ================= */
+
+document.getElementById('processBtn')
+.addEventListener('click', async () => {
+
+    const file = document.getElementById('inventoryFile').files[0];
+    if (!file) return;
+
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+
+    const sheetName = wb.SheetNames[wb.SheetNames.length - 1];
+    const sheet = wb.Sheets[sheetName];
+
+    salesSheet = sheet;
+
+    const range = XLSX.utils.decode_range(sheet['!ref']);
+
+    for (let r = 1; r <= range.e.r; r++) {
+
+        const aCell = XLSX.utils.encode_cell({ r, c: 0 });
+        const jCell = XLSX.utils.encode_cell({ r, c: 9 });
+
+        const key = sheet[aCell]?.v ? String(sheet[aCell].v).trim() : '';
+        if (!key) break;
+
+        sheet[jCell] = { t: 'n', v: fullMap[key] ?? 0 };
+    }
+
+    XLSX.writeFile(wb, "SalesUpd.xlsx");
+
+    const items = getRandomNonZeroItems(sheet, 0, 9, 10);
+
+    document.getElementById('randomOutput').innerHTML =
+        items.map(i => `${i.A} → ${i.V}`).join('<br>');
+});
+
+/* ================= FINANCE ================= */
+
+document.getElementById('financeProcessBtn')
+.addEventListener('click', async () => {
+
+    const file = document.getElementById('financeFile').files[0];
+    if (!file) return;
+
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+
+    const sheetName = wb.SheetNames[wb.SheetNames.length - 1];
+    const sheet = wb.Sheets[sheetName];
+
+    financeSheet = sheet;
+
+    const range = XLSX.utils.decode_range(sheet['!ref']);
+
+    for (let r = 1; r <= range.e.r; r++) {
+
+        const bCell = XLSX.utils.encode_cell({ r, c: 1 });
+        const iCell = XLSX.utils.encode_cell({ r, c: 8 });
+
+        const key = sheet[bCell]?.v ? String(sheet[bCell].v).trim() : '';
+        if (!key) break;
+
+        sheet[iCell] = { t: 'n', v: fullMap[key] ?? 0 };
+    }
+
+    XLSX.writeFile(wb, "FinanceUpd.xlsx");
+
+    const items = getRandomNonZeroItems(sheet, 1, 8, 10);
+
+    document.getElementById('financeRandomOutput').innerHTML =
+        items.map(i => `${i.A} → ${i.V}`).join('<br>');
+});
+
+</script>
+
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventory System</title>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+
+<style>
+    * { box-sizing: border-box; }
+
+    body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #f4f4f4;
+    }
+
+    .container {
+        display: flex;
+        height: 100vh;
+    }
+
+    .panel {
+        flex: 1;
+        padding: 20px;
+        background: white;
+        border-right: 1px solid #ddd;
+        overflow-y: auto;
+    }
+
+    .panel:last-child {
+        border-right: none;
+    }
+
     h2 { margin-top: 0; }
 
     input, button {
