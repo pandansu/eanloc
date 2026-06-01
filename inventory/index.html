@@ -173,18 +173,6 @@ document.getElementById('searchBtn').onclick = () => {
 document.getElementById('processBtn')
 .addEventListener('click', async () => {
 
-   const oldName = wb.SheetNames[wb.SheetNames.length - 1];
-const sheet = wb.Sheets[oldName];
-
-const newName = new Date().toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long'
-}).toUpperCase();
-
-wb.SheetNames[wb.SheetNames.length - 1] = newName;
-wb.Sheets[newName] = sheet;
-delete wb.Sheets[oldName];
-
     const file = document.getElementById('inventoryFile').files[0];
 
     if (!file) {
@@ -195,22 +183,35 @@ delete wb.Sheets[oldName];
 
     const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
 
-    // user already duplicated sheet manually
-    const sheetName = wb.SheetNames[wb.SheetNames.length - 1];
-    const sheet = wb.Sheets[sheetName];
+    /* =====================================================
+       ONLY ADDITION: RENAME LAST SHEET TO TODAY'S DATE
+    ===================================================== */
+
+    const oldName = wb.SheetNames[wb.SheetNames.length - 1];
+    const sheet = wb.Sheets[oldName];
+
+    const newName = new Date().toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'long'
+    }).toUpperCase(); // e.g. "1 JUNE"
+
+    wb.SheetNames[wb.SheetNames.length - 1] = newName;
+    wb.Sheets[newName] = sheet;
+    delete wb.Sheets[oldName];
+
+    /* ================= COLUMN J UPDATE ================= */
 
     const range = XLSX.utils.decode_range(sheet['!ref']);
 
     for (let r = 1; r <= range.e.r; r++) {
 
-        const aCell = XLSX.utils.encode_cell({ r, c: 0 }); // Column A
-        const jCell = XLSX.utils.encode_cell({ r, c: 9 }); // Column J
+        const aCell = XLSX.utils.encode_cell({ r, c: 0 });
+        const jCell = XLSX.utils.encode_cell({ r, c: 9 });
 
         const key = sheet[aCell]?.v
             ? String(sheet[aCell].v).trim()
             : '';
 
-        // ✅ STOP when Column A is empty (prevents overwriting totals)
         if (!key) break;
 
         sheet[jCell] = {
@@ -222,7 +223,7 @@ delete wb.Sheets[oldName];
     XLSX.writeFile(wb, file.name);
 
     document.getElementById('inventoryResult').innerHTML =
-        `<span class="success">Column J updated successfully</span>`;
+        `<span class="success">Column J updated + sheet renamed</span>`;
 });
 
 </script>
