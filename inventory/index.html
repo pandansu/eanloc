@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Excel Lookup</title>
+    <title>Excel Last 4 Digits Lookup</title>
 
     <!-- SheetJS -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
@@ -11,104 +11,170 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 600px;
+            max-width: 700px;
             margin: 40px auto;
             padding: 20px;
         }
 
-        input, button {
-            padding: 10px;
-            margin: 10px 0;
+        h2 {
+            margin-bottom: 20px;
+        }
+
+        input[type="file"],
+        input[type="text"],
+        button {
             width: 100%;
+            padding: 12px;
+            margin-bottom: 12px;
             box-sizing: border-box;
+            font-size: 16px;
+        }
+
+        button {
+            cursor: pointer;
+            background: #0078d4;
+            color: white;
+            border: none;
+        }
+
+        button:hover {
+            background: #005ea6;
+        }
+
+        #status {
+            margin-top: 10px;
+            color: #666;
         }
 
         #result {
             margin-top: 20px;
             padding: 15px;
-            border: 1px solid #ccc;
-            background: #f7f7f7;
-            font-size: 18px;
+            border: 1px solid #ddd;
+            background: #f8f8f8;
+            min-height: 50px;
+        }
+
+        .match {
+            color: green;
+            font-size: 20px;
+            font-weight: bold;
+        }
+
+        .not-found {
+            color: red;
         }
     </style>
 </head>
 <body>
 
-<h2>Excel Key/Value Lookup</h2>
+    <h2>Excel Lookup (Column D → Column G)</h2>
 
-<input type="file" id="fileInput" accept=".xlsx,.xls">
+    <p>
+        Upload an Excel file. Enter the last 4 digits of a value in Column D
+        to retrieve the corresponding value from Column G.
+    </p>
 
-<input type="text" id="searchKey" maxlength="4" placeholder="Enter 4-digit code">
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
 
-<button id="searchBtn">Search</button>
+    <input
+        type="text"
+        id="searchKey"
+        maxlength="4"
+        placeholder="Enter last 4 digits (e.g. 5900)"
+    >
 
-<div id="result">Upload an Excel file first.</div>
+    <button id="searchBtn">Search</button>
 
-<script>
-let lookupData = {};
+    <div id="status">No file loaded.</div>
 
-// Convert Excel column letters to index
-const KEY_COLUMN = 3;   // D (0-based index)
-const VALUE_COLUMN = 6; // G (0-based index)
+    <div id="result">
+        Upload an Excel file to begin.
+    </div>
 
-document.getElementById('fileInput').addEventListener('change', function(e) {
-    const file = e.target.files[0];
+    <script>
+        let lookupData = {};
 
-    if (!file) return;
+        const fileInput = document.getElementById("fileInput");
+        const searchInput = document.getElementById("searchKey");
+        const searchBtn = document.getElementById("searchBtn");
+        const resultDiv = document.getElementById("result");
+        const statusDiv = document.getElementById("status");
 
-    const reader = new FileReader();
+        fileInput.addEventListener("change", function (e) {
+            const file = e.target.files[0];
 
-    reader.onload = function(event) {
-        const data = new Uint8Array(event.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
+            if (!file) return;
 
-        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(firstSheet, {
-            header: 1,
-            defval: ''
+            const reader = new FileReader();
+
+            reader.onload = function (event) {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, { type: "array" });
+
+                const firstSheet =
+                    workbook.Sheets[workbook.SheetNames[0]];
+
+                const rows = XLSX.utils.sheet_to_json(firstSheet, {
+                    header: 1,
+                    defval: ""
+                });
+
+                lookupData = {};
+
+                let count = 0;
+
+                rows.forEach(row => {
+                    const colD = String(row[3] || "").trim(); // Column D
+                    const colG = String(row[6] || "").trim(); // Column G
+
+                    if (!colD || !colG) return;
+
+                    const last4 = colD.slice(-4);
+
+                    if (last4.length === 4) {
+                        lookupData[last4] = colG;
+                        count++;
+                    }
+                });
+
+                statusDiv.textContent =
+                    `Loaded ${count} records from Excel.`;
+
+                resultDiv.innerHTML =
+                    "File loaded successfully. Enter a 4-digit code.";
+            };
+
+            reader.readAsArrayBuffer(file);
         });
 
-        lookupData = {};
+        function performSearch() {
+            const key = searchInput.value.trim();
 
-        rows.forEach(row => {
-            const key = String(row[KEY_COLUMN] || '').trim();
-            const value = String(row[VALUE_COLUMN] || '').trim();
+            if (!/^\d{4}$/.test(key)) {
+                resultDiv.innerHTML =
+                    '<span class="not-found">Please enter exactly 4 digits.</span>';
+                return;
+            }
 
-            if (key) {
-                lookupData[key] = value;
+            const value = lookupData[key];
+
+            if (value !== undefined) {
+                resultDiv.innerHTML =
+                    `<span class="match">${value}</span>`;
+            } else {
+                resultDiv.innerHTML =
+                    '<span class="not-found">No matching record found.</span>';
+            }
+        }
+
+        searchBtn.addEventListener("click", performSearch);
+
+        searchInput.addEventListener("keypress", function (e) {
+            if (e.key === "Enter") {
+                performSearch();
             }
         });
-
-        document.getElementById('result').innerHTML =
-            `Loaded ${Object.keys(lookupData).length} records.`;
-    };
-
-    reader.readAsArrayBuffer(file);
-});
-
-document.getElementById('searchBtn').addEventListener('click', function() {
-    const key = document.getElementById('searchKey').value.trim();
-
-    if (!key) {
-        document.getElementById('result').innerHTML = 'Please enter a code.';
-        return;
-    }
-
-    if (lookupData[key] !== undefined) {
-        document.getElementById('result').innerHTML =
-            `<strong>Value:</strong> ${lookupData[key]}`;
-    } else {
-        document.getElementById('result').innerHTML =
-            'No matching record found.';
-    }
-});
-
-document.getElementById('searchKey').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
-        document.getElementById('searchBtn').click();
-    }
-});
-</script>
+    </script>
 
 </body>
 </html>
