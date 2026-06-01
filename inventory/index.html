@@ -95,16 +95,23 @@
 
     <button id="processBtn">Update Column J</button>
 
-    <!-- ✅ ADDED OUTPUT BOX -->
     <div class="box" id="randomOutput">No file processed yet</div>
 </div>
 
-<!-- ================= RIGHT PANEL ================= -->
+<!-- ================= RIGHT PANEL (NEW) ================= -->
 <div class="panel">
-    <h2>Future</h2>
-    <div class="box" style="text-align:center;color:#888;">
-        Empty
-    </div>
+    <h2>Finance Inventory</h2>
+
+    <p>
+        ✔ Same logic as Sales Inventory<br>
+        ✔ Independent processing
+    </p>
+
+    <input type="file" id="financeFile" accept=".xlsx,.xls">
+
+    <button id="financeProcessBtn">Update Column J</button>
+
+    <div class="box" id="financeRandomOutput">No file processed yet</div>
 </div>
 
 </div>
@@ -116,9 +123,10 @@
 let last4Map = {};
 let fullMap = {};
 
-/* ================= INVENTORY SHEET ================= */
+/* ================= INVENTORY SHEETS ================= */
 
-let inventorySheet = null;
+let salesSheet = null;
+let financeSheet = null;
 
 /* ================= LOAD LOOKUP FILE ================= */
 
@@ -173,7 +181,7 @@ document.getElementById('searchBtn').onclick = () => {
           : `<span class="error">Not found</span>`;
 };
 
-/* ================= RANDOM FUNCTION (NEW) ================= */
+/* ================= RANDOM FUNCTION ================= */
 
 function getRandomNonZeroItems(sheet, count = 10) {
 
@@ -202,7 +210,7 @@ function getRandomNonZeroItems(sheet, count = 10) {
     return results.slice(0, count);
 }
 
-/* ================= UPDATE COLUMN J ONLY ================= */
+/* ================= SALES INVENTORY ================= */
 
 document.getElementById('processBtn')
 .addEventListener('click', async () => {
@@ -220,7 +228,7 @@ document.getElementById('processBtn')
     const sheetName = wb.SheetNames[wb.SheetNames.length - 1];
     const sheet = wb.Sheets[sheetName];
 
-    inventorySheet = sheet;
+    salesSheet = sheet;
 
     const range = XLSX.utils.decode_range(sheet['!ref']);
 
@@ -243,11 +251,58 @@ document.getElementById('processBtn')
 
     XLSX.writeFile(wb, "SalesUpd.xlsx");
 
-    /* ================= AUTO DISPLAY RANDOM ITEMS ================= */
-
     const items = getRandomNonZeroItems(sheet, 10);
 
     document.getElementById('randomOutput').innerHTML =
+        items.length
+            ? items.map(i => `${i.A} → ${i.J}`).join('<br>')
+            : '<span class="error">No valid items found</span>';
+});
+
+/* ================= FINANCE INVENTORY (NEW) ================= */
+
+document.getElementById('financeProcessBtn')
+.addEventListener('click', async () => {
+
+    const file = document.getElementById('financeFile').files[0];
+
+    if (!file) {
+        document.getElementById('financeRandomOutput').innerHTML =
+            '<span class="error">Select file</span>';
+        return;
+    }
+
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+
+    const sheetName = wb.SheetNames[wb.SheetNames.length - 1];
+    const sheet = wb.Sheets[sheetName];
+
+    financeSheet = sheet;
+
+    const range = XLSX.utils.decode_range(sheet['!ref']);
+
+    for (let r = 1; r <= range.e.r; r++) {
+
+        const aCell = XLSX.utils.encode_cell({ r, c: 0 });
+        const jCell = XLSX.utils.encode_cell({ r, c: 9 });
+
+        const key = sheet[aCell]?.v
+            ? String(sheet[aCell].v).trim()
+            : '';
+
+        if (!key) break;
+
+        sheet[jCell] = {
+            t: 'n',
+            v: fullMap[key] ?? 0
+        };
+    }
+
+    XLSX.writeFile(wb, "FinanceUpd.xlsx");
+
+    const items = getRandomNonZeroItems(sheet, 10);
+
+    document.getElementById('financeRandomOutput').innerHTML =
         items.length
             ? items.map(i => `${i.A} → ${i.J}`).join('<br>')
             : '<span class="error">No valid items found</span>';
