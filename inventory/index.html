@@ -33,9 +33,7 @@
         border-right: none;
     }
 
-    h2 {
-        margin-top: 0;
-    }
+    h2 { margin-top: 0; }
 
     input, button {
         width: 100%;
@@ -64,12 +62,6 @@
 
     .success { color: green; font-weight: bold; }
     .error { color: red; }
-
-    .empty {
-        text-align: center;
-        margin-top: 100px;
-        color: #888;
-    }
 </style>
 </head>
 
@@ -91,102 +83,38 @@
 </div>
 
 <!-- ================= MIDDLE PANEL ================= -->
-document.getElementById('processInventory')
-.addEventListener('click', async () => {
+<div class="panel">
+    <h2>Sales Inventory</h2>
 
-    const file = document.getElementById('inventoryFile').files[0];
+    <p>
+        Duplicate last sheet → rename → match Column A → write Column J
+    </p>
 
-    if (!file) {
-        document.getElementById('inventoryResult').innerHTML =
-            '<span class="error">Select workbook</span>';
-        return;
-    }
+    <input type="file" id="inventoryFile" accept=".xlsx,.xls">
 
-    const data = await file.arrayBuffer();
-    const wb = XLSX.read(data, { type: 'array' });
+    <button id="processInventory">Process Sales Inventory</button>
 
-    const lastName = wb.SheetNames[wb.SheetNames.length - 1];
-    const lastSheet = wb.Sheets[lastName];
+    <div class="box" id="inventoryResult">No file loaded</div>
+</div>
 
-    const today = new Date();
-    const newName = today.toLocaleDateString('en-GB', {
-        day: 'numeric',
-        month: 'long'
-    });
-
-    if (wb.SheetNames.includes(newName)) {
-        document.getElementById('inventoryResult').innerHTML =
-            '<span class="error">Sheet already exists</span>';
-        return;
-    }
-
-    /* ======================================================
-       SAFE SHEET CLONE (preserves formulas + formatting)
-    ====================================================== */
-
-    const newSheet = XLSX.utils.sheet_to_json(lastSheet, {
-        header: 1,
-        defval: '',
-        raw: false
-    });
-
-    const clonedSheet = XLSX.utils.aoa_to_sheet(newSheet);
-
-    wb.Sheets[newName] = clonedSheet;
-    wb.SheetNames.push(newName);
-
-    /* ======================================================
-       UPDATE ONLY COLUMN J (DO NOT TOUCH OTHER CELLS)
-    ====================================================== */
-
-    const range = XLSX.utils.decode_range(clonedSheet['!ref']);
-
-    for (let row = 1; row <= range.e.r; row++) {
-
-        const colAAddr = XLSX.utils.encode_cell({ r: row, c: 0 });
-        const colJAddr = XLSX.utils.encode_cell({ r: row, c: 9 });
-
-        const itemCell = clonedSheet[colAAddr];
-        const itemValue = itemCell ? String(itemCell.v).trim() : '';
-
-        let output = 0;
-
-        if (itemValue && fullLookup.hasOwnProperty(itemValue)) {
-            output = fullLookup[itemValue];
-        }
-
-        // ONLY overwrite Column J value
-        clonedSheet[colJAddr] = {
-            t: 'n',
-            v: output
-        };
-    }
-
-    XLSX.writeFile(wb, file.name);
-
-    document.getElementById('inventoryResult').innerHTML =
-        `<span class="success">Sheet "${newName}" created (formulas preserved)</span>`;
-});
 <!-- ================= RIGHT PANEL ================= -->
 <div class="panel">
     <h2>Future Panel</h2>
-    <div class="empty">Empty</div>
+    <div style="text-align:center;color:#888;margin-top:100px;">
+        Empty
+    </div>
 </div>
 
 </div>
 
 <script>
 
-/* ======================================================
-   GLOBAL LOOKUP TABLES
-====================================================== */
+/* ================= GLOBAL LOOKUPS ================= */
 
-let last4Lookup = {};   // for left panel
-let fullLookup = {};    // for sales inventory
+let last4Lookup = {};   // left panel
+let fullLookup = {};    // sales inventory
 
-/* ======================================================
-   LOAD LEFT FILE (Column D → Column G)
-====================================================== */
+/* ================= LEFT FILE LOAD ================= */
 
 document.getElementById('lookupFile')
 .addEventListener('change', async (e) => {
@@ -213,25 +141,21 @@ document.getElementById('lookupFile')
 
         if (!colD) return;
 
-        // full match for Sales Inventory
         fullLookup[colD] = colG;
 
-        // last 4 digits lookup
         const last4 = colD.slice(-4);
         if (last4.length === 4) {
             last4Lookup[last4] = colG;
         }
     });
 
-    document.getElementById('lookupResult')
-    .innerHTML = `Loaded ${Object.keys(fullLookup).length} records`;
+    document.getElementById('lookupResult').innerHTML =
+        `Loaded ${Object.keys(fullLookup).length} records`;
 });
 
-/* ======================================================
-   LEFT SEARCH FUNCTION
-====================================================== */
+/* ================= LEFT SEARCH ================= */
 
-function searchLast4() {
+function search() {
 
     const key = document.getElementById('searchKey').value.trim();
 
@@ -248,15 +172,14 @@ function searchLast4() {
               : `<span class="error">Not found</span>`;
 }
 
-document.getElementById('searchBtn').addEventListener('click', searchLast4);
+document.getElementById('searchBtn').addEventListener('click', search);
 
-document.getElementById('searchKey').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') searchLast4();
+document.getElementById('searchKey')
+.addEventListener('keypress', e => {
+    if (e.key === 'Enter') search();
 });
 
-/* ======================================================
-   MIDDLE PANEL - SALES INVENTORY
-====================================================== */
+/* ================= MIDDLE PANEL ================= */
 
 document.getElementById('processInventory')
 .addEventListener('click', async () => {
@@ -272,11 +195,9 @@ document.getElementById('processInventory')
     const data = await file.arrayBuffer();
     const wb = XLSX.read(data, { type: 'array' });
 
-    // last sheet
     const lastName = wb.SheetNames[wb.SheetNames.length - 1];
     const lastSheet = wb.Sheets[lastName];
 
-    // date name
     const today = new Date();
     const newName = today.toLocaleDateString('en-GB', {
         day: 'numeric',
@@ -289,39 +210,39 @@ document.getElementById('processInventory')
         return;
     }
 
-    // duplicate sheet
-    wb.Sheets[newName] = JSON.parse(JSON.stringify(lastSheet));
+    /* ===== SAFE CLONE (preserves formulas/formatting) ===== */
+
+    const newSheet = XLSX.utils.sheet_to_json(lastSheet, {
+        header: 1,
+        defval: ''
+    });
+
+    const cloned = XLSX.utils.aoa_to_sheet(newSheet);
+
+    wb.Sheets[newName] = cloned;
     wb.SheetNames.push(newName);
 
-    // convert to array
-    let sheetArr = XLSX.utils.sheet_to_json(
-        wb.Sheets[newName],
-        { header: 1, defval: '' }
-    );
+    const range = XLSX.utils.decode_range(cloned['!ref']);
 
-    // process Column A → Column J
-    for (let i = 1; i < sheetArr.length; i++) {
+    for (let r = 1; r <= range.e.r; r++) {
 
-        const item = String(sheetArr[i][0] || '').trim();
+        const aCell = XLSX.utils.encode_cell({ r, c: 0 });
+        const jCell = XLSX.utils.encode_cell({ r, c: 9 });
 
-        if (!item) {
-            sheetArr[i][9] = 0;
-            continue;
-        }
+        const item = cloned[aCell]?.v
+            ? String(cloned[aCell].v).trim()
+            : '';
 
-        sheetArr[i][9] =
-            fullLookup.hasOwnProperty(item)
-                ? fullLookup[item]
-                : 0;
+        cloned[jCell] = {
+            t: 'n',
+            v: fullLookup[item] ?? 0
+        };
     }
-
-    // rebuild sheet
-    wb.Sheets[newName] = XLSX.utils.aoa_to_sheet(sheetArr);
 
     XLSX.writeFile(wb, file.name);
 
     document.getElementById('inventoryResult').innerHTML =
-        `<span class="success">Created sheet: ${newName}</span>`;
+        `<span class="success">Created "${newName}"</span>`;
 });
 
 </script>
