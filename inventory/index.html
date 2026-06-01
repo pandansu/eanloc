@@ -86,9 +86,7 @@
 <div class="panel">
     <h2>Sales Inventory</h2>
 
-    <p>
-        Duplicate last sheet → rename → match Column A → write Column J
-    </p>
+    <p>Duplicate last sheet → rename → match Column A → fill Column J</p>
 
     <input type="file" id="inventoryFile" accept=".xlsx,.xls">
 
@@ -111,8 +109,8 @@
 
 /* ================= GLOBAL LOOKUPS ================= */
 
-let last4Lookup = {};   // left panel
-let fullLookup = {};    // sales inventory
+let last4Lookup = {};
+let fullLookup = {};
 
 /* ================= LEFT FILE LOAD ================= */
 
@@ -142,11 +140,7 @@ document.getElementById('lookupFile')
         if (!colD) return;
 
         fullLookup[colD] = colG;
-
-        const last4 = colD.slice(-4);
-        if (last4.length === 4) {
-            last4Lookup[last4] = colG;
-        }
+        last4Lookup[colD.slice(-4)] = colG;
     });
 
     document.getElementById('lookupResult').innerHTML =
@@ -155,7 +149,7 @@ document.getElementById('lookupFile')
 
 /* ================= LEFT SEARCH ================= */
 
-function search() {
+function search4() {
 
     const key = document.getElementById('searchKey').value.trim();
 
@@ -172,12 +166,33 @@ function search() {
               : `<span class="error">Not found</span>`;
 }
 
-document.getElementById('searchBtn').addEventListener('click', search);
+document.getElementById('searchBtn').onclick = search4;
 
-document.getElementById('searchKey')
-.addEventListener('keypress', e => {
-    if (e.key === 'Enter') search();
-});
+/* ================= SAFE SHEET CLONE ================= */
+
+function cloneSheetPreserve(src) {
+
+    const out = {};
+
+    Object.keys(src).forEach(k => {
+
+        if (k[0] === '!') {
+            out[k] = JSON.parse(JSON.stringify(src[k]));
+        } else {
+            const c = src[k];
+
+            out[k] = {
+                t: c.t,
+                v: c.v,
+                f: c.f,   // FORMULA preserved
+                s: c.s,   // STYLE preserved
+                z: c.z    // FORMAT preserved
+            };
+        }
+    });
+
+    return out;
+}
 
 /* ================= MIDDLE PANEL ================= */
 
@@ -210,14 +225,8 @@ document.getElementById('processInventory')
         return;
     }
 
-    /* ===== SAFE CLONE (preserves formulas/formatting) ===== */
-
-    const newSheet = XLSX.utils.sheet_to_json(lastSheet, {
-        header: 1,
-        defval: ''
-    });
-
-    const cloned = XLSX.utils.aoa_to_sheet(newSheet);
+    // ✅ PROPER CLONE (keeps formulas)
+    const cloned = cloneSheetPreserve(lastSheet);
 
     wb.Sheets[newName] = cloned;
     wb.SheetNames.push(newName);
@@ -226,23 +235,23 @@ document.getElementById('processInventory')
 
     for (let r = 1; r <= range.e.r; r++) {
 
-        const aCell = XLSX.utils.encode_cell({ r, c: 0 });
-        const jCell = XLSX.utils.encode_cell({ r, c: 9 });
+        const aAddr = XLSX.utils.encode_cell({ r, c: 0 });
+        const jAddr = XLSX.utils.encode_cell({ r, c: 9 });
 
-        const item = cloned[aCell]?.v
-            ? String(cloned[aCell].v).trim()
+        const val = cloned[aAddr]?.v
+            ? String(cloned[aAddr].v).trim()
             : '';
 
-        cloned[jCell] = {
+        cloned[jAddr] = {
             t: 'n',
-            v: fullLookup[item] ?? 0
+            v: fullLookup[val] ?? 0
         };
     }
 
     XLSX.writeFile(wb, file.name);
 
     document.getElementById('inventoryResult').innerHTML =
-        `<span class="success">Created "${newName}"</span>`;
+        `<span class="success">Sheet "${newName}" created safely</span>`;
 });
 
 </script>
