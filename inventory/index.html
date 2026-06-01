@@ -23,28 +23,28 @@ button { background:#0078d4; color:#fff; border:none; cursor:pointer; }
 
 <div class="container">
 
-<!-- ================= LEFT ================= -->
+<!-- LEFT -->
 <div class="panel">
-<h3>Lookup (Column D → G)</h3>
+<h3>Lookup (D → G)</h3>
 
-<input type="file" id="lookupFile">
-<input type="text" id="searchKey" placeholder="Last 4 digits">
-<button id="searchBtn">Search</button>
+<input type="file" id="file1">
+<input type="text" id="key" placeholder="Last 4 digits">
+<button onclick="search()">Search</button>
 
-<div class="box" id="lookupOut">No data loaded</div>
+<div class="box" id="out1"></div>
 </div>
 
-<!-- ================= MIDDLE ================= -->
+<!-- MIDDLE -->
 <div class="panel">
 <h3>Sales Inventory</h3>
 
-<input type="file" id="inventoryFile">
-<button id="runBtn">Update Column J</button>
+<input type="file" id="file2">
+<button onclick="process()">Update Column J</button>
 
-<div class="box" id="inventoryOut">No file loaded</div>
+<div class="box" id="out2"></div>
 </div>
 
-<!-- ================= RIGHT ================= -->
+<!-- RIGHT -->
 <div class="panel">
 <h3>Future</h3>
 <div class="box">Empty</div>
@@ -54,66 +54,38 @@ button { background:#0078d4; color:#fff; border:none; cursor:pointer; }
 
 <script>
 
-/* ================= LEFT PANEL ================= */
+/* ================= LOOKUP ================= */
 
-let lookupMap = {};
-let last4Map = {};
+let map = {};
 
-document.getElementById('lookupFile').addEventListener('change', function(e){
+document.getElementById('file1').addEventListener('change', async e => {
 
-const file = e.target.files[0];
-if(!file) return;
+const wb = XLSX.read(await e.target.files[0].arrayBuffer(), {type:'array'});
+const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1});
 
-const wb = XLSX.read(new FileReaderSync().readAsArrayBuffer(file), {type:'array'});
-
-const sheet = wb.Sheets[wb.SheetNames[0]];
-const rows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
-
-lookupMap = {};
-last4Map = {};
+map = {};
 
 rows.forEach(r => {
-    const colD = String(r[3] || '').trim();
-    const colG = r[6];
-
-    if(!colD) return;
-
-    lookupMap[colD] = colG;
-    last4Map[colD.slice(-4)] = colG;
+    const d = String(r[3]||'');
+    const g = r[6];
+    map[d.slice(-4)] = g;
 });
 
-document.getElementById('lookupOut').innerText =
-    "Loaded " + Object.keys(lookupMap).length + " records";
+document.getElementById('out1').innerText =
+    "Loaded " + Object.keys(map).length;
 });
 
-/* FIXED SEARCH (always works) */
-
-document.getElementById('searchBtn').addEventListener('click', function(){
-
-const key = document.getElementById('searchKey').value.trim();
-
-if(!/^\d{4}$/.test(key)){
-    document.getElementById('lookupOut').innerText =
-        "Enter 4 digits";
-    return;
+function search(){
+const k = document.getElementById('key').value;
+document.getElementById('out1').innerText = map[k] || "Not found";
 }
 
-const result = last4Map[key];
+/* ================= SAFELY UPDATE COLUMN J ================= */
 
-document.getElementById('lookupOut').innerText =
-    result ?? "Not found";
+function process(){
 
-});
-
-/* ================= MIDDLE PANEL ================= */
-
-document.getElementById('runBtn').addEventListener('click', async function(){
-
-const file = document.getElementById('inventoryFile').files[0];
-if(!file){
-    alert("Upload file");
-    return;
-}
+const file = document.getElementById('file2').files[0];
+if(!file){ alert("Upload file"); return; }
 
 const wb = XLSX.read(await file.arrayBuffer(), {type:'array'});
 
@@ -122,36 +94,36 @@ const sheet = wb.Sheets[sheetName];
 
 const range = XLSX.utils.decode_range(sheet['!ref']);
 
-let updated = 0;
+for(let r=1;r<=range.e.r;r++){
 
-for(let r=1; r<=range.e.r; r++){
+    const aAddr = XLSX.utils.encode_cell({r,c:0}); // Column A
+    const jAddr = XLSX.utils.encode_cell({r,c:9}); // Column J
 
-    const aCell = XLSX.utils.encode_cell({r,c:0});
-    const jCell = XLSX.utils.encode_cell({r,c:9});
-
-    const key = sheet[aCell]?.v
-        ? String(sheet[aCell].v).trim()
+    const key = sheet[aAddr]?.v
+        ? String(sheet[aAddr].v).trim()
         : '';
 
-    // STOP at blank Column A
-    if(!key) break;
+    if(!key) break; // stop at blank row (protect totals)
 
-    const value = lookupMap[key] ?? 0;
+    const value = map[key] ?? 0;
 
-    // SAFE write (no formatting break risk beyond XLSX limits)
-    sheet[jCell] = sheet[jCell] || {t:'n', v:0};
-    sheet[jCell].v = value;
-    sheet[jCell].t = 'n';
+    /* ==========================================
+       KEY FIX: preserve existing cell formatting
+    ========================================== */
 
-    updated++;
+    if(!sheet[jAddr]) {
+        sheet[jAddr] = { t:'n', v:value };
+    } else {
+        sheet[jAddr].v = value; // ONLY change value
+        sheet[jAddr].t = 'n';   // ensure numeric type
+    }
 }
 
 XLSX.writeFile(wb, file.name);
 
-document.getElementById('inventoryOut').innerText =
-    "Updated rows: " + updated;
-
-});
+document.getElementById('out2').innerText =
+    "Column J updated (format preserved)";
+}
 
 </script>
 
