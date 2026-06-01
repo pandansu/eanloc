@@ -207,7 +207,7 @@ document.getElementById('processBtn')
         };
     }
 
-    XLSX.writeFile(wb, file.name);
+    XLSX.writeFile(wb, "SalesUpd.xlsx");
 
     document.getElementById('inventoryResult').innerHTML =
         `<span class="success">Column J updated successfully</span>`;
