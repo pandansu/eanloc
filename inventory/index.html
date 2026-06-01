@@ -91,18 +91,82 @@
 </div>
 
 <!-- ================= MIDDLE PANEL ================= -->
-<div class="panel">
-    <h2>Sales Inventory</h2>
+document.getElementById('processInventory')
+.addEventListener('click', async () => {
 
-    <p>Upload workbook → duplicate last sheet → match Column A → fill Column J</p>
+    const file = document.getElementById('inventoryFile').files[0];
 
-    <input type="file" id="inventoryFile" accept=".xlsx,.xls">
+    if (!file) {
+        document.getElementById('inventoryResult').innerHTML =
+            '<span class="error">Select workbook</span>';
+        return;
+    }
 
-    <button id="processInventory">Process Sales Inventory</button>
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data, { type: 'array' });
 
-    <div class="box" id="inventoryResult">No file loaded</div>
-</div>
+    const lastName = wb.SheetNames[wb.SheetNames.length - 1];
+    const lastSheet = wb.Sheets[lastName];
 
+    const today = new Date();
+    const newName = today.toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'long'
+    });
+
+    if (wb.SheetNames.includes(newName)) {
+        document.getElementById('inventoryResult').innerHTML =
+            '<span class="error">Sheet already exists</span>';
+        return;
+    }
+
+    /* ======================================================
+       SAFE SHEET CLONE (preserves formulas + formatting)
+    ====================================================== */
+
+    const newSheet = XLSX.utils.sheet_to_json(lastSheet, {
+        header: 1,
+        defval: '',
+        raw: false
+    });
+
+    const clonedSheet = XLSX.utils.aoa_to_sheet(newSheet);
+
+    wb.Sheets[newName] = clonedSheet;
+    wb.SheetNames.push(newName);
+
+    /* ======================================================
+       UPDATE ONLY COLUMN J (DO NOT TOUCH OTHER CELLS)
+    ====================================================== */
+
+    const range = XLSX.utils.decode_range(clonedSheet['!ref']);
+
+    for (let row = 1; row <= range.e.r; row++) {
+
+        const colAAddr = XLSX.utils.encode_cell({ r: row, c: 0 });
+        const colJAddr = XLSX.utils.encode_cell({ r: row, c: 9 });
+
+        const itemCell = clonedSheet[colAAddr];
+        const itemValue = itemCell ? String(itemCell.v).trim() : '';
+
+        let output = 0;
+
+        if (itemValue && fullLookup.hasOwnProperty(itemValue)) {
+            output = fullLookup[itemValue];
+        }
+
+        // ONLY overwrite Column J value
+        clonedSheet[colJAddr] = {
+            t: 'n',
+            v: output
+        };
+    }
+
+    XLSX.writeFile(wb, file.name);
+
+    document.getElementById('inventoryResult').innerHTML =
+        `<span class="success">Sheet "${newName}" created (formulas preserved)</span>`;
+});
 <!-- ================= RIGHT PANEL ================= -->
 <div class="panel">
     <h2>Future Panel</h2>
