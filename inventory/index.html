@@ -55,8 +55,8 @@
 
     .box {
         padding: 12px;
-        border: 1px solid #ddd;
         background: #fafafa;
+        border: 1px solid #ddd;
         min-height: 60px;
     }
 
@@ -69,36 +69,39 @@
 
 <div class="container">
 
-<!-- ================= LEFT PANEL ================= -->
+<!-- ================= LEFT ================= -->
 <div class="panel">
-    <h2>Column D → Column G Lookup</h2>
+    <h2>Lookup (Column D → G)</h2>
 
     <input type="file" id="lookupFile" accept=".xlsx,.xls">
 
-    <input type="text" id="searchKey" maxlength="4" placeholder="Enter last 4 digits">
+    <input type="text" id="searchKey" maxlength="4" placeholder="Last 4 digits">
 
     <button id="searchBtn">Search</button>
 
     <div class="box" id="lookupResult">No file loaded</div>
 </div>
 
-<!-- ================= MIDDLE PANEL ================= -->
+<!-- ================= MIDDLE ================= -->
 <div class="panel">
     <h2>Sales Inventory</h2>
 
-    <p>Duplicate last sheet → rename → match Column A → fill Column J</p>
+    <p>
+        ✔ Sheet already duplicated manually in Excel<br>
+        ✔ This tool only updates Column J
+    </p>
 
     <input type="file" id="inventoryFile" accept=".xlsx,.xls">
 
-    <button id="processInventory">Process Sales Inventory</button>
+    <button id="processBtn">Update Column J</button>
 
     <div class="box" id="inventoryResult">No file loaded</div>
 </div>
 
-<!-- ================= RIGHT PANEL ================= -->
+<!-- ================= RIGHT ================= -->
 <div class="panel">
-    <h2>Future Panel</h2>
-    <div style="text-align:center;color:#888;margin-top:100px;">
+    <h2>Future</h2>
+    <div class="box" style="text-align:center;color:#888;">
         Empty
     </div>
 </div>
@@ -107,12 +110,12 @@
 
 <script>
 
-/* ================= GLOBAL LOOKUPS ================= */
+/* ================= LOOKUP MAP ================= */
 
-let last4Lookup = {};
-let fullLookup = {};
+let last4Map = {};
+let fullMap = {};
 
-/* ================= LEFT FILE LOAD ================= */
+/* ================= LOAD LOOKUP FILE ================= */
 
 document.getElementById('lookupFile')
 .addEventListener('change', async (e) => {
@@ -120,8 +123,7 @@ document.getElementById('lookupFile')
     const file = e.target.files[0];
     if (!file) return;
 
-    const data = await file.arrayBuffer();
-    const wb = XLSX.read(data, { type: 'array' });
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
 
     const sheet = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(sheet, {
@@ -129,129 +131,84 @@ document.getElementById('lookupFile')
         defval: ''
     });
 
-    last4Lookup = {};
-    fullLookup = {};
+    last4Map = {};
+    fullMap = {};
 
-    rows.forEach(row => {
+    rows.forEach(r => {
 
-        const colD = String(row[3] || '').trim();
-        const colG = row[6];
+        const colD = String(r[3] || '').trim();
+        const colG = r[6];
 
         if (!colD) return;
 
-        fullLookup[colD] = colG;
-        last4Lookup[colD.slice(-4)] = colG;
+        fullMap[colD] = colG;
+        last4Map[colD.slice(-4)] = colG;
     });
 
     document.getElementById('lookupResult').innerHTML =
-        `Loaded ${Object.keys(fullLookup).length} records`;
+        `Loaded ${Object.keys(fullMap).length} records`;
 });
 
-/* ================= LEFT SEARCH ================= */
+/* ================= SEARCH ================= */
 
-function search4() {
+document.getElementById('searchBtn').onclick = () => {
 
-    const key = document.getElementById('searchKey').value.trim();
+    const k = document.getElementById('searchKey').value.trim();
 
-    if (!/^\d{4}$/.test(key)) {
+    if (!/^\d{4}$/.test(k)) {
         document.getElementById('lookupResult').innerHTML =
             '<span class="error">Enter 4 digits</span>';
         return;
     }
 
-    const value = last4Lookup[key];
+    const v = last4Map[k];
 
     document.getElementById('lookupResult').innerHTML =
-        value ? `<span class="success">${value}</span>`
-              : `<span class="error">Not found</span>`;
-}
+        v ? `<span class="success">${v}</span>`
+          : `<span class="error">Not found</span>`;
+};
 
-document.getElementById('searchBtn').onclick = search4;
+/* ================= UPDATE COLUMN J ONLY ================= */
 
-/* ================= SAFE SHEET CLONE ================= */
-
-function cloneSheetPreserve(src) {
-
-    const out = {};
-
-    Object.keys(src).forEach(k => {
-
-        if (k[0] === '!') {
-            out[k] = JSON.parse(JSON.stringify(src[k]));
-        } else {
-            const c = src[k];
-
-            out[k] = {
-                t: c.t,
-                v: c.v,
-                f: c.f,   // FORMULA preserved
-                s: c.s,   // STYLE preserved
-                z: c.z    // FORMAT preserved
-            };
-        }
-    });
-
-    return out;
-}
-
-/* ================= MIDDLE PANEL ================= */
-
-document.getElementById('processInventory')
+document.getElementById('processBtn')
 .addEventListener('click', async () => {
 
     const file = document.getElementById('inventoryFile').files[0];
 
     if (!file) {
         document.getElementById('inventoryResult').innerHTML =
-            '<span class="error">Select workbook</span>';
+            '<span class="error">Select file</span>';
         return;
     }
 
-    const data = await file.arrayBuffer();
-    const wb = XLSX.read(data, { type: 'array' });
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
 
-    const lastName = wb.SheetNames[wb.SheetNames.length - 1];
-    const lastSheet = wb.Sheets[lastName];
+    // IMPORTANT:
+    // user already created new sheet manually
+    const sheetName = wb.SheetNames[wb.SheetNames.length - 1];
+    const sheet = wb.Sheets[sheetName];
 
-    const today = new Date();
-    const newName = today.toLocaleDateString('en-GB', {
-        day: 'numeric',
-        month: 'long'
-    });
-
-    if (wb.SheetNames.includes(newName)) {
-        document.getElementById('inventoryResult').innerHTML =
-            '<span class="error">Sheet already exists</span>';
-        return;
-    }
-
-    // ✅ PROPER CLONE (keeps formulas)
-    const cloned = cloneSheetPreserve(lastSheet);
-
-    wb.Sheets[newName] = cloned;
-    wb.SheetNames.push(newName);
-
-    const range = XLSX.utils.decode_range(cloned['!ref']);
+    const range = XLSX.utils.decode_range(sheet['!ref']);
 
     for (let r = 1; r <= range.e.r; r++) {
 
-        const aAddr = XLSX.utils.encode_cell({ r, c: 0 });
-        const jAddr = XLSX.utils.encode_cell({ r, c: 9 });
+        const aCell = XLSX.utils.encode_cell({ r, c: 0 }); // Column A
+        const jCell = XLSX.utils.encode_cell({ r, c: 9 }); // Column J
 
-        const val = cloned[aAddr]?.v
-            ? String(cloned[aAddr].v).trim()
+        const key = sheet[aCell]?.v
+            ? String(sheet[aCell].v).trim()
             : '';
 
-        cloned[jAddr] = {
+        sheet[jCell] = {
             t: 'n',
-            v: fullLookup[val] ?? 0
+            v: fullMap[key] ?? 0
         };
     }
 
     XLSX.writeFile(wb, file.name);
 
     document.getElementById('inventoryResult').innerHTML =
-        `<span class="success">Sheet "${newName}" created safely</span>`;
+        `<span class="success">Column J updated successfully</span>`;
 });
 
 </script>
