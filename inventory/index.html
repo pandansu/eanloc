@@ -183,62 +183,34 @@ document.getElementById('processBtn')
 
     const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
 
+    // user already duplicated sheet manually
     const sheetName = wb.SheetNames[wb.SheetNames.length - 1];
     const sheet = wb.Sheets[sheetName];
 
-    const oldName = wb.SheetNames[wb.SheetNames.length - 1];
-
-    const newName = new Date().toLocaleDateString('en-GB', {
-        day: 'numeric',
-        month: 'long'
-    }).toUpperCase();
-
-    wb.SheetNames[wb.SheetNames.length - 1] = newName;
-    wb.Sheets[newName] = sheet;
-    delete wb.Sheets[oldName];
-
     const range = XLSX.utils.decode_range(sheet['!ref']);
-
-    let collected = [];
 
     for (let r = 1; r <= range.e.r; r++) {
 
-        const aCell = XLSX.utils.encode_cell({ r, c: 0 });
-        const jCell = XLSX.utils.encode_cell({ r, c: 9 });
+        const aCell = XLSX.utils.encode_cell({ r, c: 0 }); // Column A
+        const jCell = XLSX.utils.encode_cell({ r, c: 9 }); // Column J
 
         const key = sheet[aCell]?.v
             ? String(sheet[aCell].v).trim()
             : '';
 
+        // ✅ STOP when Column A is empty (prevents overwriting totals)
         if (!key) break;
-
-        const value = fullMap[key] ?? 0;
 
         sheet[jCell] = {
             t: 'n',
-            v: value
+            v: fullMap[key] ?? 0
         };
-
-        collected.push({ a: key, j: value });
     }
-
-    /* ================= RANDOM 5 PREVIEW ================= */
-
-    const sample = collected
-        .sort(() => 0.5 - Math.random())
-        .slice(0, 5);
-
-    let html = `<span class="success">Column J updated + sheet renamed</span><br><br>`;
-    html += `<b>Random 5 Items:</b><br><br>`;
-
-    sample.forEach(i => {
-        html += `${i.a} → ${i.j}<br>`;
-    });
-
-    document.getElementById('inventoryResult').innerHTML = html;
 
     XLSX.writeFile(wb, "SalesUpd.xlsx");
 
+    document.getElementById('inventoryResult').innerHTML =
+        `<span class="success">Column J updated successfully</span>`;
 });
 
 </script>
