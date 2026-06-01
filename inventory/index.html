@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Excel Last 4 Digits Lookup</title>
+    <title>Sales Inventory Worksheet Duplicator</title>
 
     <!-- SheetJS -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
@@ -20,21 +20,19 @@
             margin-bottom: 20px;
         }
 
-        input[type="file"],
-        input[type="text"],
-        button {
+        input[type="file"] {
             width: 100%;
-            padding: 12px;
-            margin-bottom: 12px;
-            box-sizing: border-box;
-            font-size: 16px;
+            padding: 10px;
+            margin-bottom: 15px;
         }
 
         button {
-            cursor: pointer;
+            padding: 12px 20px;
             background: #0078d4;
             color: white;
             border: none;
+            cursor: pointer;
+            font-size: 16px;
         }
 
         button:hover {
@@ -42,136 +40,116 @@
         }
 
         #status {
-            margin-top: 10px;
-            color: #666;
-        }
-
-        #result {
             margin-top: 20px;
             padding: 15px;
+            background: #f5f5f5;
             border: 1px solid #ddd;
-            background: #f8f8f8;
-            min-height: 50px;
         }
 
-        .match {
+        .success {
             color: green;
-            font-size: 20px;
-            font-weight: bold;
         }
 
-        .not-found {
+        .error {
             color: red;
         }
     </style>
 </head>
 <body>
 
-    <h2>Excel Lookup (Column D → Column G)</h2>
+    <h2>Sales Inventory Worksheet Duplicator</h2>
 
     <p>
-        Upload an Excel file. Enter the last 4 digits of a value in Column D
-        to retrieve the corresponding value from Column G.
+        Upload your Sales Inventory workbook.<br>
+        The last worksheet will be duplicated and renamed with today's date
+        (e.g. <strong>1 June</strong>).
     </p>
 
-    <input type="file" id="fileInput" accept=".xlsx,.xls">
+    <input type="file" id="excelFile" accept=".xlsx,.xls">
 
-    <input
-        type="text"
-        id="searchKey"
-        maxlength="4"
-        placeholder="Enter last 4 digits (e.g. 5900)"
-    >
+    <button id="processBtn">Process Workbook</button>
 
-    <button id="searchBtn">Search</button>
-
-    <div id="status">No file loaded.</div>
-
-    <div id="result">
-        Upload an Excel file to begin.
+    <div id="status">
+        Select an Excel workbook to begin.
     </div>
 
     <script>
-        let lookupData = {};
+        const fileInput = document.getElementById('excelFile');
+        const processBtn = document.getElementById('processBtn');
+        const statusDiv = document.getElementById('status');
 
-        const fileInput = document.getElementById("fileInput");
-        const searchInput = document.getElementById("searchKey");
-        const searchBtn = document.getElementById("searchBtn");
-        const resultDiv = document.getElementById("result");
-        const statusDiv = document.getElementById("status");
+        processBtn.addEventListener('click', async () => {
 
-        fileInput.addEventListener("change", function (e) {
-            const file = e.target.files[0];
+            const file = fileInput.files[0];
 
-            if (!file) return;
-
-            const reader = new FileReader();
-
-            reader.onload = function (event) {
-                const data = new Uint8Array(event.target.result);
-                const workbook = XLSX.read(data, { type: "array" });
-
-                const firstSheet =
-                    workbook.Sheets[workbook.SheetNames[0]];
-
-                const rows = XLSX.utils.sheet_to_json(firstSheet, {
-                    header: 1,
-                    defval: ""
-                });
-
-                lookupData = {};
-
-                let count = 0;
-
-                rows.forEach(row => {
-                    const colD = String(row[3] || "").trim(); // Column D
-                    const colG = String(row[6] || "").trim(); // Column G
-
-                    if (!colD || !colG) return;
-
-                    const last4 = colD.slice(-4);
-
-                    if (last4.length === 4) {
-                        lookupData[last4] = colG;
-                        count++;
-                    }
-                });
-
-                statusDiv.textContent =
-                    `Loaded ${count} records from Excel.`;
-
-                resultDiv.innerHTML =
-                    "File loaded successfully. Enter a 4-digit code.";
-            };
-
-            reader.readAsArrayBuffer(file);
-        });
-
-        function performSearch() {
-            const key = searchInput.value.trim();
-
-            if (!/^\d{4}$/.test(key)) {
-                resultDiv.innerHTML =
-                    '<span class="not-found">Please enter exactly 4 digits.</span>';
+            if (!file) {
+                statusDiv.innerHTML =
+                    '<span class="error">Please select an Excel file.</span>';
                 return;
             }
 
-            const value = lookupData[key];
+            try {
 
-            if (value !== undefined) {
-                resultDiv.innerHTML =
-                    `<span class="match">${value}</span>`;
-            } else {
-                resultDiv.innerHTML =
-                    '<span class="not-found">No matching record found.</span>';
-            }
-        }
+                const data = await file.arrayBuffer();
 
-        searchBtn.addEventListener("click", performSearch);
+                const workbook = XLSX.read(data, {
+                    type: 'array'
+                });
 
-        searchInput.addEventListener("keypress", function (e) {
-            if (e.key === "Enter") {
-                performSearch();
+                if (workbook.SheetNames.length === 0) {
+                    throw new Error('No worksheets found.');
+                }
+
+                // Get last worksheet
+                const lastSheetName =
+                    workbook.SheetNames[workbook.SheetNames.length - 1];
+
+                const lastSheet =
+                    workbook.Sheets[lastSheetName];
+
+                // Today's date format: "1 June"
+                const today = new Date();
+
+                const newSheetName = today.toLocaleDateString(
+                    'en-GB',
+                    {
+                        day: 'numeric',
+                        month: 'long'
+                    }
+                );
+
+                // Prevent duplicate sheet names
+                if (workbook.SheetNames.includes(newSheetName)) {
+                    statusDiv.innerHTML =
+                        `<span class="error">
+                            Worksheet "${newSheetName}" already exists.
+                        </span>`;
+                    return;
+                }
+
+                // Deep copy worksheet
+                workbook.Sheets[newSheetName] =
+                    JSON.parse(JSON.stringify(lastSheet));
+
+                workbook.SheetNames.push(newSheetName);
+
+                // Download updated workbook
+                XLSX.writeFile(workbook, file.name);
+
+                statusDiv.innerHTML =
+                    `<span class="success">
+                        Successfully created worksheet "${newSheetName}"
+                        from "${lastSheetName}".
+                    </span>`;
+
+            } catch (err) {
+
+                console.error(err);
+
+                statusDiv.innerHTML =
+                    `<span class="error">
+                        Error processing workbook: ${err.message}
+                    </span>`;
             }
         });
     </script>
