@@ -201,8 +201,8 @@ document.getElementById('deliveryFile')
 
     rows.forEach(r => {
 
-        const product = String(r[25] || '').trim(); // Z
-        const qty = Number(r[29] ?? 0);             // AD
+        const product = String(r[25] || '').trim();
+        const qty = Number(r[29] ?? 0);
 
         if (!product) return;
         if (!qty) return;
@@ -255,15 +255,11 @@ document.getElementById('processBtn')
 
     XLSX.writeFile(wb, "SalesUpd.xlsx");
 
-    const salesItems = getRandomNonZeroItems(sheet, 0, 9, 5);
-
     document.getElementById('randomOutput').innerHTML =
-        salesItems.length
-            ? salesItems.map(i => `${i.k} → ${i.v}`).join('<br>')
-            : '<span class="error">No valid items found</span>';
+        'Updated successfully';
 });
 
-/* ================= FINANCE ================= */
+/* ================= FINANCE (UPDATED PIVOT WRITE) ================= */
 
 document.getElementById('financeProcessBtn')
 .addEventListener('click', async () => {
@@ -273,59 +269,61 @@ document.getElementById('financeProcessBtn')
 
     const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
 
-    const sheet = wb.Sheets[wb.SheetNames[wb.SheetNames.length - 1]];
+    const sheetName = wb.SheetNames[wb.SheetNames.length - 1];
+    const sheet = wb.Sheets[sheetName];
+
+    const rows = XLSX.utils.sheet_to_json(sheet, {
+        header: 1,
+        defval: ''
+    });
+
+    const pivot = {};
+
+    // Build pivot from Z (product) and AD (qty)
+    rows.forEach(r => {
+
+        const product = String(r[25] || '').trim();
+        const qty = Number(r[29] ?? 0);
+
+        if (!product) return;
+        if (!qty) return;
+
+        pivot[product] = (pivot[product] || 0) + qty;
+    });
+
+    const entries = Object.entries(pivot);
 
     const range = XLSX.utils.decode_range(sheet['!ref']);
 
+    // CLEAR J2:K
     for (let r = 1; r <= range.e.r; r++) {
 
-        const bCell = XLSX.utils.encode_cell({ r, c: 1 });
-        const iCell = XLSX.utils.encode_cell({ r, c: 8 });
+        const jCell = XLSX.utils.encode_cell({ r, c: 9 });
+        const kCell = XLSX.utils.encode_cell({ r, c: 10 });
 
-        const key = sheet[bCell]?.v ? String(sheet[bCell].v).trim() : '';
-        if (!key) break;
-
-        sheet[iCell] = { t: 'n', v: fullMap[key] ?? 0 };
+        if (sheet[jCell]) delete sheet[jCell];
+        if (sheet[kCell]) delete sheet[kCell];
     }
+
+    // WRITE TO J & K
+    let row = 1;
+
+    entries.forEach(([product, qty]) => {
+
+        const jCell = XLSX.utils.encode_cell({ r: row, c: 9 });
+        const kCell = XLSX.utils.encode_cell({ r: row, c: 10 });
+
+        sheet[jCell] = { t: 's', v: product };
+        sheet[kCell] = { t: 'n', v: qty };
+
+        row++;
+    });
 
     XLSX.writeFile(wb, "FinanceUpd.xlsx");
 
-    const financeItems = getRandomNonZeroItems(sheet, 1, 8, 5);
-
     document.getElementById('financeRandomOutput').innerHTML =
-        financeItems.length
-            ? financeItems.map(i => `${i.k} → ${i.v}`).join('<br>')
-            : '<span class="error">No valid items found</span>';
+        `Pivot written: ${entries.length} items`;
 });
-
-/* ================= HELPER ================= */
-
-function getRandomNonZeroItems(sheet, colKey, colValue, count = 5) {
-
-    const range = XLSX.utils.decode_range(sheet['!ref']);
-    const results = [];
-
-    for (let r = 1; r <= range.e.r; r++) {
-
-        const keyCell = XLSX.utils.encode_cell({ r, c: colKey });
-        const valCell = XLSX.utils.encode_cell({ r, c: colValue });
-
-        const key = sheet[keyCell]?.v ? String(sheet[keyCell].v).trim() : '';
-        const value = Number(sheet[valCell]?.v ?? 0);
-
-        if (!key) continue;
-        if (value === 0) continue;
-
-        results.push({ k: key, v: value });
-    }
-
-    for (let i = results.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [results[i], results[j]] = [results[j], results[i]];
-    }
-
-    return results.slice(0, count);
-}
 
 </script>
 
