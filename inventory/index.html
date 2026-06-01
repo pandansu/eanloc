@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Inventory System</title>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+
+<style>
+body { margin:0; font-family:Arial; }
+.container { display:flex; height:100vh; }
+.panel { flex:1; padding:20px; border-right:1px solid #ddd; overflow:auto; }
+.panel:last-child { border:none; }
+input,button { width:100%; padding:10px; margin:8px 0; }
+button { background:#0078d4; color:#fff; border:none; cursor:pointer; }
+.box { padding:10px; background:#f5f5f5; min-height:50px; }
+.success { color:green; font-weight:bold; }
+.error { color:red; }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<!-- ================= LEFT ================= -->
+<div class="panel">
+<h3>Lookup (Column D → G)</h3>
+
+<input type="file" id="lookupFile">
+<input type="text" id="searchKey" placeholder="Last 4 digits">
+<button id="searchBtn">Search</button>
+
+<div class="box" id="lookupOut">No data loaded</div>
+</div>
+
+<!-- ================= MIDDLE ================= -->
+<div class="panel">
+<h3>Sales Inventory</h3>
+
+<input type="file" id="inventoryFile">
+<button id="runBtn">Update Column J</button>
+
+<div class="box" id="inventoryOut">No file loaded</div>
+</div>
+
+<!-- ================= RIGHT ================= -->
+<div class="panel">
+<h3>Future</h3>
+<div class="box">Empty</div>
+</div>
+
+</div>
+
+<script>
+
+/* ================= LEFT PANEL ================= */
+
+let lookupMap = {};
+let last4Map = {};
+
+document.getElementById('lookupFile').addEventListener('change', function(e){
+
+const file = e.target.files[0];
+if(!file) return;
+
+const wb = XLSX.read(new FileReaderSync().readAsArrayBuffer(file), {type:'array'});
+
+const sheet = wb.Sheets[wb.SheetNames[0]];
+const rows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
+
+lookupMap = {};
+last4Map = {};
+
+rows.forEach(r => {
+    const colD = String(r[3] || '').trim();
+    const colG = r[6];
+
+    if(!colD) return;
+
+    lookupMap[colD] = colG;
+    last4Map[colD.slice(-4)] = colG;
+});
+
+document.getElementById('lookupOut').innerText =
+    "Loaded " + Object.keys(lookupMap).length + " records";
+});
+
+/* FIXED SEARCH (always works) */
+
+document.getElementById('searchBtn').addEventListener('click', function(){
+
+const key = document.getElementById('searchKey').value.trim();
+
+if(!/^\d{4}$/.test(key)){
+    document.getElementById('lookupOut').innerText =
+        "Enter 4 digits";
+    return;
+}
+
+const result = last4Map[key];
+
+document.getElementById('lookupOut').innerText =
+    result ?? "Not found";
+
+});
+
+/* ================= MIDDLE PANEL ================= */
+
+document.getElementById('runBtn').addEventListener('click', async function(){
+
+const file = document.getElementById('inventoryFile').files[0];
+if(!file){
+    alert("Upload file");
+    return;
+}
+
+const wb = XLSX.read(await file.arrayBuffer(), {type:'array'});
+
+const sheetName = wb.SheetNames[wb.SheetNames.length - 1];
+const sheet = wb.Sheets[sheetName];
+
+const range = XLSX.utils.decode_range(sheet['!ref']);
+
+let updated = 0;
+
+for(let r=1; r<=range.e.r; r++){
+
+    const aCell = XLSX.utils.encode_cell({r,c:0});
+    const jCell = XLSX.utils.encode_cell({r,c:9});
+
+    const key = sheet[aCell]?.v
+        ? String(sheet[aCell].v).trim()
+        : '';
+
+    // STOP at blank Column A
+    if(!key) break;
+
+    const value = lookupMap[key] ?? 0;
+
+    // SAFE write (no formatting break risk beyond XLSX limits)
+    sheet[jCell] = sheet[jCell] || {t:'n', v:0};
+    sheet[jCell].v = value;
+    sheet[jCell].t = 'n';
+
+    updated++;
+}
+
+XLSX.writeFile(wb, file.name);
+
+document.getElementById('inventoryOut').innerText =
+    "Updated rows: " + updated;
+
+});
+
+</script>
+
+</body>
+</html>
