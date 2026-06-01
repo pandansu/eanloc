@@ -82,14 +82,9 @@
     <div class="box" id="lookupResult">No file loaded</div>
 </div>
 
-<!-- ================= MIDDLE PANEL ================= -->
+<!-- ================= MIDDLE PANEL (SALES: A + J) ================= -->
 <div class="panel">
     <h2>Sales Inventory</h2>
-
-    <p>
-        ✔ User must already duplicate sheet manually<br>
-        ✔ Only Column J will be updated safely
-    </p>
 
     <input type="file" id="inventoryFile" accept=".xlsx,.xls">
 
@@ -98,18 +93,13 @@
     <div class="box" id="randomOutput">No file processed yet</div>
 </div>
 
-<!-- ================= RIGHT PANEL (NEW) ================= -->
+<!-- ================= RIGHT PANEL (FINANCE: B + I) ================= -->
 <div class="panel">
     <h2>Finance Inventory</h2>
 
-    <p>
-        ✔ Same logic as Sales Inventory<br>
-        ✔ Independent processing
-    </p>
-
     <input type="file" id="financeFile" accept=".xlsx,.xls">
 
-    <button id="financeProcessBtn">Update Column J</button>
+    <button id="financeProcessBtn">Update Column I</button>
 
     <div class="box" id="financeRandomOutput">No file processed yet</div>
 </div>
@@ -123,7 +113,7 @@
 let last4Map = {};
 let fullMap = {};
 
-/* ================= INVENTORY SHEETS ================= */
+/* ================= SHEETS ================= */
 
 let salesSheet = null;
 let financeSheet = null;
@@ -183,23 +173,23 @@ document.getElementById('searchBtn').onclick = () => {
 
 /* ================= RANDOM FUNCTION ================= */
 
-function getRandomNonZeroItems(sheet, count = 10) {
+function getRandomNonZeroItems(sheet, colA, colV, count = 10) {
 
     const range = XLSX.utils.decode_range(sheet['!ref']);
     const results = [];
 
     for (let r = 1; r <= range.e.r; r++) {
 
-        const aCell = XLSX.utils.encode_cell({ r, c: 0 });
-        const jCell = XLSX.utils.encode_cell({ r, c: 9 });
+        const aCell = XLSX.utils.encode_cell({ r, c: colA });
+        const vCell = XLSX.utils.encode_cell({ r, c: colV });
 
         const key = sheet[aCell]?.v ? String(sheet[aCell].v).trim() : '';
-        const value = Number(sheet[jCell]?.v ?? 0);
+        const value = Number(sheet[vCell]?.v ?? 0);
 
         if (!key) continue;
         if (value === 0) continue;
 
-        results.push({ A: key, J: value });
+        results.push({ A: key, V: value });
     }
 
     for (let i = results.length - 1; i > 0; i--) {
@@ -210,7 +200,7 @@ function getRandomNonZeroItems(sheet, count = 10) {
     return results.slice(0, count);
 }
 
-/* ================= SALES INVENTORY ================= */
+/* ================= SALES (A + J) ================= */
 
 document.getElementById('processBtn')
 .addEventListener('click', async () => {
@@ -237,9 +227,7 @@ document.getElementById('processBtn')
         const aCell = XLSX.utils.encode_cell({ r, c: 0 });
         const jCell = XLSX.utils.encode_cell({ r, c: 9 });
 
-        const key = sheet[aCell]?.v
-            ? String(sheet[aCell].v).trim()
-            : '';
+        const key = sheet[aCell]?.v ? String(sheet[aCell].v).trim() : '';
 
         if (!key) break;
 
@@ -251,15 +239,15 @@ document.getElementById('processBtn')
 
     XLSX.writeFile(wb, "SalesUpd.xlsx");
 
-    const items = getRandomNonZeroItems(sheet, 10);
+    const items = getRandomNonZeroItems(sheet, 0, 9, 10);
 
     document.getElementById('randomOutput').innerHTML =
         items.length
-            ? items.map(i => `${i.A} → ${i.J}`).join('<br>')
+            ? items.map(i => `${i.A} → ${i.V}`).join('<br>')
             : '<span class="error">No valid items found</span>';
 });
 
-/* ================= FINANCE INVENTORY (NEW) ================= */
+/* ================= FINANCE (B + I) ================= */
 
 document.getElementById('financeProcessBtn')
 .addEventListener('click', async () => {
@@ -283,16 +271,14 @@ document.getElementById('financeProcessBtn')
 
     for (let r = 1; r <= range.e.r; r++) {
 
-        const aCell = XLSX.utils.encode_cell({ r, c: 0 });
-        const jCell = XLSX.utils.encode_cell({ r, c: 9 });
+        const bCell = XLSX.utils.encode_cell({ r, c: 1 }); // Column B
+        const iCell = XLSX.utils.encode_cell({ r, c: 8 }); // Column I
 
-        const key = sheet[aCell]?.v
-            ? String(sheet[aCell].v).trim()
-            : '';
+        const key = sheet[bCell]?.v ? String(sheet[bCell].v).trim() : '';
 
         if (!key) break;
 
-        sheet[jCell] = {
+        sheet[iCell] = {
             t: 'n',
             v: fullMap[key] ?? 0
         };
@@ -300,11 +286,11 @@ document.getElementById('financeProcessBtn')
 
     XLSX.writeFile(wb, "FinanceUpd.xlsx");
 
-    const items = getRandomNonZeroItems(sheet, 10);
+    const items = getRandomNonZeroItems(sheet, 1, 8, 10);
 
     document.getElementById('financeRandomOutput').innerHTML =
         items.length
-            ? items.map(i => `${i.A} → ${i.J}`).join('<br>')
+            ? items.map(i => `${i.A} → ${i.V}`).join('<br>')
             : '<span class="error">No valid items found</span>';
 });
 
