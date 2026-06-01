@@ -3,20 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Inventory Tools</title>
+<title>Inventory System</title>
 
-<!-- SheetJS -->
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 
 <style>
-    * {
-        box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
         margin: 0;
         font-family: Arial, sans-serif;
-        background: #f5f5f5;
+        background: #f4f4f4;
     }
 
     .container {
@@ -27,9 +24,9 @@
     .panel {
         flex: 1;
         padding: 20px;
-        overflow-y: auto;
-        border-right: 1px solid #ddd;
         background: white;
+        border-right: 1px solid #ddd;
+        overflow-y: auto;
     }
 
     .panel:last-child {
@@ -38,12 +35,9 @@
 
     h2 {
         margin-top: 0;
-        color: #333;
     }
 
-    input[type="file"],
-    input[type="text"],
-    button {
+    input, button {
         width: 100%;
         padding: 10px;
         margin-bottom: 10px;
@@ -51,9 +45,9 @@
     }
 
     button {
-        border: none;
         background: #0078d4;
         color: white;
+        border: none;
         cursor: pointer;
     }
 
@@ -61,292 +55,209 @@
         background: #005ea6;
     }
 
-    .result-box {
-        margin-top: 15px;
-        padding: 15px;
+    .box {
+        padding: 12px;
         border: 1px solid #ddd;
         background: #fafafa;
         min-height: 60px;
     }
 
-    .success {
-        color: green;
-        font-weight: bold;
-    }
+    .success { color: green; font-weight: bold; }
+    .error { color: red; }
 
-    .error {
-        color: red;
-    }
-
-    .placeholder {
-        color: #888;
+    .empty {
         text-align: center;
         margin-top: 100px;
-        font-size: 18px;
+        color: #888;
     }
 </style>
 </head>
+
 <body>
 
 <div class="container">
 
-    <!-- LEFT PANEL -->
-    <div class="panel">
+<!-- ================= LEFT PANEL ================= -->
+<div class="panel">
+    <h2>Column D → Column G Lookup</h2>
 
-        <h2>Column D ➜ Column G Lookup</h2>
+    <input type="file" id="lookupFile" accept=".xlsx,.xls">
 
-        <p>
-            Upload Excel file.<br>
-            Search using the last 4 digits of Column D.
-        </p>
+    <input type="text" id="searchKey" maxlength="4" placeholder="Enter last 4 digits">
 
-        <input type="file" id="lookupFile" accept=".xlsx,.xls">
+    <button id="searchBtn">Search</button>
 
-        <input
-            type="text"
-            id="searchKey"
-            maxlength="4"
-            placeholder="Enter last 4 digits"
-        >
+    <div class="box" id="lookupResult">No file loaded</div>
+</div>
 
-        <button id="searchBtn">Search</button>
+<!-- ================= MIDDLE PANEL ================= -->
+<div class="panel">
+    <h2>Sales Inventory</h2>
 
-        <div class="result-box" id="lookupStatus">
-            No file loaded.
-        </div>
+    <p>Upload workbook → duplicate last sheet → match Column A → fill Column J</p>
 
-    </div>
+    <input type="file" id="inventoryFile" accept=".xlsx,.xls">
 
-    <!-- MIDDLE PANEL -->
-    <div class="panel">
+    <button id="processInventory">Process Sales Inventory</button>
 
-        <h2>Sales Inventory</h2>
+    <div class="box" id="inventoryResult">No file loaded</div>
+</div>
 
-        <p>
-            Upload workbook.<br>
-            Last worksheet will be duplicated and renamed with today's date.
-        </p>
-
-        <input
-            type="file"
-            id="inventoryFile"
-            accept=".xlsx,.xls"
-        >
-
-        <button id="inventoryBtn">
-            Duplicate Last Worksheet
-        </button>
-
-        <div class="result-box" id="inventoryStatus">
-            No workbook selected.
-        </div>
-
-    </div>
-
-    <!-- RIGHT PANEL -->
-    <div class="panel">
-
-        <h2>Future Tool</h2>
-
-        <div class="placeholder">
-            Empty for now
-        </div>
-
-    </div>
+<!-- ================= RIGHT PANEL ================= -->
+<div class="panel">
+    <h2>Future Panel</h2>
+    <div class="empty">Empty</div>
+</div>
 
 </div>
 
 <script>
 
 /* ======================================================
-   LEFT PANEL - COLUMN D TO COLUMN G LOOKUP
+   GLOBAL LOOKUP TABLES
 ====================================================== */
 
-let lookupData = {};
+let last4Lookup = {};   // for left panel
+let fullLookup = {};    // for sales inventory
+
+/* ======================================================
+   LOAD LEFT FILE (Column D → Column G)
+====================================================== */
 
 document.getElementById('lookupFile')
-.addEventListener('change', async function(e) {
+.addEventListener('change', async (e) => {
 
     const file = e.target.files[0];
     if (!file) return;
 
-    try {
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data, { type: 'array' });
 
-        const data = await file.arrayBuffer();
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, {
+        header: 1,
+        defval: ''
+    });
 
-        const workbook = XLSX.read(data, {
-            type: 'array'
-        });
+    last4Lookup = {};
+    fullLookup = {};
 
-        const sheet =
-            workbook.Sheets[workbook.SheetNames[0]];
+    rows.forEach(row => {
 
-        const rows =
-            XLSX.utils.sheet_to_json(sheet, {
-                header: 1,
-                defval: ''
-            });
+        const colD = String(row[3] || '').trim();
+        const colG = row[6];
 
-        lookupData = {};
+        if (!colD) return;
 
-        let count = 0;
+        // full match for Sales Inventory
+        fullLookup[colD] = colG;
 
-        rows.forEach(row => {
+        // last 4 digits lookup
+        const last4 = colD.slice(-4);
+        if (last4.length === 4) {
+            last4Lookup[last4] = colG;
+        }
+    });
 
-            const colD = String(row[3] || '').trim();
-            const colG = String(row[6] || '').trim();
-
-            if (!colD || !colG) return;
-
-            const last4 = colD.slice(-4);
-
-            if (last4.length === 4) {
-                lookupData[last4] = colG;
-                count++;
-            }
-        });
-
-        document.getElementById('lookupStatus').innerHTML =
-            `Loaded ${count} records.`;
-
-    }
-    catch(err) {
-
-        document.getElementById('lookupStatus').innerHTML =
-            `<span class="error">${err.message}</span>`;
-    }
-
+    document.getElementById('lookupResult')
+    .innerHTML = `Loaded ${Object.keys(fullLookup).length} records`;
 });
-
-function performLookup() {
-
-    const key =
-        document.getElementById('searchKey')
-        .value.trim();
-
-    if (!/^\d{4}$/.test(key)) {
-
-        document.getElementById('lookupStatus').innerHTML =
-            '<span class="error">Enter exactly 4 digits.</span>';
-
-        return;
-    }
-
-    const value = lookupData[key];
-
-    if (value !== undefined) {
-
-        document.getElementById('lookupStatus').innerHTML =
-            `<span class="success">${value}</span>`;
-
-    } else {
-
-        document.getElementById('lookupStatus').innerHTML =
-            '<span class="error">No match found.</span>';
-    }
-}
-
-document.getElementById('searchBtn')
-.addEventListener('click', performLookup);
-
-document.getElementById('searchKey')
-.addEventListener('keypress', function(e) {
-
-    if (e.key === 'Enter') {
-        performLookup();
-    }
-});
-
 
 /* ======================================================
-   MIDDLE PANEL - DUPLICATE LAST WORKSHEET
+   LEFT SEARCH FUNCTION
 ====================================================== */
 
-document.getElementById('inventoryBtn')
-.addEventListener('click', async () => {
+function searchLast4() {
 
-    const file =
-        document.getElementById('inventoryFile')
-        .files[0];
+    const key = document.getElementById('searchKey').value.trim();
 
-    if (!file) {
-
-        document.getElementById('inventoryStatus')
-        .innerHTML =
-            '<span class="error">Select a workbook first.</span>';
-
+    if (!/^\d{4}$/.test(key)) {
+        document.getElementById('lookupResult').innerHTML =
+            '<span class="error">Enter 4 digits</span>';
         return;
     }
 
-    try {
+    const value = last4Lookup[key];
 
-        const data = await file.arrayBuffer();
+    document.getElementById('lookupResult').innerHTML =
+        value ? `<span class="success">${value}</span>`
+              : `<span class="error">Not found</span>`;
+}
 
-        const workbook = XLSX.read(data, {
-            type: 'array'
-        });
+document.getElementById('searchBtn').addEventListener('click', searchLast4);
 
-        const lastSheetName =
-            workbook.SheetNames[
-                workbook.SheetNames.length - 1
-            ];
+document.getElementById('searchKey').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') searchLast4();
+});
 
-        const lastSheet =
-            workbook.Sheets[lastSheetName];
+/* ======================================================
+   MIDDLE PANEL - SALES INVENTORY
+====================================================== */
 
-        const today = new Date();
+document.getElementById('processInventory')
+.addEventListener('click', async () => {
 
-        const newSheetName =
-            today.toLocaleDateString('en-GB', {
-                day: 'numeric',
-                month: 'long'
-            });
+    const file = document.getElementById('inventoryFile').files[0];
 
-        if (
-            workbook.SheetNames.includes(
-                newSheetName
-            )
-        ) {
+    if (!file) {
+        document.getElementById('inventoryResult').innerHTML =
+            '<span class="error">Select workbook</span>';
+        return;
+    }
 
-            document.getElementById('inventoryStatus')
-            .innerHTML =
-                `<span class="error">
-                    Worksheet "${newSheetName}" already exists.
-                </span>`;
+    const data = await file.arrayBuffer();
+    const wb = XLSX.read(data, { type: 'array' });
 
-            return;
+    // last sheet
+    const lastName = wb.SheetNames[wb.SheetNames.length - 1];
+    const lastSheet = wb.Sheets[lastName];
+
+    // date name
+    const today = new Date();
+    const newName = today.toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'long'
+    });
+
+    if (wb.SheetNames.includes(newName)) {
+        document.getElementById('inventoryResult').innerHTML =
+            '<span class="error">Sheet already exists</span>';
+        return;
+    }
+
+    // duplicate sheet
+    wb.Sheets[newName] = JSON.parse(JSON.stringify(lastSheet));
+    wb.SheetNames.push(newName);
+
+    // convert to array
+    let sheetArr = XLSX.utils.sheet_to_json(
+        wb.Sheets[newName],
+        { header: 1, defval: '' }
+    );
+
+    // process Column A → Column J
+    for (let i = 1; i < sheetArr.length; i++) {
+
+        const item = String(sheetArr[i][0] || '').trim();
+
+        if (!item) {
+            sheetArr[i][9] = 0;
+            continue;
         }
 
-        workbook.Sheets[newSheetName] =
-            JSON.parse(
-                JSON.stringify(lastSheet)
-            );
-
-        workbook.SheetNames.push(
-            newSheetName
-        );
-
-        XLSX.writeFile(
-            workbook,
-            file.name
-        );
-
-        document.getElementById('inventoryStatus')
-        .innerHTML =
-            `<span class="success">
-                Created worksheet "${newSheetName}"
-                from "${lastSheetName}".
-            </span>`;
-
+        sheetArr[i][9] =
+            fullLookup.hasOwnProperty(item)
+                ? fullLookup[item]
+                : 0;
     }
-    catch(err) {
 
-        console.error(err);
+    // rebuild sheet
+    wb.Sheets[newName] = XLSX.utils.aoa_to_sheet(sheetArr);
 
-        document.getElementById('inventoryStatus')
-        .innerHTML =
-            `<span class="error">${err.message}</span>`;
-    }
+    XLSX.writeFile(wb, file.name);
+
+    document.getElementById('inventoryResult').innerHTML =
+        `<span class="success">Created sheet: ${newName}</span>`;
 });
 
 </script>
