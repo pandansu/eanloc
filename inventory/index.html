@@ -95,7 +95,8 @@
 
     <button id="processBtn">Update Column J</button>
 
-    <div class="box" id="inventoryResult">No file loaded</div>
+    <!-- ✅ ADDED OUTPUT BOX -->
+    <div class="box" id="randomOutput">No file processed yet</div>
 </div>
 
 <!-- ================= RIGHT PANEL ================= -->
@@ -114,6 +115,10 @@
 
 let last4Map = {};
 let fullMap = {};
+
+/* ================= INVENTORY SHEET ================= */
+
+let inventorySheet = null;
 
 /* ================= LOAD LOOKUP FILE ================= */
 
@@ -168,6 +173,35 @@ document.getElementById('searchBtn').onclick = () => {
           : `<span class="error">Not found</span>`;
 };
 
+/* ================= RANDOM FUNCTION (NEW) ================= */
+
+function getRandomNonZeroItems(sheet, count = 10) {
+
+    const range = XLSX.utils.decode_range(sheet['!ref']);
+    const results = [];
+
+    for (let r = 1; r <= range.e.r; r++) {
+
+        const aCell = XLSX.utils.encode_cell({ r, c: 0 });
+        const jCell = XLSX.utils.encode_cell({ r, c: 9 });
+
+        const key = sheet[aCell]?.v ? String(sheet[aCell].v).trim() : '';
+        const value = Number(sheet[jCell]?.v ?? 0);
+
+        if (!key) continue;
+        if (value === 0) continue;
+
+        results.push({ A: key, J: value });
+    }
+
+    for (let i = results.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [results[i], results[j]] = [results[j], results[i]];
+    }
+
+    return results.slice(0, count);
+}
+
 /* ================= UPDATE COLUMN J ONLY ================= */
 
 document.getElementById('processBtn')
@@ -176,29 +210,29 @@ document.getElementById('processBtn')
     const file = document.getElementById('inventoryFile').files[0];
 
     if (!file) {
-        document.getElementById('inventoryResult').innerHTML =
+        document.getElementById('randomOutput').innerHTML =
             '<span class="error">Select file</span>';
         return;
     }
 
     const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
 
-    // user already duplicated sheet manually
     const sheetName = wb.SheetNames[wb.SheetNames.length - 1];
     const sheet = wb.Sheets[sheetName];
+
+    inventorySheet = sheet;
 
     const range = XLSX.utils.decode_range(sheet['!ref']);
 
     for (let r = 1; r <= range.e.r; r++) {
 
-        const aCell = XLSX.utils.encode_cell({ r, c: 0 }); // Column A
-        const jCell = XLSX.utils.encode_cell({ r, c: 9 }); // Column J
+        const aCell = XLSX.utils.encode_cell({ r, c: 0 });
+        const jCell = XLSX.utils.encode_cell({ r, c: 9 });
 
         const key = sheet[aCell]?.v
             ? String(sheet[aCell].v).trim()
             : '';
 
-        // ✅ STOP when Column A is empty (prevents overwriting totals)
         if (!key) break;
 
         sheet[jCell] = {
@@ -209,8 +243,14 @@ document.getElementById('processBtn')
 
     XLSX.writeFile(wb, "SalesUpd.xlsx");
 
-    document.getElementById('inventoryResult').innerHTML =
-        `<span class="success">Column J updated successfully</span>`;
+    /* ================= AUTO DISPLAY RANDOM ITEMS ================= */
+
+    const items = getRandomNonZeroItems(sheet, 10);
+
+    document.getElementById('randomOutput').innerHTML =
+        items.length
+            ? items.map(i => `${i.A} → ${i.J}`).join('<br>')
+            : '<span class="error">No valid items found</span>';
 });
 
 </script>
