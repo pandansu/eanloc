@@ -173,6 +173,18 @@ document.getElementById('searchBtn').onclick = () => {
 document.getElementById('processBtn')
 .addEventListener('click', async () => {
 
+   const oldName = wb.SheetNames[wb.SheetNames.length - 1];
+const sheet = wb.Sheets[oldName];
+
+const newName = new Date().toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long'
+}).toUpperCase();
+
+wb.SheetNames[wb.SheetNames.length - 1] = newName;
+wb.Sheets[newName] = sheet;
+delete wb.Sheets[oldName];
+
     const file = document.getElementById('inventoryFile').files[0];
 
     if (!file) {
