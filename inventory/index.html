@@ -180,7 +180,7 @@ document.getElementById('searchBtnStock').onclick = () => {
         v ? `<span class="success">${v}</span>` : `<span class="error">Not found</span>`;
 };
 
-/* ================= DELIVERY PIVOT (ONLY ADDITION) ================= */
+/* ================= DELIVERY PIVOT ================= */
 
 document.getElementById('deliveryFile')
 .addEventListener('change', async (e) => {
@@ -255,8 +255,12 @@ document.getElementById('processBtn')
 
     XLSX.writeFile(wb, "SalesUpd.xlsx");
 
+    const salesItems = getRandomNonZeroItems(sheet, 0, 9, 5);
+
     document.getElementById('randomOutput').innerHTML =
-        'Updated successfully';
+        salesItems.length
+            ? salesItems.map(i => `${i.k} → ${i.v}`).join('<br>')
+            : '<span class="error">No valid items found</span>';
 });
 
 /* ================= FINANCE ================= */
@@ -286,9 +290,42 @@ document.getElementById('financeProcessBtn')
 
     XLSX.writeFile(wb, "FinanceUpd.xlsx");
 
+    const financeItems = getRandomNonZeroItems(sheet, 1, 8, 5);
+
     document.getElementById('financeRandomOutput').innerHTML =
-        'Updated successfully';
+        financeItems.length
+            ? financeItems.map(i => `${i.k} → ${i.v}`).join('<br>')
+            : '<span class="error">No valid items found</span>';
 });
+
+/* ================= HELPER ================= */
+
+function getRandomNonZeroItems(sheet, colKey, colValue, count = 5) {
+
+    const range = XLSX.utils.decode_range(sheet['!ref']);
+    const results = [];
+
+    for (let r = 1; r <= range.e.r; r++) {
+
+        const keyCell = XLSX.utils.encode_cell({ r, c: colKey });
+        const valCell = XLSX.utils.encode_cell({ r, c: colValue });
+
+        const key = sheet[keyCell]?.v ? String(sheet[keyCell].v).trim() : '';
+        const value = Number(sheet[valCell]?.v ?? 0);
+
+        if (!key) continue;
+        if (value === 0) continue;
+
+        results.push({ k: key, v: value });
+    }
+
+    for (let i = results.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [results[i], results[j]] = [results[j], results[i]];
+    }
+
+    return results.slice(0, count);
+}
 
 </script>
 
