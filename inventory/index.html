@@ -123,11 +123,30 @@
 
 <script>
 
-/* ================= LOOKUP ================= */
+/* ================= LOCAL STORAGE KEYS ================= */
+
+const LS_STOCK = "stock_maps";
+const LS_PIVOT = "delivery_pivot";
+
+/* ================= GLOBAL STATE ================= */
 
 let last4Map = {};
 let fullMap = {};
-let deliveryPivot = {};   /* ADDED */
+let pivotData = {};
+
+/* ================= RESTORE FROM LOCALSTORAGE ================= */
+
+const savedStock = localStorage.getItem(LS_STOCK);
+if (savedStock) {
+    const data = JSON.parse(savedStock);
+    fullMap = data.fullMap || {};
+    last4Map = data.last4Map || {};
+}
+
+const savedPivot = localStorage.getItem(LS_PIVOT);
+if (savedPivot) {
+    pivotData = JSON.parse(savedPivot);
+}
 
 /* ================= STOCK FILE ================= */
 
@@ -145,8 +164,8 @@ document.getElementById('lookupFile')
         defval: ''
     });
 
-    last4Map = {};
     fullMap = {};
+    last4Map = {};
 
     rows.forEach(r => {
 
@@ -158,6 +177,11 @@ document.getElementById('lookupFile')
         fullMap[colD] = colG;
         last4Map[colD.slice(-4)] = colG;
     });
+
+    localStorage.setItem(LS_STOCK, JSON.stringify({
+        fullMap,
+        last4Map
+    }));
 
     document.getElementById('lookupResultStock').innerHTML =
         `Loaded ${Object.keys(fullMap).length} records`;
@@ -197,8 +221,7 @@ document.getElementById('deliveryFile')
         defval: ''
     });
 
-    deliveryPivot = {};   /* RESET */
-
+    pivotData = {};
     let grandTotal = 0;
 
     rows.forEach(r => {
@@ -209,11 +232,13 @@ document.getElementById('deliveryFile')
         if (!product) return;
         if (!qty) return;
 
-        deliveryPivot[product] = (deliveryPivot[product] || 0) + qty;
+        pivotData[product] = (pivotData[product] || 0) + qty;
         grandTotal += qty;
     });
 
-    const entries = Object.entries(deliveryPivot);
+    localStorage.setItem(LS_PIVOT, JSON.stringify(pivotData));
+
+    const entries = Object.entries(pivotData);
 
     for (let i = entries.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -222,12 +247,9 @@ document.getElementById('deliveryFile')
 
     const random4 = entries.slice(0, 4);
 
-    const output =
+    document.getElementById('deliveryOutput').innerHTML =
         random4.map(([k, v]) => `${k} → ${v}`).join('\n') +
         `\n\nGrand Total → ${grandTotal}`;
-
-    document.getElementById('deliveryOutput').innerHTML =
-        output || '<span class="error">No data found</span>';
 });
 
 /* ================= SALES ================= */
@@ -275,7 +297,7 @@ document.getElementById('financeProcessBtn')
 
     const range = XLSX.utils.decode_range(sheet['!ref']);
 
-    /* CLEAR J & K FROM ROW 2 */
+    /* CLEAR J & K */
     for (let r = 1; r <= range.e.r; r++) {
 
         const jCell = XLSX.utils.encode_cell({ r, c: 9 });
@@ -285,10 +307,12 @@ document.getElementById('financeProcessBtn')
         delete sheet[kCell];
     }
 
-    /* WRITE PIVOT INTO J & K */
+    /* WRITE PIVOT */
+    const entries = Object.entries(pivotData);
+
     let row = 1;
 
-    Object.entries(deliveryPivot).forEach(([product, qty]) => {
+    entries.forEach(([product, qty]) => {
 
         const jCell = XLSX.utils.encode_cell({ r: row, c: 9 });
         const kCell = XLSX.utils.encode_cell({ r: row, c: 10 });
@@ -302,7 +326,7 @@ document.getElementById('financeProcessBtn')
     XLSX.writeFile(wb, "FinanceUpd.xlsx");
 
     document.getElementById('financeRandomOutput').innerHTML =
-        Object.keys(deliveryPivot).length
+        entries.length
             ? 'Pivot written successfully'
             : '<span class="error">No pivot data found</span>';
 });
