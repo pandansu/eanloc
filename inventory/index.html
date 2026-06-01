@@ -123,30 +123,10 @@
 
 <script>
 
-/* ================= LOCAL STORAGE KEYS ================= */
-
-const LS_STOCK = "stock_maps";
-const LS_PIVOT = "delivery_pivot";
-
-/* ================= GLOBAL STATE ================= */
+/* ================= LOOKUP ================= */
 
 let last4Map = {};
 let fullMap = {};
-let pivotData = {};
-
-/* ================= RESTORE FROM LOCALSTORAGE ================= */
-
-const savedStock = localStorage.getItem(LS_STOCK);
-if (savedStock) {
-    const data = JSON.parse(savedStock);
-    fullMap = data.fullMap || {};
-    last4Map = data.last4Map || {};
-}
-
-const savedPivot = localStorage.getItem(LS_PIVOT);
-if (savedPivot) {
-    pivotData = JSON.parse(savedPivot);
-}
 
 /* ================= STOCK FILE ================= */
 
@@ -164,8 +144,8 @@ document.getElementById('lookupFile')
         defval: ''
     });
 
-    fullMap = {};
     last4Map = {};
+    fullMap = {};
 
     rows.forEach(r => {
 
@@ -177,11 +157,6 @@ document.getElementById('lookupFile')
         fullMap[colD] = colG;
         last4Map[colD.slice(-4)] = colG;
     });
-
-    localStorage.setItem(LS_STOCK, JSON.stringify({
-        fullMap,
-        last4Map
-    }));
 
     document.getElementById('lookupResultStock').innerHTML =
         `Loaded ${Object.keys(fullMap).length} records`;
@@ -221,24 +196,22 @@ document.getElementById('deliveryFile')
         defval: ''
     });
 
-    pivotData = {};
+    const pivot = {};
     let grandTotal = 0;
 
     rows.forEach(r => {
 
-        const product = String(r[25] || '').trim();
-        const qty = Number(r[29] ?? 0);
+        const product = String(r[25] || '').trim(); // Z
+        const qty = Number(r[29] ?? 0);             // AD
 
         if (!product) return;
         if (!qty) return;
 
-        pivotData[product] = (pivotData[product] || 0) + qty;
+        pivot[product] = (pivot[product] || 0) + qty;
         grandTotal += qty;
     });
 
-    localStorage.setItem(LS_PIVOT, JSON.stringify(pivotData));
-
-    const entries = Object.entries(pivotData);
+    const entries = Object.entries(pivot);
 
     for (let i = entries.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -247,9 +220,12 @@ document.getElementById('deliveryFile')
 
     const random4 = entries.slice(0, 4);
 
-    document.getElementById('deliveryOutput').innerHTML =
+    const output =
         random4.map(([k, v]) => `${k} → ${v}`).join('\n') +
         `\n\nGrand Total → ${grandTotal}`;
+
+    document.getElementById('deliveryOutput').innerHTML =
+        output || '<span class="error">No data found</span>';
 });
 
 /* ================= SALES ================= */
@@ -279,12 +255,15 @@ document.getElementById('processBtn')
 
     XLSX.writeFile(wb, "SalesUpd.xlsx");
 
+    const salesItems = getRandomNonZeroItems(sheet, 0, 9, 5);
+
     document.getElementById('randomOutput').innerHTML =
-        'Updated successfully';
+        salesItems.length
+            ? salesItems.map(i => `${i.k} → ${i.v}`).join('<br>')
+            : '<span class="error">No valid items found</span>';
 });
 
 /* ================= FINANCE ================= */
-
 document.getElementById('financeProcessBtn')
 .addEventListener('click', async () => {
 
@@ -292,44 +271,82 @@ document.getElementById('financeProcessBtn')
     if (!file) return;
 
     const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
-
     const sheet = wb.Sheets[wb.SheetNames[wb.SheetNames.length - 1]];
-
     const range = XLSX.utils.decode_range(sheet['!ref']);
 
-    /* CLEAR J & K */
+    // Update Column I
     for (let r = 1; r <= range.e.r; r++) {
-
-        const jCell = XLSX.utils.encode_cell({ r, c: 9 });
-        const kCell = XLSX.utils.encode_cell({ r, c: 10 });
-
-        delete sheet[jCell];
-        delete sheet[kCell];
+        const bCell = XLSX.utils.encode_cell({ r, c: 1 });
+        const iCell = XLSX.utils.encode_cell({ r, c: 8 });
+        const key = sheet[bCell]?.v ? String(sheet[bCell].v).trim() : '';
+        if (!key) break;
+        sheet[iCell] = { t: 'n', v: fullMap[key] ?? 0 };
     }
 
-    /* WRITE PIVOT */
-    const entries = Object.entries(pivotData);
+    // Clear Col J and K from row 2 onwards
+    for (let r = 1; r <= range.e.r; r++) {
+        const jCell = XLSX.utils.encode_cell({ r, c: 9 }); // Column J
+        const kCell = XLSX.utils.encode_cell({ r, c: 10 }); // Column K
+        sheet[jCell] = { t: 's', v: '' };
+        sheet[kCell] = { t: 's', v: '' };
+    }
 
-    let row = 1;
-
-    entries.forEach(([product, qty]) => {
-
-        const jCell = XLSX.utils.encode_cell({ r: row, c: 9 });
-        const kCell = XLSX.utils.encode_cell({ r: row, c: 10 });
-
+    // Write pivot data into Col J and K
+    let row = 1; // start at row 2 (index 1)
+    for (const [product, qty] of Object.entries(deliveryPivot)) {
+        const jCell = XLSX.utils.encode_cell({ r: row, c: 9 });  // Column J
+        const kCell = XLSX.utils.encode_cell({ r: row, c: 10 }); // Column K
         sheet[jCell] = { t: 's', v: product };
         sheet[kCell] = { t: 'n', v: qty };
-
         row++;
-    });
+    }
+
+    // Add grand total at the end
+    const jCellTotal = XLSX.utils.encode_cell({ r: row, c: 9 });
+    const kCellTotal = XLSX.utils.encode_cell({ r: row, c: 10 });
+    sheet[jCellTotal] = { t: 's', v: "Grand Total" };
+    sheet[kCellTotal] = { t: 'n', v: deliveryGrandTotal };
 
     XLSX.writeFile(wb, "FinanceUpd.xlsx");
+});
+
+
+    const financeItems = getRandomNonZeroItems(sheet, 1, 8, 5);
 
     document.getElementById('financeRandomOutput').innerHTML =
-        entries.length
-            ? 'Pivot written successfully'
-            : '<span class="error">No pivot data found</span>';
+        financeItems.length
+            ? financeItems.map(i => `${i.k} → ${i.v}`).join('<br>')
+            : '<span class="error">No valid items found</span>';
 });
+
+/* ================= HELPER ================= */
+
+function getRandomNonZeroItems(sheet, colKey, colValue, count = 5) {
+
+    const range = XLSX.utils.decode_range(sheet['!ref']);
+    const results = [];
+
+    for (let r = 1; r <= range.e.r; r++) {
+
+        const keyCell = XLSX.utils.encode_cell({ r, c: colKey });
+        const valCell = XLSX.utils.encode_cell({ r, c: colValue });
+
+        const key = sheet[keyCell]?.v ? String(sheet[keyCell].v).trim() : '';
+        const value = Number(sheet[valCell]?.v ?? 0);
+
+        if (!key) continue;
+        if (value === 0) continue;
+
+        results.push({ k: key, v: value });
+    }
+
+    for (let i = results.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [results[i], results[j]] = [results[j], results[i]];
+    }
+
+    return results.slice(0, count);
+}
 
 </script>
 
