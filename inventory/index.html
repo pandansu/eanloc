@@ -111,7 +111,7 @@
 
 <!-- ================= RIGHT PANEL ================= -->
 <div class="panel">
-    <h2>Finance Inventory 3</h2>
+    <h2>Finance Inventory 4</h2>
 
     <input type="file" id="financeFile" accept=".xlsx,.xls">
     <button id="financeProcessBtn">Update Column I</button>
@@ -272,13 +272,37 @@ document.getElementById('financeProcessBtn')
 
     const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
     const sheet = wb.Sheets[wb.SheetNames[wb.SheetNames.length - 1]];
-    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+    const range = XLSX.utils.decode_range(sheet['!ref']);
 
-    // Build pivot table from Finance file itself (same logic as Delivery)
+    // Step 1: Fill Column I using lookup file
+    for (let r = 1; r <= range.e.r; r++) {
+        const bCell = XLSX.utils.encode_cell({ r, c: 1 }); // Column B
+        const iCell = XLSX.utils.encode_cell({ r, c: 8 }); // Column I
+        const key = sheet[bCell]?.v ? String(sheet[bCell].v).trim() : '';
+        if (!key) break;
+        sheet[iCell] = { t: 'n', v: fullMap[key] ?? 0 };
+    }
+
+    // Step 2: Show random items for verification
+    const financeItems = getRandomNonZeroItems(sheet, 1, 8, 5);
+    document.getElementById('financeRandomOutput').innerHTML =
+        financeItems.length
+            ? financeItems.map(i => `${i.k} → ${i.v}`).join('<br>')
+            : '<span class="error">No valid items found</span>';
+
+    // Step 3: Build pivot table from delivery file (same as Delivery panel)
+    const deliveryFile = document.getElementById('deliveryFile').files[0];
+    if (!deliveryFile) {
+        alert("Please load a Delivery file in the bottom left panel first.");
+        return;
+    }
+    const wbDelivery = XLSX.read(await deliveryFile.arrayBuffer(), { type: 'array' });
+    const sheetDelivery = wbDelivery.Sheets[wbDelivery.SheetNames[0]];
+    const rowsDelivery = XLSX.utils.sheet_to_json(sheetDelivery, { header: 1, defval: '' });
+
     const pivot = {};
     let grandTotal = 0;
-
-    rows.forEach(r => {
+    rowsDelivery.forEach(r => {
         const product = String(r[25] || '').trim(); // Column Z
         const qty = Number(r[29] ?? 0);             // Column AD
         if (!product) return;
@@ -287,18 +311,16 @@ document.getElementById('financeProcessBtn')
         grandTotal += qty;
     });
 
-    const range = XLSX.utils.decode_range(sheet['!ref']);
-
-    // Clear Col J and K from row 2 onwards
+    // Step 4: Clear Col J and K from row 2 onwards
     for (let r = 1; r <= range.e.r; r++) {
-        const jCell = XLSX.utils.encode_cell({ r, c: 9 }); // Column J
-        const kCell = XLSX.utils.encode_cell({ r, c: 10 }); // Column K
+        const jCell = XLSX.utils.encode_cell({ r, c: 9 });
+        const kCell = XLSX.utils.encode_cell({ r, c: 10 });
         sheet[jCell] = { t: 's', v: '' };
         sheet[kCell] = { t: 's', v: '' };
     }
 
-    // Write pivot data into Col J and K
-    let row = 1; // start at row 2 (index 1)
+    // Step 5: Write pivot data into Col J and K
+    let row = 1; // row 2 in Excel
     for (const [product, qty] of Object.entries(pivot)) {
         const jCell = XLSX.utils.encode_cell({ r: row, c: 9 });
         const kCell = XLSX.utils.encode_cell({ r: row, c: 10 });
@@ -307,27 +329,15 @@ document.getElementById('financeProcessBtn')
         row++;
     }
 
-    // Add grand total at the end
+    // Add grand total
     const jCellTotal = XLSX.utils.encode_cell({ r: row, c: 9 });
     const kCellTotal = XLSX.utils.encode_cell({ r: row, c: 10 });
     sheet[jCellTotal] = { t: 's', v: "Grand Total" };
     sheet[kCellTotal] = { t: 'n', v: grandTotal };
 
+    // Step 6: Save file
     XLSX.writeFile(wb, "FinanceUpd.xlsx");
-
-    // Show a few random items for verification
-    const entries = Object.entries(pivot);
-    for (let i = entries.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [entries[i], entries[j]] = [entries[j], entries[i]];
-    }
-    const sample = entries.slice(0, 5);
-    document.getElementById('financeRandomOutput').innerHTML =
-        sample.length
-            ? sample.map(([k, v]) => `${k} → ${v}`).join('<br>')
-            : '<span class="error">No valid items found</span>';
 });
-
 
 /* ================= HELPER ================= */
 
