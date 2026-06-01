@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel Lookup</title>
+
+    <!-- SheetJS -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 40px auto;
+            padding: 20px;
+        }
+
+        input, button {
+            padding: 10px;
+            margin: 10px 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ccc;
+            background: #f7f7f7;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+
+<h2>Excel Key/Value Lookup</h2>
+
+<input type="file" id="fileInput" accept=".xlsx,.xls">
+
+<input type="text" id="searchKey" maxlength="4" placeholder="Enter 4-digit code">
+
+<button id="searchBtn">Search</button>
+
+<div id="result">Upload an Excel file first.</div>
+
+<script>
+let lookupData = {};
+
+// Convert Excel column letters to index
+const KEY_COLUMN = 3;   // D (0-based index)
+const VALUE_COLUMN = 6; // G (0-based index)
+
+document.getElementById('fileInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = function(event) {
+        const data = new Uint8Array(event.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(firstSheet, {
+            header: 1,
+            defval: ''
+        });
+
+        lookupData = {};
+
+        rows.forEach(row => {
+            const key = String(row[KEY_COLUMN] || '').trim();
+            const value = String(row[VALUE_COLUMN] || '').trim();
+
+            if (key) {
+                lookupData[key] = value;
+            }
+        });
+
+        document.getElementById('result').innerHTML =
+            `Loaded ${Object.keys(lookupData).length} records.`;
+    };
+
+    reader.readAsArrayBuffer(file);
+});
+
+document.getElementById('searchBtn').addEventListener('click', function() {
+    const key = document.getElementById('searchKey').value.trim();
+
+    if (!key) {
+        document.getElementById('result').innerHTML = 'Please enter a code.';
+        return;
+    }
+
+    if (lookupData[key] !== undefined) {
+        document.getElementById('result').innerHTML =
+            `<strong>Value:</strong> ${lookupData[key]}`;
+    } else {
+        document.getElementById('result').innerHTML =
+            'No matching record found.';
+    }
+});
+
+document.getElementById('searchKey').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        document.getElementById('searchBtn').click();
+    }
+});
+</script>
+
+</body>
+</html>
