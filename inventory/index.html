@@ -69,9 +69,9 @@
 
 <div class="container">
 
-<!-- ================= LEFT ================= -->
+<!-- ================= LEFT PANEL ================= -->
 <div class="panel">
-    <h2>Lookup (Column D → G)</h2>
+    <h2>Lookup (Column D → Column G)</h2>
 
     <input type="file" id="lookupFile" accept=".xlsx,.xls">
 
@@ -82,13 +82,13 @@
     <div class="box" id="lookupResult">No file loaded</div>
 </div>
 
-<!-- ================= MIDDLE ================= -->
+<!-- ================= MIDDLE PANEL ================= -->
 <div class="panel">
     <h2>Sales Inventory</h2>
 
     <p>
-        ✔ Sheet already duplicated manually in Excel<br>
-        ✔ This tool only updates Column J
+        ✔ User must already duplicate sheet manually<br>
+        ✔ Only Column J will be updated safely
     </p>
 
     <input type="file" id="inventoryFile" accept=".xlsx,.xls">
@@ -98,7 +98,7 @@
     <div class="box" id="inventoryResult">No file loaded</div>
 </div>
 
-<!-- ================= RIGHT ================= -->
+<!-- ================= RIGHT PANEL ================= -->
 <div class="panel">
     <h2>Future</h2>
     <div class="box" style="text-align:center;color:#888;">
@@ -183,8 +183,7 @@ document.getElementById('processBtn')
 
     const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
 
-    // IMPORTANT:
-    // user already created new sheet manually
+    // user already duplicated sheet manually
     const sheetName = wb.SheetNames[wb.SheetNames.length - 1];
     const sheet = wb.Sheets[sheetName];
 
@@ -198,6 +197,9 @@ document.getElementById('processBtn')
         const key = sheet[aCell]?.v
             ? String(sheet[aCell].v).trim()
             : '';
+
+        // ✅ STOP when Column A is empty (prevents overwriting totals)
+        if (!key) break;
 
         sheet[jCell] = {
             t: 'n',
