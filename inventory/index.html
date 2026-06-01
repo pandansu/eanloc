@@ -2,66 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Inventory System</title>
 
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 
 <style>
-    * { box-sizing: border-box; }
-
-    body {
-        margin: 0;
-        font-family: Arial, sans-serif;
-        background: #f4f4f4;
-    }
-
-    .container {
-        display: flex;
-        height: 100vh;
-    }
-
-    .panel {
-        flex: 1;
-        padding: 20px;
-        background: white;
-        border-right: 1px solid #ddd;
-        overflow-y: auto;
-    }
-
-    .panel:last-child {
-        border-right: none;
-    }
-
-    h2 { margin-top: 0; }
-
-    input, button {
-        width: 100%;
-        padding: 10px;
-        margin-bottom: 10px;
-        font-size: 14px;
-    }
-
-    button {
-        background: #0078d4;
-        color: white;
-        border: none;
-        cursor: pointer;
-    }
-
-    button:hover {
-        background: #005ea6;
-    }
-
-    .box {
-        padding: 12px;
-        background: #fafafa;
-        border: 1px solid #ddd;
-        min-height: 60px;
-    }
-
-    .success { color: green; font-weight: bold; }
-    .error { color: red; }
+body { margin:0; font-family:Arial; }
+.container { display:flex; height:100vh; }
+.panel { flex:1; padding:20px; border-right:1px solid #ddd; overflow:auto; }
+.panel:last-child { border:none; }
+input,button { width:100%; padding:10px; margin:8px 0; }
+button { background:#0078d4; color:#fff; border:none; cursor:pointer; }
+.box { padding:10px; background:#f5f5f5; min-height:50px; }
+.success { color:green; font-weight:bold; }
+.error { color:red; }
 </style>
 </head>
 
@@ -69,149 +23,107 @@
 
 <div class="container">
 
-<!-- ================= LEFT PANEL ================= -->
+<!-- LEFT -->
 <div class="panel">
-    <h2>Lookup (Column D → Column G)</h2>
+<h3>Lookup (D → G)</h3>
 
-    <input type="file" id="lookupFile" accept=".xlsx,.xls">
+<input type="file" id="file1">
+<input type="text" id="key" placeholder="Last 4 digits">
+<button onclick="search()">Search</button>
 
-    <input type="text" id="searchKey" maxlength="4" placeholder="Last 4 digits">
-
-    <button id="searchBtn">Search</button>
-
-    <div class="box" id="lookupResult">No file loaded</div>
+<div class="box" id="out1"></div>
 </div>
 
-<!-- ================= MIDDLE PANEL ================= -->
+<!-- MIDDLE -->
 <div class="panel">
-    <h2>Sales Inventory</h2>
+<h3>Sales Inventory</h3>
 
-    <p>
-        ✔ User must already duplicate sheet manually<br>
-        ✔ Only Column J will be updated safely
-    </p>
+<input type="file" id="file2">
+<button onclick="process()">Update Column J</button>
 
-    <input type="file" id="inventoryFile" accept=".xlsx,.xls">
-
-    <button id="processBtn">Update Column J</button>
-
-    <div class="box" id="inventoryResult">No file loaded</div>
+<div class="box" id="out2"></div>
 </div>
 
-<!-- ================= RIGHT PANEL ================= -->
+<!-- RIGHT -->
 <div class="panel">
-    <h2>Future</h2>
-    <div class="box" style="text-align:center;color:#888;">
-        Empty
-    </div>
+<h3>Future</h3>
+<div class="box">Empty</div>
 </div>
 
 </div>
 
 <script>
 
-/* ================= LOOKUP MAP ================= */
+/* ================= LOOKUP ================= */
 
-let last4Map = {};
-let fullMap = {};
+let map = {};
 
-/* ================= LOAD LOOKUP FILE ================= */
+document.getElementById('file1').addEventListener('change', async e => {
 
-document.getElementById('lookupFile')
-.addEventListener('change', async (e) => {
+const wb = XLSX.read(await e.target.files[0].arrayBuffer(), {type:'array'});
+const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {header:1});
 
-    const file = e.target.files[0];
-    if (!file) return;
+map = {};
 
-    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
-
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(sheet, {
-        header: 1,
-        defval: ''
-    });
-
-    last4Map = {};
-    fullMap = {};
-
-    rows.forEach(r => {
-
-        const colD = String(r[3] || '').trim();
-        const colG = r[6];
-
-        if (!colD) return;
-
-        fullMap[colD] = colG;
-        last4Map[colD.slice(-4)] = colG;
-    });
-
-    document.getElementById('lookupResult').innerHTML =
-        `Loaded ${Object.keys(fullMap).length} records`;
+rows.forEach(r => {
+    const d = String(r[3]||'');
+    const g = r[6];
+    map[d.slice(-4)] = g;
 });
 
-/* ================= SEARCH ================= */
-
-document.getElementById('searchBtn').onclick = () => {
-
-    const k = document.getElementById('searchKey').value.trim();
-
-    if (!/^\d{4}$/.test(k)) {
-        document.getElementById('lookupResult').innerHTML =
-            '<span class="error">Enter 4 digits</span>';
-        return;
-    }
-
-    const v = last4Map[k];
-
-    document.getElementById('lookupResult').innerHTML =
-        v ? `<span class="success">${v}</span>`
-          : `<span class="error">Not found</span>`;
-};
-
-/* ================= UPDATE COLUMN J ONLY ================= */
-
-document.getElementById('processBtn')
-.addEventListener('click', async () => {
-
-    const file = document.getElementById('inventoryFile').files[0];
-
-    if (!file) {
-        document.getElementById('inventoryResult').innerHTML =
-            '<span class="error">Select file</span>';
-        return;
-    }
-
-    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
-
-    // user already duplicated sheet manually
-    const sheetName = wb.SheetNames[wb.SheetNames.length - 1];
-    const sheet = wb.Sheets[sheetName];
-
-    const range = XLSX.utils.decode_range(sheet['!ref']);
-
-    for (let r = 1; r <= range.e.r; r++) {
-
-        const aCell = XLSX.utils.encode_cell({ r, c: 0 }); // Column A
-        const jCell = XLSX.utils.encode_cell({ r, c: 9 }); // Column J
-
-        const key = sheet[aCell]?.v
-            ? String(sheet[aCell].v).trim()
-            : '';
-
-        // ✅ STOP when Column A is empty (prevents overwriting totals)
-        if (!key) break;
-
-        sheet[jCell] = {
-            t: 'n',
-            v: fullMap[key] ?? 0
-        };
-    }
-
-    XLSX.writeFile(wb, file.name);
-
-    document.getElementById('inventoryResult').innerHTML =
-        `<span class="success">Column J updated successfully</span>`;
+document.getElementById('out1').innerText =
+    "Loaded " + Object.keys(map).length;
 });
+
+function search(){
+const k = document.getElementById('key').value;
+document.getElementById('out1').innerText = map[k] || "Not found";
+}
+
+/* ================= SAFELY UPDATE COLUMN J ================= */
+
+function process(){
+
+const file = document.getElementById('file2').files[0];
+if(!file){ alert("Upload file"); return; }
+
+const wb = XLSX.read(await file.arrayBuffer(), {type:'array'});
+
+const sheetName = wb.SheetNames[wb.SheetNames.length - 1];
+const sheet = wb.Sheets[sheetName];
+
+const range = XLSX.utils.decode_range(sheet['!ref']);
+
+for(let r=1;r<=range.e.r;r++){
+
+    const aAddr = XLSX.utils.encode_cell({r,c:0}); // Column A
+    const jAddr = XLSX.utils.encode_cell({r,c:9}); // Column J
+
+    const key = sheet[aAddr]?.v
+        ? String(sheet[aAddr].v).trim()
+        : '';
+
+    if(!key) break; // stop at blank row (protect totals)
+
+    const value = map[key] ?? 0;
+
+    /* ==========================================
+       KEY FIX: preserve existing cell formatting
+    ========================================== */
+
+    if(!sheet[jAddr]) {
+        sheet[jAddr] = { t:'n', v:value };
+    } else {
+        sheet[jAddr].v = value; // ONLY change value
+        sheet[jAddr].t = 'n';   // ensure numeric type
+    }
+}
+
+XLSX.writeFile(wb, file.name);
+
+document.getElementById('out2').innerText =
+    "Column J updated (format preserved)";
+}
 
 </script>
 
