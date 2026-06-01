@@ -111,7 +111,7 @@
 
 <!-- ================= RIGHT PANEL ================= -->
 <div class="panel">
-    <h2>Finance Inventory 2</h2>
+    <h2>Finance Inventory 3</h2>
 
     <input type="file" id="financeFile" accept=".xlsx,.xls">
     <button id="financeProcessBtn">Update Column I</button>
@@ -272,16 +272,22 @@ document.getElementById('financeProcessBtn')
 
     const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
     const sheet = wb.Sheets[wb.SheetNames[wb.SheetNames.length - 1]];
-    const range = XLSX.utils.decode_range(sheet['!ref']);
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
-    // Update Column I
-    for (let r = 1; r <= range.e.r; r++) {
-        const bCell = XLSX.utils.encode_cell({ r, c: 1 });
-        const iCell = XLSX.utils.encode_cell({ r, c: 8 });
-        const key = sheet[bCell]?.v ? String(sheet[bCell].v).trim() : '';
-        if (!key) break;
-        sheet[iCell] = { t: 'n', v: fullMap[key] ?? 0 };
-    }
+    // Build pivot table from Finance file itself (same logic as Delivery)
+    const pivot = {};
+    let grandTotal = 0;
+
+    rows.forEach(r => {
+        const product = String(r[25] || '').trim(); // Column Z
+        const qty = Number(r[29] ?? 0);             // Column AD
+        if (!product) return;
+        if (!qty) return;
+        pivot[product] = (pivot[product] || 0) + qty;
+        grandTotal += qty;
+    });
+
+    const range = XLSX.utils.decode_range(sheet['!ref']);
 
     // Clear Col J and K from row 2 onwards
     for (let r = 1; r <= range.e.r; r++) {
@@ -293,9 +299,9 @@ document.getElementById('financeProcessBtn')
 
     // Write pivot data into Col J and K
     let row = 1; // start at row 2 (index 1)
-    for (const [product, qty] of Object.entries(deliveryPivot)) {
-        const jCell = XLSX.utils.encode_cell({ r: row, c: 9 });  // Column J
-        const kCell = XLSX.utils.encode_cell({ r: row, c: 10 }); // Column K
+    for (const [product, qty] of Object.entries(pivot)) {
+        const jCell = XLSX.utils.encode_cell({ r: row, c: 9 });
+        const kCell = XLSX.utils.encode_cell({ r: row, c: 10 });
         sheet[jCell] = { t: 's', v: product };
         sheet[kCell] = { t: 'n', v: qty };
         row++;
@@ -305,16 +311,23 @@ document.getElementById('financeProcessBtn')
     const jCellTotal = XLSX.utils.encode_cell({ r: row, c: 9 });
     const kCellTotal = XLSX.utils.encode_cell({ r: row, c: 10 });
     sheet[jCellTotal] = { t: 's', v: "Grand Total" };
-    sheet[kCellTotal] = { t: 'n', v: deliveryGrandTotal };
+    sheet[kCellTotal] = { t: 'n', v: grandTotal };
 
     XLSX.writeFile(wb, "FinanceUpd.xlsx");
 
-    const financeItems = getRandomNonZeroItems(sheet, 1, 8, 5);
+    // Show a few random items for verification
+    const entries = Object.entries(pivot);
+    for (let i = entries.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [entries[i], entries[j]] = [entries[j], entries[i]];
+    }
+    const sample = entries.slice(0, 5);
     document.getElementById('financeRandomOutput').innerHTML =
-        financeItems.length
-            ? financeItems.map(i => `${i.k} → ${i.v}`).join('<br>')
+        sample.length
+            ? sample.map(([k, v]) => `${k} → ${v}`).join('<br>')
             : '<span class="error">No valid items found</span>';
 });
+
 
 /* ================= HELPER ================= */
 
