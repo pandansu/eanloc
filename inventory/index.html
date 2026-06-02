@@ -4,279 +4,171 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Inventory System</title>
-
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
-
 <style>
     * { box-sizing: border-box; }
-
-    body {
-        margin: 0;
-        font-family: Arial, sans-serif;
-        background: #f4f4f4;
-    }
-
-    .container {
-        display: flex;
-        height: 100vh;
-    }
-
-    .panel {
-        flex: 1;
-        padding: 20px;
-        background: white;
-        border-right: 1px solid #ddd;
-        overflow-y: auto;
-    }
-
-    .panel:last-child {
-        border-right: none;
-    }
-
-    .subpanel {
-        margin-bottom: 20px;
-        padding-bottom: 20px;
-        border-bottom: 2px solid #eee;
-    }
-
+    body { margin: 0; font-family: Arial, sans-serif; background: #f4f4f4; }
+    .container { display: flex; height: 100vh; }
+    .panel { flex: 1; padding: 20px; background: white; border-right: 1px solid #ddd; overflow-y: auto; }
+    .panel:last-child { border-right: none; }
+    .subpanel { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 2px solid #eee; }
     h2 { margin-top: 0; }
-
-    input, button {
-        width: 100%;
-        padding: 10px;
-        margin-bottom: 10px;
-        font-size: 14px;
-    }
-
-    button {
-        background: #0078d4;
-        color: white;
-        border: none;
-        cursor: pointer;
-    }
-
-    button:hover {
-        background: #005ea6;
-    }
-
-    .box {
-        padding: 12px;
-        background: #fafafa;
-        border: 1px solid #ddd;
-        min-height: 60px;
-        white-space: pre-line;
-    }
-
+    input, button { width: 100%; padding: 10px; margin-bottom: 10px; font-size: 14px; }
+    button { background: #0078d4; color: white; border: none; cursor: pointer; }
+    button:hover { background: #005ea6; }
+    .box { padding: 12px; background: #fafafa; border: 1px solid #ddd; min-height: 60px; white-space: pre-line; }
     .success { color: green; font-weight: bold; }
     .error { color: red; }
 </style>
 </head>
-
 <body>
-
 <div class="container">
 
-<!-- ================= LEFT PANEL ================= -->
+<!-- LEFT PANEL -->
 <div class="panel">
-
     <div class="subpanel">
         <h2>Lookup Stock</h2>
-
         <input type="file" id="lookupFile" accept=".xlsx,.xls">
         <input type="text" id="searchKeyStock" maxlength="4" placeholder="Last 4 digits">
         <button id="searchBtnStock">Search Stock</button>
-
         <div class="box" id="lookupResultStock">No file loaded</div>
     </div>
-
     <div class="subpanel">
         <h2>Lookup Delivery</h2>
-
         <input type="file" id="deliveryFile" accept=".xlsx,.xls">
-
         <div class="box" id="deliveryOutput">No file loaded</div>
     </div>
-
 </div>
 
-<!-- ================= MIDDLE PANEL ================= -->
+<!-- MIDDLE PANEL -->
 <div class="panel">
     <h2>Sales Inventory</h2>
-
     <input type="file" id="inventoryFile" accept=".xlsx,.xls">
     <button id="processBtn">Update Column J</button>
-
     <div class="box" id="randomOutput">No file processed yet</div>
 </div>
 
-<!-- ================= RIGHT PANEL ================= -->
+<!-- RIGHT PANEL -->
 <div class="panel">
     <h2>Finance Inventory</h2>
-
     <input type="file" id="financeFile" accept=".xlsx,.xls">
     <button id="financeProcessBtn">Update Column I</button>
-
     <div class="box" id="financeRandomOutput">No file processed yet</div>
 </div>
 
 </div>
 
 <script>
-
-/* ================= LOOKUP ================= */
-
 let last4Map = {};
 let fullMap = {};
 
-/* ================= STOCK FILE ================= */
-
-document.getElementById('lookupFile')
-.addEventListener('change', async (e) => {
-
+/* STOCK FILE */
+document.getElementById('lookupFile').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
-    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-
-    const rows = XLSX.utils.sheet_to_json(sheet, {
-        header: 1,
-        defval: ''
-    });
-
-    last4Map = {};
-    fullMap = {};
-
-    rows.forEach(r => {
-
-        const colD = String(r[3] || '').trim();
-        const colG = r[6];
-
-        if (!colD) return;
-
-        fullMap[colD] = colG;
-        last4Map[colD.slice(-4)] = colG;
-    });
-
+    await buildStockMap(file);
     document.getElementById('lookupResultStock').innerHTML =
         `Loaded ${Object.keys(fullMap).length} records`;
 });
 
-/* ================= STOCK SEARCH ================= */
+async function buildStockMap(file) {
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+    last4Map = {}; fullMap = {};
+    rows.forEach(r => {
+        const colD = String(r[3] || '').trim();
+        const colG = r[6];
+        if (!colD) return;
+        fullMap[colD] = colG;
+        last4Map[colD.slice(-4)] = colG;
+    });
+}
 
+/* STOCK SEARCH */
 document.getElementById('searchBtnStock').onclick = () => {
-
     const k = document.getElementById('searchKeyStock').value.trim();
-
     if (!/^\d{4}$/.test(k)) {
         document.getElementById('lookupResultStock').innerHTML =
             '<span class="error">Enter 4 digits</span>';
         return;
     }
-
     const v = last4Map[k];
-
     document.getElementById('lookupResultStock').innerHTML =
         v ? `<span class="success">${v}</span>` : `<span class="error">Not found</span>`;
 };
-
-// Allow Enter key to trigger search
 document.getElementById('searchKeyStock').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        document.getElementById('searchBtnStock').click();
-    }
+    if (e.key === 'Enter') document.getElementById('searchBtnStock').click();
 });
 
-
-/* ================= DELIVERY PIVOT ================= */
-
-document.getElementById('deliveryFile')
-.addEventListener('change', async (e) => {
-
+/* DELIVERY FILE */
+document.getElementById('deliveryFile').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
-    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
-    const sheet = wb.Sheets[wb.SheetNames[0]];
-
-    const rows = XLSX.utils.sheet_to_json(sheet, {
-        header: 1,
-        defval: ''
-    });
-
-    const pivot = {};
-    let grandTotal = 0;
-
-    rows.forEach(r => {
-
-        const product = String(r[25] || '').trim(); // Z
-        const qty = Number(r[29] ?? 0);             // AD
-
-        if (!product) return;
-        if (!qty) return;
-
-        pivot[product] = (pivot[product] || 0) + qty;
-        grandTotal += qty;
-    });
-
+    const { pivot, grandTotal } = await buildDeliveryPivot(file);
     const entries = Object.entries(pivot);
-
     for (let i = entries.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [entries[i], entries[j]] = [entries[j], entries[i]];
     }
-
     const random4 = entries.slice(0, 4);
-
-    const output =
-        random4.map(([k, v]) => `${k} → ${v}`).join('\n') +
+    const output = random4.map(([k, v]) => `${k} → ${v}`).join('\n') +
         `\n\nGrand Total → ${grandTotal}`;
-
     document.getElementById('deliveryOutput').innerHTML =
         output || '<span class="error">No data found</span>';
 });
 
-/* ================= SALES ================= */
-
-document.getElementById('processBtn')
-.addEventListener('click', async () => {
-
+async function buildDeliveryPivot(file) {
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+    const pivot = {}; let grandTotal = 0;
+    rows.forEach(r => {
+        const product = String(r[25] || '').trim();
+        const qty = Number(r[29] ?? 0);
+        if (!product || !qty) return;
+        pivot[product] = (pivot[product] || 0) + qty;
+        grandTotal += qty;
+    });
+    return { pivot, grandTotal };
+}
+/* SALES UPDATE */
+document.getElementById('processBtn').addEventListener('click', async () => {
     const file = document.getElementById('inventoryFile').files[0];
-    if (!file) return;
+    const stockFile = document.getElementById('lookupFile').files[0];
+    if (!file || !stockFile) { alert("Load Inventory and Stock files first."); return; }
+
+    await buildStockMap(stockFile); // refresh fullMap
 
     const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
-
     const sheet = wb.Sheets[wb.SheetNames[wb.SheetNames.length - 1]];
-
     const range = XLSX.utils.decode_range(sheet['!ref']);
 
     for (let r = 1; r <= range.e.r; r++) {
-
         const aCell = XLSX.utils.encode_cell({ r, c: 0 });
         const jCell = XLSX.utils.encode_cell({ r, c: 9 });
-
         const key = sheet[aCell]?.v ? String(sheet[aCell].v).trim() : '';
         if (!key) break;
-
         sheet[jCell] = { t: 'n', v: fullMap[key] ?? 0 };
     }
 
     XLSX.writeFile(wb, "SalesUpd.xlsx");
 
     const salesItems = getRandomNonZeroItems(sheet, 0, 9, 5);
-
     document.getElementById('randomOutput').innerHTML =
-        salesItems.length
-            ? salesItems.map(i => `${i.k} → ${i.v}`).join('<br>')
-            : '<span class="error">No valid items found</span>';
+        salesItems.length ? salesItems.map(i => `${i.k} → ${i.v}`).join('<br>')
+                          : '<span class="error">No valid items found</span>';
 });
 
-/* ================= FINANCE ================= */
-document.getElementById('financeProcessBtn')
-.addEventListener('click', async () => {
-
+/* FINANCE UPDATE */
+document.getElementById('financeProcessBtn').addEventListener('click', async () => {
     const file = document.getElementById('financeFile').files[0];
-    if (!file) return;
+    const stockFile = document.getElementById('lookupFile').files[0];
+    const deliveryFile = document.getElementById('deliveryFile').files[0];
+    if (!file || !stockFile || !deliveryFile) { alert("Load Finance, Stock and Delivery files first."); return; }
+
+    await buildStockMap(stockFile); // refresh fullMap
+    const { pivot, grandTotal } = await buildDeliveryPivot(deliveryFile);
 
     const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
     const sheet = wb.Sheets[wb.SheetNames[wb.SheetNames.length - 1]];
@@ -294,32 +186,10 @@ document.getElementById('financeProcessBtn')
     // Step 2: Show random items for verification
     const financeItems = getRandomNonZeroItems(sheet, 1, 8, 5);
     document.getElementById('financeRandomOutput').innerHTML =
-        financeItems.length
-            ? financeItems.map(i => `${i.k} → ${i.v}`).join('<br>')
-            : '<span class="error">No valid items found</span>';
+        financeItems.length ? financeItems.map(i => `${i.k} → ${i.v}`).join('<br>')
+                            : '<span class="error">No valid items found</span>';
 
-    // Step 3: Build pivot table from delivery file (same as Delivery panel)
-    const deliveryFile = document.getElementById('deliveryFile').files[0];
-    if (!deliveryFile) {
-        alert("Please load a Delivery file in the bottom left panel first.");
-        return;
-    }
-    const wbDelivery = XLSX.read(await deliveryFile.arrayBuffer(), { type: 'array' });
-    const sheetDelivery = wbDelivery.Sheets[wbDelivery.SheetNames[0]];
-    const rowsDelivery = XLSX.utils.sheet_to_json(sheetDelivery, { header: 1, defval: '' });
-
-    const pivot = {};
-    let grandTotal = 0;
-    rowsDelivery.forEach(r => {
-        const product = String(r[25] || '').trim(); // Column Z
-        const qty = Number(r[29] ?? 0);             // Column AD
-        if (!product) return;
-        if (!qty) return;
-        pivot[product] = (pivot[product] || 0) + qty;
-        grandTotal += qty;
-    });
-
-    // Step 4: Clear Col J and K from row 2 onwards
+    // Step 3: Clear Col J and K from row 2 onwards
     for (let r = 1; r <= range.e.r; r++) {
         const jCell = XLSX.utils.encode_cell({ r, c: 9 });
         const kCell = XLSX.utils.encode_cell({ r, c: 10 });
@@ -327,7 +197,7 @@ document.getElementById('financeProcessBtn')
         sheet[kCell] = { t: 's', v: '' };
     }
 
-    // Step 5: Write pivot data into Col J and K
+    // Step 4: Write pivot data into Col J and K
     let row = 1; // row 2 in Excel
     for (const [product, qty] of Object.entries(pivot)) {
         const jCell = XLSX.utils.encode_cell({ r: row, c: 9 });
@@ -343,40 +213,29 @@ document.getElementById('financeProcessBtn')
     sheet[jCellTotal] = { t: 's', v: "Grand Total" };
     sheet[kCellTotal] = { t: 'n', v: grandTotal };
 
-    // Step 6: Save file
+    // Step 5: Save file
     XLSX.writeFile(wb, "FinanceUpd.xlsx");
 });
 
-/* ================= HELPER ================= */
-
+/* HELPER */
 function getRandomNonZeroItems(sheet, colKey, colValue, count = 5) {
-
     const range = XLSX.utils.decode_range(sheet['!ref']);
     const results = [];
-
     for (let r = 1; r <= range.e.r; r++) {
-
         const keyCell = XLSX.utils.encode_cell({ r, c: colKey });
         const valCell = XLSX.utils.encode_cell({ r, c: colValue });
-
         const key = sheet[keyCell]?.v ? String(sheet[keyCell].v).trim() : '';
         const value = Number(sheet[valCell]?.v ?? 0);
-
         if (!key) continue;
         if (value === 0) continue;
-
         results.push({ k: key, v: value });
     }
-
     for (let i = results.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [results[i], results[j]] = [results[j], results[i]];
     }
-
     return results.slice(0, count);
 }
-
 </script>
-
 </body>
 </html>
