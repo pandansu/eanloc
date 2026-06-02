@@ -192,7 +192,14 @@ td.name {
   <input type="file" id="excelFile" accept=".xlsx,.xls" style="display:none">
 
 </div>
-
+  
+<div style="margin-top:10px;">
+  <label>
+    <input type="checkbox" id="sortByCategory">
+    Sort by Category
+  </label>
+</div>
+  
 <div class="btn-row">
   <button id="generateBtn" onclick="generate()">Generate</button>
   <button id="printBtn" onclick="window.print()">Print</button>
@@ -209,6 +216,7 @@ const csvUrl =
 
 let index = {};
 let nameIndex = {};
+let categoryIndex = {};
 let ready = false;
 
 /* CSV */
@@ -250,6 +258,7 @@ fetch(csvUrl)
 
     const sku = (cols[0] || '').trim();
     const loc = (cols[1] || '').trim();
+    const category = (cols[2] || '').trim();
     const ean = (cols[4] || '').trim();
     const name = cleanName(cols[5]);
 
@@ -257,9 +266,13 @@ fetch(csvUrl)
       if (!index[sku]) index[sku] = [];
       index[sku].push(loc);
     }
-
+    
     if (ean && name) {
       nameIndex[ean] = name;
+    }
+    
+    if (sku && category) {
+      categoryIndex[sku] = category;
     }
   }
 
@@ -317,28 +330,66 @@ function generate() {
 
     const ean = cols[0].trim();
     const qty = cols[1].trim();
+
     totalQty += parseInt(qty, 10) || 0;
 
     const last4 = ean.slice(-4);
 
     let allLocations = [];
+    let category = "";
 
     for (const key in index) {
+
       if (key.endsWith(last4)) {
+
         allLocations = allLocations.concat(index[key]);
+
+        if (!category && categoryIndex[key]) {
+          category = categoryIndex[key];
+        }
       }
     }
 
     const loc = allLocations.length
-      ? [...new Set(allLocations)].sort((a,b)=>a.localeCompare(b)).join(", ")
+      ? [...new Set(allLocations)]
+          .sort((a, b) => a.localeCompare(b))
+          .join(", ")
       : "* NOT FOUND *";
 
     const productName = nameIndex[ean] || "—";
 
-    rows.push({ ean, qty, loc, productName });
+    rows.push({
+      ean,
+      qty,
+      loc,
+      category,
+      productName
+    });
   }
 
-  rows.sort((a, b) => a.loc.localeCompare(b.loc));
+  const sortByCategory =
+    document.getElementById("sortByCategory").checked;
+
+  if (sortByCategory) {
+
+    rows.sort((a, b) => {
+
+      const catCompare =
+        a.category.localeCompare(b.category);
+
+      if (catCompare !== 0) return catCompare;
+
+      return b.loc.localeCompare(a.loc);
+
+    });
+
+  } else {
+
+    rows.sort((a, b) =>
+      b.loc.localeCompare(a.loc)
+    );
+
+  }
 
   let html = `
   <table>
@@ -346,6 +397,7 @@ function generate() {
       <th>EAN</th>
       <th>Qty</th>
       <th>Location</th>
+      <th>Category</th>
       <th>
         <div style="display:flex; justify-content:space-between;">
           <span>Product Name</span>
@@ -356,11 +408,13 @@ function generate() {
   `;
 
   for (const r of rows) {
+
     html += `
       <tr>
         <td>${r.ean}</td>
         <td>${r.qty}</td>
         <td class="loc">${r.loc}</td>
+        <td>${r.category || "—"}</td>
         <td class="name">${r.productName}</td>
       </tr>
     `;
