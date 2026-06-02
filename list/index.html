@@ -303,7 +303,6 @@ document.getElementById("excelFile").addEventListener("change", function(e) {
 
 /* GENERATE */
 function generate() {
-
   if (!ready) return;
 
   const lines = input.value.trim().split(/\n/);
@@ -311,16 +310,15 @@ function generate() {
   let totalQty = 0;
 
   for (const line of lines) {
-
     const cols = line.trim().split(/\s+/);
     if (cols.length < 2) continue;
 
     const ean = cols[0].trim();
     const qty = cols[1].trim();
+    const category = (cols[2] && cols[2].trim()) ? cols[2].trim() : "Uncategorized";
     totalQty += parseInt(qty, 10) || 0;
 
     const last4 = ean.slice(-4);
-
     let allLocations = [];
 
     for (const key in index) {
@@ -335,10 +333,27 @@ function generate() {
 
     const productName = nameIndex[ean] || "—";
 
-    rows.push({ ean, qty, loc, productName });
+    rows.push({ ean, qty, loc, productName, category });
   }
 
-  rows.sort((a, b) => a.loc.localeCompare(b.loc));
+  const groupByCategory = document.getElementById("groupByCategory").checked;
+
+  if (groupByCategory) {
+    rows.sort((a, b) => {
+      // ✅ Categories always on top, "Uncategorized" last
+      if (a.category === "Uncategorized" && b.category !== "Uncategorized") return 1;
+      if (b.category === "Uncategorized" && a.category !== "Uncategorized") return -1;
+
+      const catCompare = a.category.localeCompare(b.category);
+      if (catCompare !== 0) return catCompare;
+
+      // ✅ Within category, sort by location descending
+      return b.loc.localeCompare(a.loc);
+    });
+  } else {
+    // ✅ Sort by location descending only
+    rows.sort((a, b) => b.loc.localeCompare(a.loc));
+  }
 
   let html = `
   <table>
@@ -371,6 +386,7 @@ function generate() {
   document.getElementById("result").innerHTML = html;
   printBtn.style.display = "block";
 }
+
 
 </script>
 
