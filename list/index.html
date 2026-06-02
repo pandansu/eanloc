@@ -391,20 +391,21 @@ function generate() {
 
   }
 
-let html = `
-<table>
-  <tr>
-    <th>EAN</th>
-    <th>Qty</th>
-    <th>Location</th>
-    <th>
-      <div style="display:flex; justify-content:space-between;">
-        <span>Product Name</span>
-        <span>Total ${totalQty} items</span>
-      </div>
-    </th>
-  </tr>
-`;
+  let html = `
+  <table>
+    <tr>
+      <th>EAN</th>
+      <th>Qty</th>
+      <th>Location</th>
+      <th>Category</th>
+      <th>
+        <div style="display:flex; justify-content:space-between;">
+          <span>Product Name</span>
+          <span>Total ${totalQty} items</span>
+        </div>
+      </th>
+    </tr>
+  `;
 
   for (const r of rows) {
 
