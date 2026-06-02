@@ -374,17 +374,32 @@ function generate() {
 
     rows.sort((a, b) => {
 
-      const catCompare =
-        a.category.localeCompare(b.category);
+      const aCat = (a.category || "").trim();
+      const bCat = (b.category || "").trim();
 
+      const aEmpty = aCat === "";
+      const bEmpty = bCat === "";
+
+      // both uncategorised → sort by location desc
+      if (aEmpty && bEmpty) {
+        return b.loc.localeCompare(a.loc);
+      }
+
+      // push uncategorised to bottom
+      if (aEmpty) return 1;
+      if (bEmpty) return -1;
+
+      // category grouping
+      const catCompare = aCat.localeCompare(bCat);
       if (catCompare !== 0) return catCompare;
 
+      // within category → location desc
       return b.loc.localeCompare(a.loc);
-
     });
 
   } else {
 
+    // default mode → location desc only
     rows.sort((a, b) =>
       b.loc.localeCompare(a.loc)
     );
@@ -397,7 +412,6 @@ function generate() {
       <th>EAN</th>
       <th>Qty</th>
       <th>Location</th>
-      <th>Category</th>
       <th>
         <div style="display:flex; justify-content:space-between;">
           <span>Product Name</span>
@@ -414,12 +428,17 @@ function generate() {
         <td>${r.ean}</td>
         <td>${r.qty}</td>
         <td class="loc">${r.loc}</td>
-        <td>${r.category || "—"}</td>
         <td class="name">${r.productName}</td>
       </tr>
     `;
   }
 
+  html += "</table>";
+
+  document.getElementById("result").innerHTML = html;
+  printBtn.style.display = "block";
+}
+  
   html += "</table>";
 
   document.getElementById("result").innerHTML = html;
