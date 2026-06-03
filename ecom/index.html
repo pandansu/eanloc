@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Excel Category Viewer</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        max-width: 1200px;
+        margin: 20px auto;
+        padding: 20px;
+        background: #f5f5f5;
+    }
+
+    h1 {
+        margin-bottom: 20px;
+    }
+
+    .controls {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+
+    select, button {
+        padding: 8px 12px;
+        font-size: 14px;
+    }
+
+    .accordion {
+        background: white;
+        border-radius: 8px;
+        margin-bottom: 10px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .accordion-header {
+        width: 100%;
+        border: none;
+        background: #1976d2;
+        color: white;
+        text-align: left;
+        padding: 15px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: bold;
+    }
+
+    .accordion-header:hover {
+        background: #1565c0;
+    }
+
+    .accordion-content {
+        display: none;
+        padding: 15px;
+        background: white;
+    }
+
+    .accordion-content.active {
+        display: block;
+    }
+
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+    }
+
+    .item {
+        background: #fafafa;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        padding: 10px;
+        word-break: break-word;
+    }
+
+    @media (max-width: 1000px) {
+        .grid {
+            grid-template-columns: repeat(3, 1fr);
+        }
+    }
+
+    @media (max-width: 700px) {
+        .grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 500px) {
+        .grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+</head>
+<body>
+
+<h1>Excel Category Viewer</h1>
+
+<div class="controls">
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+
+    <select id="sheetSelect" disabled>
+        <option>Select Worksheet</option>
+    </select>
+
+    <button id="loadSheetBtn" disabled>
+        Load Worksheet
+    </button>
+</div>
+
+<div id="output"></div>
+
+<script>
+let workbook = null;
+
+const fileInput = document.getElementById('fileInput');
+const sheetSelect = document.getElementById('sheetSelect');
+const loadSheetBtn = document.getElementById('loadSheetBtn');
+const output = document.getElementById('output');
+
+fileInput.addEventListener('change', handleFileUpload);
+loadSheetBtn.addEventListener('click', loadSelectedSheet);
+
+function handleFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+
+        workbook = XLSX.read(data, {
+            type: 'array'
+        });
+
+        sheetSelect.innerHTML = '';
+
+        workbook.SheetNames.forEach(sheetName => {
+            const option = document.createElement('option');
+            option.value = sheetName;
+            option.textContent = sheetName;
+            sheetSelect.appendChild(option);
+        });
+
+        sheetSelect.disabled = false;
+        loadSheetBtn.disabled = false;
+    };
+
+    reader.readAsArrayBuffer(file);
+}
+
+function loadSelectedSheet() {
+    if (!workbook) return;
+
+    const sheetName = sheetSelect.value;
+    const worksheet = workbook.Sheets[sheetName];
+
+    const rows = XLSX.utils.sheet_to_json(worksheet, {
+        header: 1,
+        defval: ''
+    });
+
+    const categories = {};
+
+    // Skip header row (start at row index 1)
+    for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+
+        const category = String(row[1] || '').trim(); // Column B
+        const content = String(row[5] || '').trim();  // Column F
+
+        if (!category || !content) continue;
+
+        if (!categories[category]) {
+            categories[category] = [];
+        }
+
+        categories[category].push(content);
+    }
+
+    renderCategories(categories);
+}
+
+function renderCategories(categories) {
+    output.innerHTML = '';
+
+    Object.entries(categories).forEach(([category, items]) => {
+
+        const accordion = document.createElement('div');
+        accordion.className = 'accordion';
+
+        const header = document.createElement('button');
+        header.className = 'accordion-header';
+        header.textContent = `${category} (${items.length})`;
+
+        const content = document.createElement('div');
+        content.className = 'accordion-content';
+
+        const grid = document.createElement('div');
+        grid.className = 'grid';
+
+        items.forEach(itemText => {
+            const item = document.createElement('div');
+            item.className = 'item';
+            item.textContent = itemText;
+            grid.appendChild(item);
+        });
+
+        content.appendChild(grid);
+
+        header.addEventListener('click', () => {
+            content.classList.toggle('active');
+        });
+
+        accordion.appendChild(header);
+        accordion.appendChild(content);
+
+        output.appendChild(accordion);
+    });
+}
+</script>
+
+</body>
+</html>
