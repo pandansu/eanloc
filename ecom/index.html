@@ -28,9 +28,27 @@ body {
     gap: 10px;
     flex-wrap: wrap;
     margin-bottom: 20px;
+    align-items: center;
 }
 
-select, input, button {
+/* hide default file input look */
+input[type="file"] {
+    padding: 10px;
+}
+
+/* NEW: filename display */
+.filename {
+    flex: 1;
+    min-width: 250px;
+    padding: 10px;
+    background: #f1f1f1;
+    border-radius: 6px;
+    font-size: 14px;
+    white-space: nowrap;   /* no truncation */
+    overflow: visible;     /* show full text */
+}
+
+select, button {
     padding: 10px;
 }
 
@@ -101,6 +119,10 @@ select, input, button {
 
 <div class="controls">
     <input type="file" id="file">
+
+    <!-- NEW filename display -->
+    <div class="filename" id="filename">No file selected</div>
+
     <select id="sheet"></select>
     <button id="load">Load</button>
 </div>
@@ -113,24 +135,24 @@ select, input, button {
 
 let wb;
 
+const fileInput = document.getElementById('file');
+const filenameEl = document.getElementById('filename');
+
 function normalizeCategory(raw) {
 
     if (!raw) return null;
 
     let v = raw.toLowerCase().trim();
 
-    // remove common logistics suffixes
     v = v.replace(/[- ]?(ninja van|j&t|jt|singpost|singapore post|dhl|fedex|pos laju)/g, '');
 
     v = v.trim();
 
-    // unify known brands
     if (v.includes('shopee')) return 'Shopee';
     if (v.includes('lazada')) return 'Lazada';
     if (v.includes('amazon')) return 'Amazon';
     if (v.includes('tiktok')) return 'Tiktok Shop';
 
-    // fallback Title Case
     return v
         .split(' ')
         .filter(Boolean)
@@ -138,7 +160,13 @@ function normalizeCategory(raw) {
         .join(' ');
 }
 
-document.getElementById('file').addEventListener('change', e => {
+fileInput.addEventListener('change', e => {
+
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // NEW: show FULL filename
+    filenameEl.textContent = file.name;
 
     const r = new FileReader();
 
@@ -156,7 +184,7 @@ document.getElementById('file').addEventListener('change', e => {
         });
     };
 
-    r.readAsArrayBuffer(e.target.files[0]);
+    r.readAsArrayBuffer(file);
 });
 
 document.getElementById('load').onclick = () => {
@@ -168,9 +196,7 @@ document.getElementById('load').onclick = () => {
 
     for (let i = 1; i < rows.length; i++) {
 
-        const rawCat = String(rows[i][1] || '').trim();
-        const cat = normalizeCategory(rawCat);
-
+        const cat = normalizeCategory(String(rows[i][1] || '').trim());
         const val = String(rows[i][5] || '').trim();
 
         if (!cat || !val) continue;
