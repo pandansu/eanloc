@@ -193,18 +193,13 @@ document.getElementById('file').addEventListener('change', e => {
 });
 
 function normalizeCategory(raw) {
-
     if (!raw) return null;
-
     let v = raw.toLowerCase().trim();
-
     v = v.replace(/[- ]?(ninja van|j&t|jt|singpost|singapore post|dhl|fedex|pos laju)/g, '');
-
     if (v.includes('shopee')) return 'Shopee';
     if (v.includes('lazada')) return 'Lazada';
     if (v.includes('amazon')) return 'Amazon';
     if (v.includes('tiktok')) return 'Tiktok Shop';
-
     return v.split(' ')
         .filter(Boolean)
         .map(w => w.charAt(0).toUpperCase() + w.slice(1))
@@ -219,16 +214,12 @@ document.getElementById('load').onclick = () => {
     const data = {};
 
     for (let i = 1; i < rows.length; i++) {
-
         const cat = normalizeCategory(String(rows[i][1] || '').trim());
         const val = String(rows[i][5] || '').trim();
-
         if (!cat || !val) continue;
-
         if (!data[cat]) {
             data[cat] = { num: {}, serial: [] };
         }
-
         if (/^\d+$/.test(val)) {
             data[cat].num[val] = (data[cat].num[val] || 0) + 1;
         } else if (/[A-Za-z]/.test(val) && /\d/.test(val)) {
@@ -268,6 +259,57 @@ document.getElementById('load').onclick = () => {
         header.appendChild(left);
         header.appendChild(btn);
 
+        // Lookup tool
+        const lookupDiv = document.createElement('div');
+        lookupDiv.style.textAlign = 'right';
+        lookupDiv.style.padding = '10px';
+
+        const lookupInput = document.createElement('input');
+        lookupInput.type = 'text';
+        lookupInput.placeholder = 'Enter last digits...';
+        lookupInput.style.padding = '6px';
+
+        const lookupResult = document.createElement('div');
+        lookupResult.style.marginTop = '8px';
+        lookupResult.style.fontWeight = 'bold';
+        lookupResult.style.color = '#1976d2';
+
+        lookupInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                const query = lookupInput.value.trim();
+                if (query.length < 4) {
+                    lookupResult.textContent = 'Enter at least 4 digits';
+                    lookupInput.select();
+                    return;
+                }
+
+                let found = null;
+                for (let i = 1; i < rows.length; i++) {
+                    const catRow = normalizeCategory(String(rows[i][1] || '').trim());
+                    const valE = String(rows[i][4] || '').trim(); // Col E
+                    const valH = String(rows[i][7] || '').trim(); // Col H
+                    const valI = String(rows[i][8] || '').trim(); // Col I
+
+                    if (catRow === cat && valE.endsWith(query)) {
+                        found = valI || valH;
+                        break;
+                    }
+                }
+
+                if (found) {
+                    lookupResult.textContent = `Result: ${found}`;
+                    navigator.clipboard.writeText(found);
+                } else {
+                    lookupResult.textContent = 'No match found';
+                }
+
+                lookupInput.select();
+            }
+        });
+        
+        lookupDiv.appendChild(lookupInput);
+        lookupDiv.appendChild(lookupResult);
+
         const content = document.createElement('div');
         content.className = 'content';
 
@@ -295,12 +337,14 @@ document.getElementById('load').onclick = () => {
         };
 
         content.appendChild(grid);
+
+        // Build accordion
         acc.appendChild(header);
+        acc.appendChild(lookupDiv);   // lookup tool right below header
         acc.appendChild(content);
         out.appendChild(acc);
     });
 };
-
 </script>
 
 </body>
