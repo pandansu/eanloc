@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Excel Viewer</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+body {
+    font-family: Arial;
+    background: #f5f5f5;
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1200px;
+    margin: auto;
+}
+
+.controls {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    align-items: center;
+}
+
+#file { display: none; }
+
+#pickFile {
+    padding: 10px 15px;
+    background: #1976d2;
+    color: white;
+    border: none;
+    border-radius: 6px;
+}
+
+.filename {
+    flex: 1;
+    min-width: 250px;
+    padding: 10px;
+    background: #f1f1f1;
+    border-radius: 6px;
+}
+
+select, button {
+    padding: 10px;
+}
+
+.accordion {
+    background: white;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.header {
+    background: #1976d2;
+    color: white;
+    padding: 15px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.content {
+    display: none;
+    padding: 15px;
+}
+
+.content.active {
+    display: block;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.item {
+    background: #fafafa;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px;
+}
+
+.item.num {
+    background: #ffebee;
+    border-color: #ef9a9a;
+    color: #c62828;
+    font-weight: bold;
+}
+
+/* ONLY ADDITION: lookup UI (minimal, non-intrusive) */
+.lookup-wrap {
+    margin-bottom: 10px;
+    display: none;
+}
+
+.content.active .lookup-wrap {
+    display: block;
+}
+
+.lookup-label {
+    font-size: 13px;
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.lookup-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.lookup-input {
+    padding: 6px 8px;
+    font-size: 13px;
+    width: 140px;
+}
+
+.lookup-result {
+    font-size: 13px;
+    font-weight: bold;
+    color: #2e7d32;
+    min-width: 160px;
+}
+
+@media (max-width: 900px) {
+    .grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 600px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 400px) {
+    .grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Excel Viewer</h2>
+
+<div class="controls">
+    <button id="pickFile">Upload Excel</button>
+    <input type="file" id="file">
+    <div class="filename" id="filename">No file selected</div>
+    <select id="sheet"></select>
+    <button id="load">Load</button>
+</div>
+
+<div id="out"></div>
+
+</div>
+
+<script>
+
+let wb;
+let rawRows = [];
+
+document.getElementById('pickFile').onclick = () => {
+    document.getElementById('file').click();
+};
+
+document.getElementById('file').addEventListener('change', e => {
+
+    const file = e.target.files[0];
+    if (!file) return;
+
+    document.getElementById('filename').textContent = file.name;
+
+    const r = new FileReader();
+
+    r.onload = ev => {
+        wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
+
+        const sheetSel = document.getElementById('sheet');
+        sheetSel.innerHTML = '';
+
+        wb.SheetNames.forEach(n => {
+            const o = document.createElement('option');
+            o.value = n;
+            o.textContent = n;
+            sheetSel.appendChild(o);
+        });
+    };
+
+    r.readAsArrayBuffer(file);
+});
+
+function normalizeCategory(raw) {
+
+    if (!raw) return null;
+
+    let v = String(raw).toLowerCase().trim();
+
+    v = v.replace(/[- ]?(ninja van|j&t|singpost|dhl|fedex)/g, '');
+
+    if (v.includes('shopee')) return 'Shopee';
+    if (v.includes('lazada')) return 'Lazada';
+
+    return v.charAt(0).toUpperCase() + v.slice(1);
+}
+
+document.getElementById('load').onclick = () => {
+
+    const sheet = wb.Sheets[document.getElementById('sheet').value];
+    rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+    render();
+};
+
+function doLookup(rows, input, outputEl) {
+
+    for (let i = 1; i < rows.length; i++) {
+
+        const colE = String(rows[i][4] || '').trim();
+        const colH = rows[i][7];
+        const colI = rows[i][8];
+
+        if (!colE) continue;
+
+        if (colE.endsWith(input)) {
+
+            const result = (colI && String(colI).trim()) ? colI : colH;
+
+            outputEl.textContent = result || 'No match';
+
+            if (result) {
+                navigator.clipboard.writeText(result);
+            }
+
+            return;
+        }
+    }
+
+    outputEl.textContent = 'No match';
+}
+
+function render() {
+
+    const data = {};
+
+    for (let i = 1; i < rawRows.length; i++) {
+
+        const cat = normalizeCategory(rawRows[i][1]);
+        if (!cat) continue;
+
+        if (!data[cat]) data[cat] = [];
+
+        data[cat].push(rawRows[i]);
+    }
+
+    const out = document.getElementById('out');
+    out.innerHTML = '';
+
+    Object.entries(data).forEach(([cat, rows]) => {
+
+        const acc = document.createElement('div');
+        acc.className = 'accordion';
+
+        const header = document.createElement('div');
+        header.className = 'header';
+        header.textContent = `${cat} (${rows.length})`;
+
+        const content = document.createElement('div');
+        content.className = 'content';
+
+        /* ONLY ADDITION START */
+
+        const lookupWrap = document.createElement('div');
+        lookupWrap.className = 'lookup-wrap';
+
+        const label = document.createElement('div');
+        label.className = 'lookup-label';
+        label.textContent = 'Enter EAN';
+
+        const row = document.createElement('div');
+        row.className = 'lookup-row';
+
+        const input = document.createElement('input');
+        input.className = 'lookup-input';
+
+        const result = document.createElement('div');
+        result.className = 'lookup-result';
+        result.textContent = '-';
+
+        input.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                doLookup(rows, input.value.trim(), result);
+            }
+        });
+
+        row.appendChild(input);
+        row.appendChild(result);
+
+        lookupWrap.appendChild(label);
+        lookupWrap.appendChild(row);
+
+        /* ONLY ADDITION END */
+
+        const grid = document.createElement('div');
+        grid.className = 'grid';
+
+        rows.forEach(r => {
+            const div = document.createElement('div');
+            div.className = 'item';
+            div.textContent = r[5];
+            grid.appendChild(div);
+        });
+
+        header.onclick = () => {
+            content.classList.toggle('active');
+        };
+
+        content.appendChild(lookupWrap); // ONLY NEW INSERTION
+        content.appendChild(grid);
+
+        acc.appendChild(header);
+        acc.appendChild(content);
+        out.appendChild(acc);
+    });
+}
+
+</script>
+
+</body>
+</html>
