@@ -122,40 +122,6 @@ select, button {
     font-weight: bold;
 }
 
-.lookup-row {
-    display: flex;
-    justify-content: flex-end; /* RIGHT ALIGNMENT */
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 12px;
-}
-
-.lookup-label {
-    font-size: 13px;
-    color: #333;
-}
-
-.lookup-input {
-    padding: 6px 8px;
-    width: 140px;
-}
-
-.lookup-result {
-    font-size: 20px;
-    font-weight: bold;
-    color: #2e7d32;
-    min-width: 180px;
-}
-
-/* only show when accordion open */
-.content .lookup-row {
-    display: none;
-}
-
-.content.active .lookup-row {
-    display: flex;
-}    
-
 @media (max-width: 900px) {
     .grid { grid-template-columns: repeat(3, 1fr); }
 }
@@ -305,38 +271,6 @@ document.getElementById('load').onclick = () => {
         const content = document.createElement('div');
         content.className = 'content';
 
-const lookupRow = document.createElement('div');
-lookupRow.className = 'lookup-row';
-
-const label = document.createElement('div');
-label.className = 'lookup-label';
-label.textContent = 'Enter EAN';
-
-const input = document.createElement('input');
-input.className = 'lookup-input';
-
-const result = document.createElement('div');
-result.className = 'lookup-result';
-result.textContent = '-';
-
-input.addEventListener('keydown', e => {
-    if (e.key === 'Enter') {
-        doLookup(d.rows, input.value.trim(), result);
-    }
-});
-
-lookupRow.appendChild(label);
-lookupRow.appendChild(input);
-lookupRow.appendChild(result);
-
-content.appendChild(lookupRow);
-
-
-
-
-
-
-        
         const grid = document.createElement('div');
         grid.className = 'grid';
 
