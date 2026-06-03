@@ -8,122 +8,122 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
-    * {
-        box-sizing: border-box;
-    }
+* {
+    box-sizing: border-box;
+}
 
-    body {
-        font-family: Arial, Helvetica, sans-serif;
-        background: #f5f5f5;
-        margin: 0;
-        padding: 20px;
-    }
+body {
+    font-family: Arial, Helvetica, sans-serif;
+    background: #f5f5f5;
+    margin: 0;
+    padding: 20px;
+}
 
-    .container {
-        max-width: 1400px;
-        margin: auto;
-    }
+.container {
+    max-width: 1400px;
+    margin: auto;
+}
 
-    h1 {
-        margin-top: 0;
-    }
+h1 {
+    margin-top: 0;
+}
 
-    .controls {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-        margin-bottom: 20px;
-        padding: 15px;
-        background: white;
-        border-radius: 8px;
-    }
+.controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: white;
+    border-radius: 8px;
+}
 
-    select,
-    button,
-    input[type=file] {
-        padding: 10px;
-        font-size: 14px;
-    }
+input[type=file],
+select,
+button {
+    padding: 10px;
+    font-size: 14px;
+}
 
-    .accordion {
-        background: white;
-        border-radius: 8px;
-        margin-bottom: 12px;
-        overflow: hidden;
-        box-shadow: 0 1px 3px rgba(0,0,0,.15);
-    }
+.summary {
+    margin-bottom: 15px;
+    color: #666;
+}
 
-    .accordion-header {
-        width: 100%;
-        border: none;
-        text-align: left;
-        cursor: pointer;
-        background: #1976d2;
-        color: white;
-        padding: 16px;
-        font-size: 16px;
-        font-weight: bold;
-    }
+.accordion {
+    background: white;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,.15);
+}
 
-    .accordion-header:hover {
-        background: #1565c0;
-    }
+.accordion-header {
+    width: 100%;
+    border: none;
+    text-align: left;
+    cursor: pointer;
+    background: #1976d2;
+    color: white;
+    padding: 16px;
+    font-size: 16px;
+    font-weight: bold;
+}
 
-    .accordion-content {
-        display: none;
-        padding: 15px;
-    }
+.accordion-header:hover {
+    background: #1565c0;
+}
 
-    .accordion-content.active {
-        display: block;
-    }
+.accordion-content {
+    display: none;
+    padding: 15px;
+}
 
+.accordion-content.active {
+    display: block;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+
+.item {
+    border: 1px solid #ddd;
+    background: #fafafa;
+    border-radius: 6px;
+    padding: 10px;
+    word-break: break-word;
+    min-height: 55px;
+    display: flex;
+    align-items: center;
+}
+
+.item.highlight {
+    background: #ffebee;
+    border-color: #ef9a9a;
+    color: #c62828;
+    font-weight: bold;
+}
+
+@media (max-width: 1000px) {
     .grid {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 10px;
+        grid-template-columns: repeat(3, 1fr);
     }
+}
 
-    .item {
-        border: 1px solid #ddd;
-        background: #fafafa;
-        border-radius: 6px;
-        padding: 10px;
-        word-break: break-word;
-        min-height: 55px;
-        display: flex;
-        align-items: center;
+@media (max-width: 700px) {
+    .grid {
+        grid-template-columns: repeat(2, 1fr);
     }
+}
 
-    .item.highlight {
-        color: #c62828;
-        font-weight: bold;
-        border-color: #ef9a9a;
-        background: #ffebee;
+@media (max-width: 500px) {
+    .grid {
+        grid-template-columns: 1fr;
     }
-
-    @media(max-width:1000px) {
-        .grid {
-            grid-template-columns: repeat(3, 1fr);
-        }
-    }
-
-    @media(max-width:700px) {
-        .grid {
-            grid-template-columns: repeat(2, 1fr);
-        }
-    }
-
-    @media(max-width:500px) {
-        .grid {
-            grid-template-columns: 1fr;
-        }
-    }
-
-    .summary {
-        margin-bottom: 15px;
-        color: #555;
-    }
+}
 </style>
 </head>
 <body>
@@ -179,11 +179,11 @@ function loadWorkbook(event) {
 
         sheetSelect.innerHTML = '';
 
-        workbook.SheetNames.forEach(name => {
+        workbook.SheetNames.forEach(sheetName => {
 
             const option = document.createElement('option');
-            option.value = name;
-            option.textContent = name;
+            option.value = sheetName;
+            option.textContent = sheetName;
 
             sheetSelect.appendChild(option);
         });
@@ -195,28 +195,14 @@ function loadWorkbook(event) {
     reader.readAsArrayBuffer(file);
 }
 
-function isSerialNumber(value) {
-
-    value = String(value).trim();
-
-    if (!value) return false;
-
-    const hasLetter = /[A-Za-z]/.test(value);
-    const hasNumber = /\d/.test(value);
-    const hasSpace = /\s/.test(value);
-
-    return hasLetter && hasNumber && !hasSpace;
-}
-
 function loadWorksheet() {
 
     if (!workbook) return;
 
     const sheetName = sheetSelect.value;
+    const worksheet = workbook.Sheets[sheetName];
 
-    const sheet = workbook.Sheets[sheetName];
-
-    const rows = XLSX.utils.sheet_to_json(sheet, {
+    const rows = XLSX.utils.sheet_to_json(worksheet, {
         header: 1,
         defval: ''
     });
@@ -242,49 +228,54 @@ function loadWorksheet() {
     renderCategories(categories);
 }
 
+function isNumericString(value) {
+    return /^\d+$/.test(value.trim());
+}
+
 function renderCategories(categories) {
 
     output.innerHTML = '';
 
-    const categoryCount = Object.keys(categories).length;
+    const categoryNames = Object.keys(categories);
 
     summary.textContent =
-        `${categoryCount} categories found`;
+        `${categoryNames.length} categories found`;
 
-    Object.entries(categories).forEach(([category, values]) => {
+    categoryNames.forEach(category => {
 
-        const nonSerials = [];
-        const serials = [];
+        const values = categories[category];
+
+        const numericCounts = {};
+        const otherValues = [];
 
         values.forEach(value => {
 
-            if (isSerialNumber(value)) {
-                serials.push(value);
+            if (isNumericString(value)) {
+
+                numericCounts[value] =
+                    (numericCounts[value] || 0) + 1;
+
             } else {
-                nonSerials.push(value);
+
+                otherValues.push(value);
+
             }
 
         });
 
-        const orderedValues = [
-            ...nonSerials.map(v => ({
-                value: v,
-                highlight: true
-            })),
-            ...serials.map(v => ({
-                value: v,
-                highlight: false
+        const numericSummary = Object.entries(numericCounts)
+            .map(([number, count]) => ({
+                number,
+                count
             }))
-        ];
+            .sort((a, b) => b.count - a.count);
 
         const accordion = document.createElement('div');
         accordion.className = 'accordion';
 
         const header = document.createElement('button');
         header.className = 'accordion-header';
-
-        header.textContent =
-            `${category} (${values.length})`;
+        header.textContent = `${category} (${values.length})`;
 
         const content = document.createElement('div');
         content.className = 'accordion-content';
@@ -292,17 +283,24 @@ function renderCategories(categories) {
         const grid = document.createElement('div');
         grid.className = 'grid';
 
-        orderedValues.forEach(itemData => {
+        numericSummary.forEach(item => {
 
-            const item = document.createElement('div');
+            const div = document.createElement('div');
 
-            item.className = itemData.highlight
-                ? 'item highlight'
-                : 'item';
+            div.className = 'item highlight';
+            div.textContent = `${item.number} (${item.count})`;
 
-            item.textContent = itemData.value;
+            grid.appendChild(div);
+        });
 
-            grid.appendChild(item);
+        otherValues.forEach(value => {
+
+            const div = document.createElement('div');
+
+            div.className = 'item';
+            div.textContent = value;
+
+            grid.appendChild(div);
         });
 
         content.appendChild(grid);
@@ -315,9 +313,7 @@ function renderCategories(categories) {
         accordion.appendChild(content);
 
         output.appendChild(accordion);
-
     });
-
 }
 
 </script>
