@@ -8,47 +8,59 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
+    * {
+        box-sizing: border-box;
+    }
+
     body {
-        font-family: Arial, sans-serif;
-        max-width: 1200px;
-        margin: 20px auto;
-        padding: 20px;
+        font-family: Arial, Helvetica, sans-serif;
         background: #f5f5f5;
+        margin: 0;
+        padding: 20px;
+    }
+
+    .container {
+        max-width: 1400px;
+        margin: auto;
     }
 
     h1 {
-        margin-bottom: 20px;
+        margin-top: 0;
     }
 
     .controls {
         display: flex;
         gap: 10px;
-        align-items: center;
-        margin-bottom: 20px;
         flex-wrap: wrap;
+        margin-bottom: 20px;
+        padding: 15px;
+        background: white;
+        border-radius: 8px;
     }
 
-    select, button {
-        padding: 8px 12px;
+    select,
+    button,
+    input[type=file] {
+        padding: 10px;
         font-size: 14px;
     }
 
     .accordion {
         background: white;
         border-radius: 8px;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
         overflow: hidden;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        box-shadow: 0 1px 3px rgba(0,0,0,.15);
     }
 
     .accordion-header {
         width: 100%;
         border: none;
+        text-align: left;
+        cursor: pointer;
         background: #1976d2;
         color: white;
-        text-align: left;
-        padding: 15px;
-        cursor: pointer;
+        padding: 16px;
         font-size: 16px;
         font-weight: bold;
     }
@@ -60,7 +72,6 @@
     .accordion-content {
         display: none;
         padding: 15px;
-        background: white;
     }
 
     .accordion-content.active {
@@ -74,68 +85,92 @@
     }
 
     .item {
-        background: #fafafa;
         border: 1px solid #ddd;
+        background: #fafafa;
         border-radius: 6px;
         padding: 10px;
         word-break: break-word;
+        min-height: 55px;
+        display: flex;
+        align-items: center;
     }
 
-    @media (max-width: 1000px) {
+    .item.highlight {
+        color: #c62828;
+        font-weight: bold;
+        border-color: #ef9a9a;
+        background: #ffebee;
+    }
+
+    @media(max-width:1000px) {
         .grid {
             grid-template-columns: repeat(3, 1fr);
         }
     }
 
-    @media (max-width: 700px) {
+    @media(max-width:700px) {
         .grid {
             grid-template-columns: repeat(2, 1fr);
         }
     }
 
-    @media (max-width: 500px) {
+    @media(max-width:500px) {
         .grid {
             grid-template-columns: 1fr;
         }
+    }
+
+    .summary {
+        margin-bottom: 15px;
+        color: #555;
     }
 </style>
 </head>
 <body>
 
-<h1>Excel Category Viewer</h1>
+<div class="container">
 
-<div class="controls">
-    <input type="file" id="fileInput" accept=".xlsx,.xls">
+    <h1>Excel Category Viewer</h1>
 
-    <select id="sheetSelect" disabled>
-        <option>Select Worksheet</option>
-    </select>
+    <div class="controls">
+        <input type="file" id="fileInput" accept=".xlsx,.xls">
 
-    <button id="loadSheetBtn" disabled>
-        Load Worksheet
-    </button>
+        <select id="sheetSelect" disabled>
+            <option>Select Worksheet</option>
+        </select>
+
+        <button id="loadSheetBtn" disabled>
+            Load Worksheet
+        </button>
+    </div>
+
+    <div id="summary" class="summary"></div>
+    <div id="output"></div>
+
 </div>
 
-<div id="output"></div>
-
 <script>
+
 let workbook = null;
 
 const fileInput = document.getElementById('fileInput');
 const sheetSelect = document.getElementById('sheetSelect');
 const loadSheetBtn = document.getElementById('loadSheetBtn');
 const output = document.getElementById('output');
+const summary = document.getElementById('summary');
 
-fileInput.addEventListener('change', handleFileUpload);
-loadSheetBtn.addEventListener('click', loadSelectedSheet);
+fileInput.addEventListener('change', loadWorkbook);
+loadSheetBtn.addEventListener('click', loadWorksheet);
 
-function handleFileUpload(event) {
+function loadWorkbook(event) {
+
     const file = event.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
 
     reader.onload = function(e) {
+
         const data = new Uint8Array(e.target.result);
 
         workbook = XLSX.read(data, {
@@ -144,10 +179,12 @@ function handleFileUpload(event) {
 
         sheetSelect.innerHTML = '';
 
-        workbook.SheetNames.forEach(sheetName => {
+        workbook.SheetNames.forEach(name => {
+
             const option = document.createElement('option');
-            option.value = sheetName;
-            option.textContent = sheetName;
+            option.value = name;
+            option.textContent = name;
+
             sheetSelect.appendChild(option);
         });
 
@@ -158,21 +195,36 @@ function handleFileUpload(event) {
     reader.readAsArrayBuffer(file);
 }
 
-function loadSelectedSheet() {
+function isSerialNumber(value) {
+
+    value = String(value).trim();
+
+    if (!value) return false;
+
+    const hasLetter = /[A-Za-z]/.test(value);
+    const hasNumber = /\d/.test(value);
+    const hasSpace = /\s/.test(value);
+
+    return hasLetter && hasNumber && !hasSpace;
+}
+
+function loadWorksheet() {
+
     if (!workbook) return;
 
     const sheetName = sheetSelect.value;
-    const worksheet = workbook.Sheets[sheetName];
 
-    const rows = XLSX.utils.sheet_to_json(worksheet, {
+    const sheet = workbook.Sheets[sheetName];
+
+    const rows = XLSX.utils.sheet_to_json(sheet, {
         header: 1,
         defval: ''
     });
 
     const categories = {};
 
-    // Skip header row (start at row index 1)
     for (let i = 1; i < rows.length; i++) {
+
         const row = rows[i];
 
         const category = String(row[1] || '').trim(); // Column B
@@ -191,16 +243,48 @@ function loadSelectedSheet() {
 }
 
 function renderCategories(categories) {
+
     output.innerHTML = '';
 
-    Object.entries(categories).forEach(([category, items]) => {
+    const categoryCount = Object.keys(categories).length;
+
+    summary.textContent =
+        `${categoryCount} categories found`;
+
+    Object.entries(categories).forEach(([category, values]) => {
+
+        const nonSerials = [];
+        const serials = [];
+
+        values.forEach(value => {
+
+            if (isSerialNumber(value)) {
+                serials.push(value);
+            } else {
+                nonSerials.push(value);
+            }
+
+        });
+
+        const orderedValues = [
+            ...nonSerials.map(v => ({
+                value: v,
+                highlight: true
+            })),
+            ...serials.map(v => ({
+                value: v,
+                highlight: false
+            }))
+        ];
 
         const accordion = document.createElement('div');
         accordion.className = 'accordion';
 
         const header = document.createElement('button');
         header.className = 'accordion-header';
-        header.textContent = `${category} (${items.length})`;
+
+        header.textContent =
+            `${category} (${values.length})`;
 
         const content = document.createElement('div');
         content.className = 'accordion-content';
@@ -208,10 +292,16 @@ function renderCategories(categories) {
         const grid = document.createElement('div');
         grid.className = 'grid';
 
-        items.forEach(itemText => {
+        orderedValues.forEach(itemData => {
+
             const item = document.createElement('div');
-            item.className = 'item';
-            item.textContent = itemText;
+
+            item.className = itemData.highlight
+                ? 'item highlight'
+                : 'item';
+
+            item.textContent = itemData.value;
+
             grid.appendChild(item);
         });
 
@@ -225,8 +315,11 @@ function renderCategories(categories) {
         accordion.appendChild(content);
 
         output.appendChild(accordion);
+
     });
+
 }
+
 </script>
 
 </body>
