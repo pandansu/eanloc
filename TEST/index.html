@@ -326,6 +326,9 @@ document.getElementById('load').onclick = () => {
         const content = document.createElement('div');
         content.className = 'content';
 
+        // Place lookup tool INSIDE content so it shows only when open
+        content.appendChild(lookupDiv);
+
         const grid = document.createElement('div');
         grid.className = 'grid';
 
@@ -352,7 +355,6 @@ document.getElementById('load').onclick = () => {
         content.appendChild(grid);
 
         acc.appendChild(header);
-        acc.appendChild(lookupDiv);   // lookup tool right below header
         acc.appendChild(content);
         out.appendChild(acc);
     });
@@ -361,4 +363,3 @@ document.getElementById('load').onclick = () => {
 
 </body>
 </html>
-                                 
