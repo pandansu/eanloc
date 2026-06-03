@@ -8,12 +8,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
-* {
-    box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
 body {
-    font-family: Arial, Helvetica, sans-serif;
+    font-family: Arial, sans-serif;
     background: #f5f5f5;
     margin: 0;
     padding: 20px;
@@ -24,9 +22,7 @@ body {
     margin: auto;
 }
 
-h1 {
-    margin-top: 0;
-}
+h1 { margin-top: 0; }
 
 .controls {
     display: flex;
@@ -38,9 +34,7 @@ h1 {
     border-radius: 8px;
 }
 
-input[type=file],
-select,
-button {
+input, select, button {
     padding: 10px;
     font-size: 14px;
 }
@@ -70,10 +64,6 @@ button {
     font-weight: bold;
 }
 
-.accordion-header:hover {
-    background: #1565c0;
-}
-
 .accordion-content {
     display: none;
     padding: 15px;
@@ -95,9 +85,6 @@ button {
     border-radius: 6px;
     padding: 10px;
     word-break: break-word;
-    min-height: 55px;
-    display: flex;
-    align-items: center;
 }
 
 .item.highlight {
@@ -107,175 +94,114 @@ button {
     font-weight: bold;
 }
 
-@media (max-width: 1000px) {
-    .grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
+@media (max-width: 900px) {
+    .grid { grid-template-columns: repeat(3, 1fr); }
 }
 
-@media (max-width: 700px) {
-    .grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
+@media (max-width: 600px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
 }
 
-@media (max-width: 500px) {
-    .grid {
-        grid-template-columns: 1fr;
-    }
+@media (max-width: 400px) {
+    .grid { grid-template-columns: 1fr; }
 }
 </style>
 </head>
+
 <body>
 
 <div class="container">
 
-    <h1>Excel Category Viewer</h1>
+<h1>Excel Category Viewer</h1>
 
-    <div class="controls">
-        <input type="file" id="fileInput" accept=".xlsx,.xls">
+<div class="controls">
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+    <select id="sheetSelect" disabled></select>
+    <button id="loadBtn" disabled>Load</button>
+</div>
 
-        <select id="sheetSelect" disabled>
-            <option>Select Worksheet</option>
-        </select>
-
-        <button id="loadSheetBtn" disabled>
-            Load Worksheet
-        </button>
-    </div>
-
-    <div id="summary" class="summary"></div>
-    <div id="output"></div>
+<div id="output"></div>
 
 </div>
 
 <script>
 
-let workbook = null;
+let workbook;
 
 const fileInput = document.getElementById('fileInput');
 const sheetSelect = document.getElementById('sheetSelect');
-const loadSheetBtn = document.getElementById('loadSheetBtn');
+const loadBtn = document.getElementById('loadBtn');
 const output = document.getElementById('output');
-const summary = document.getElementById('summary');
 
-fileInput.addEventListener('change', loadWorkbook);
-loadSheetBtn.addEventListener('click', loadWorksheet);
+fileInput.addEventListener('change', handleFile);
+loadBtn.addEventListener('click', renderSheet);
 
-function loadWorkbook(event) {
-
-    const file = event.target.files[0];
+function handleFile(e) {
+    const file = e.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
 
-    reader.onload = function(e) {
-
-        const data = new Uint8Array(e.target.result);
-
-        workbook = XLSX.read(data, {
-            type: 'array'
-        });
+    reader.onload = function(ev) {
+        workbook = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
 
         sheetSelect.innerHTML = '';
-
-        workbook.SheetNames.forEach(sheetName => {
-
-            const option = document.createElement('option');
-            option.value = sheetName;
-            option.textContent = sheetName;
-
-            sheetSelect.appendChild(option);
+        workbook.SheetNames.forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            sheetSelect.appendChild(opt);
         });
 
         sheetSelect.disabled = false;
-        loadSheetBtn.disabled = false;
+        loadBtn.disabled = false;
     };
 
     reader.readAsArrayBuffer(file);
 }
 
-function loadWorksheet() {
+function isNumeric(value) {
+    return /^\d+$/.test(value.trim());
+}
 
-    if (!workbook) return;
+function renderSheet() {
 
-    const sheetName = sheetSelect.value;
-    const worksheet = workbook.Sheets[sheetName];
-
-    const rows = XLSX.utils.sheet_to_json(worksheet, {
-        header: 1,
-        defval: ''
-    });
+    const sheet = workbook.Sheets[sheetSelect.value];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
     const categories = {};
 
     for (let i = 1; i < rows.length; i++) {
 
-        const row = rows[i];
+        const category = String(rows[i][1] || '').trim(); // Col B
+        const value = String(rows[i][5] || '').trim();    // Col F
 
-        const category = String(row[1] || '').trim(); // Column B
-        const content = String(row[5] || '').trim();  // Column F
-
-        if (!category || !content) continue;
+        if (!category || !value) continue;
 
         if (!categories[category]) {
-            categories[category] = [];
+            categories[category] = { numeric: {}, serials: [] };
         }
 
-        categories[category].push(content);
+        if (isNumeric(value)) {
+            categories[category].numeric[value] =
+                (categories[category].numeric[value] || 0) + 1;
+        } else {
+            categories[category].serials.push(value);
+        }
     }
-
-    renderCategories(categories);
-}
-
-function isNumericString(value) {
-    return /^\d+$/.test(value.trim());
-}
-
-function renderCategories(categories) {
 
     output.innerHTML = '';
 
-    const categoryNames = Object.keys(categories);
+    Object.entries(categories).forEach(([cat, data]) => {
 
-    summary.textContent =
-        `${categoryNames.length} categories found`;
+        const totalNumeric = Object.values(data.numeric)
+            .reduce((a, b) => a + b, 0);
 
-    categoryNames.forEach(category => {
-
-        const values = categories[category];
-
-        const numericCounts = {};
-        const otherValues = [];
-
-        values.forEach(value => {
-
-            if (isNumericString(value)) {
-
-                numericCounts[value] =
-                    (numericCounts[value] || 0) + 1;
-
-            } else {
-
-                otherValues.push(value);
-
-            }
-
-        });
-
-        const numericSummary = Object.entries(numericCounts)
-            .map(([number, count]) => ({
-                number,
-                count
-            }))
-            .sort((a, b) => b.count - a.count);
-
-        const accordion = document.createElement('div');
-        accordion.className = 'accordion';
+        const totalSerials = data.serials.length;
 
         const header = document.createElement('button');
         header.className = 'accordion-header';
-        header.textContent = `${category} (${values.length})`;
+        header.textContent = `${cat} (${totalNumeric + totalSerials})`;
 
         const content = document.createElement('div');
         content.className = 'accordion-content';
@@ -283,36 +209,36 @@ function renderCategories(categories) {
         const grid = document.createElement('div');
         grid.className = 'grid';
 
-        numericSummary.forEach(item => {
+        // Numeric grouped first
+        Object.entries(data.numeric)
+            .sort((a, b) => b[1] - a[1])
+            .forEach(([num, count]) => {
+                const div = document.createElement('div');
+                div.className = 'item highlight';
+                div.textContent = `${num} (${count})`;
+                grid.appendChild(div);
+            });
 
+        // Serial numbers
+        data.serials.forEach(s => {
             const div = document.createElement('div');
-
-            div.className = 'item highlight';
-            div.textContent = `${item.number} (${item.count})`;
-
-            grid.appendChild(div);
-        });
-
-        otherValues.forEach(value => {
-
-            const div = document.createElement('div');
-
             div.className = 'item';
-            div.textContent = value;
-
+            div.textContent = s;
             grid.appendChild(div);
         });
-
-        content.appendChild(grid);
 
         header.addEventListener('click', () => {
             content.classList.toggle('active');
         });
 
-        accordion.appendChild(header);
-        accordion.appendChild(content);
+        const acc = document.createElement('div');
+        acc.className = 'accordion';
 
-        output.appendChild(accordion);
+        content.appendChild(grid);
+        acc.appendChild(header);
+        acc.appendChild(content);
+
+        output.appendChild(acc);
     });
 }
 
