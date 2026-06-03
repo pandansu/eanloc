@@ -78,27 +78,36 @@ select, button {
     display: block;
 }
 
+/* RED NUMBER BOX */
+.item.num {
+    background: #ffebee;
+    border: 1px solid #ef9a9a;
+    color: #c62828;
+    font-weight: bold;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    display: inline-block;
+}
+
+/* SERIAL BOX */
+.item.serial {
+    background: #fafafa;
+    border: 1px solid #ddd;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    display: inline-block;
+}
+
+/* GRID */
 .grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     gap: 10px;
 }
 
-.item {
-    background: #fafafa;
-    border: 1px solid #ddd;
-    border-radius: 6px;
-    padding: 10px;
-}
-
-.item.num {
-    background: #ffebee;
-    border-color: #ef9a9a;
-    color: #c62828;
-    font-weight: bold;
-}
-
-/* ONLY ADDITION: lookup UI (minimal, non-intrusive) */
+/* LOOKUP (unchanged) */
 .lookup-wrap {
     margin-bottom: 10px;
     display: none;
@@ -111,7 +120,6 @@ select, button {
 .lookup-label {
     font-size: 13px;
     margin-bottom: 5px;
-    color: #333;
 }
 
 .lookup-row {
@@ -121,16 +129,14 @@ select, button {
 }
 
 .lookup-input {
-    padding: 6px 8px;
-    font-size: 13px;
+    padding: 6px;
     width: 140px;
 }
 
 .lookup-result {
-    font-size: 13px;
     font-weight: bold;
     color: #2e7d32;
-    min-width: 160px;
+    min-width: 150px;
 }
 
 @media (max-width: 900px) {
@@ -200,28 +206,14 @@ document.getElementById('file').addEventListener('change', e => {
     r.readAsArrayBuffer(file);
 });
 
+/* CATEGORY (unchanged idea) */
 function normalizeCategory(raw) {
-
     if (!raw) return null;
-
     let v = String(raw).toLowerCase().trim();
-
-    v = v.replace(/[- ]?(ninja van|j&t|singpost|dhl|fedex)/g, '');
-
-    if (v.includes('shopee')) return 'Shopee';
-    if (v.includes('lazada')) return 'Lazada';
-
     return v.charAt(0).toUpperCase() + v.slice(1);
 }
 
-document.getElementById('load').onclick = () => {
-
-    const sheet = wb.Sheets[document.getElementById('sheet').value];
-    rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-
-    render();
-};
-
+/* LOOKUP */
 function doLookup(rows, input, outputEl) {
 
     for (let i = 1; i < rows.length; i++) {
@@ -238,9 +230,7 @@ function doLookup(rows, input, outputEl) {
 
             outputEl.textContent = result || 'No match';
 
-            if (result) {
-                navigator.clipboard.writeText(result);
-            }
+            if (result) navigator.clipboard.writeText(result);
 
             return;
         }
@@ -249,6 +239,14 @@ function doLookup(rows, input, outputEl) {
     outputEl.textContent = 'No match';
 }
 
+document.getElementById('load').onclick = () => {
+
+    const sheet = wb.Sheets[document.getElementById('sheet').value];
+    rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+    render();
+};
+
 function render() {
 
     const data = {};
@@ -256,30 +254,39 @@ function render() {
     for (let i = 1; i < rawRows.length; i++) {
 
         const cat = normalizeCategory(rawRows[i][1]);
-        if (!cat) continue;
+        const val = String(rawRows[i][5] || '').trim();
 
-        if (!data[cat]) data[cat] = [];
+        if (!cat || !val) continue;
 
-        data[cat].push(rawRows[i]);
+        if (!data[cat]) {
+            data[cat] = { num: {}, serial: [], rows: [] };
+        }
+
+        data[cat].rows.push(rawRows[i]);
+
+        if (/^\d+$/.test(val)) {
+            data[cat].num[val] = (data[cat].num[val] || 0) + 1;
+        } else if (/[A-Za-z]/.test(val) && /\d/.test(val)) {
+            data[cat].serial.push(val);
+        }
     }
 
     const out = document.getElementById('out');
     out.innerHTML = '';
 
-    Object.entries(data).forEach(([cat, rows]) => {
+    Object.entries(data).forEach(([cat, d]) => {
 
         const acc = document.createElement('div');
         acc.className = 'accordion';
 
         const header = document.createElement('div');
         header.className = 'header';
-        header.textContent = `${cat} (${rows.length})`;
+        header.textContent = `${cat}`;
 
         const content = document.createElement('div');
         content.className = 'content';
 
-        /* ONLY ADDITION START */
-
+        /* LOOKUP TOOL (unchanged behavior) */
         const lookupWrap = document.createElement('div');
         lookupWrap.className = 'lookup-wrap';
 
@@ -299,34 +306,44 @@ function render() {
 
         input.addEventListener('keydown', e => {
             if (e.key === 'Enter') {
-                doLookup(rows, input.value.trim(), result);
+                doLookup(d.rows, input.value.trim(), result);
             }
         });
 
         row.appendChild(input);
         row.appendChild(result);
-
         lookupWrap.appendChild(label);
         lookupWrap.appendChild(row);
 
-        /* ONLY ADDITION END */
+        /* NUMERIC (RED BOX) */
+        const numericWrap = document.createElement('div');
 
-        const grid = document.createElement('div');
-        grid.className = 'grid';
+        Object.entries(d.num)
+            .sort((a,b)=>b[1]-a[1])
+            .forEach(([k,v]) => {
+                const div = document.createElement('div');
+                div.className = 'item num';
+                div.textContent = `${k} (${v})`;
+                numericWrap.appendChild(div);
+            });
 
-        rows.forEach(r => {
+        /* SERIALS ONLY */
+        const serialWrap = document.createElement('div');
+
+        d.serial.forEach(s => {
             const div = document.createElement('div');
-            div.className = 'item';
-            div.textContent = r[5];
-            grid.appendChild(div);
+            div.className = 'item serial';
+            div.textContent = s;
+            serialWrap.appendChild(div);
         });
 
         header.onclick = () => {
             content.classList.toggle('active');
         };
 
-        content.appendChild(lookupWrap); // ONLY NEW INSERTION
-        content.appendChild(grid);
+        content.appendChild(lookupWrap);
+        content.appendChild(numericWrap);
+        content.appendChild(serialWrap);
 
         acc.appendChild(header);
         acc.appendChild(content);
