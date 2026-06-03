@@ -113,7 +113,33 @@ select, input, button {
 
 let wb;
 
+function normalizeCategory(raw) {
+
+    if (!raw) return null;
+
+    let v = raw.toLowerCase().trim();
+
+    // remove common logistics suffixes
+    v = v.replace(/[- ]?(ninja van|j&t|jt|singpost|singapore post|dhl|fedex|pos laju)/g, '');
+
+    v = v.trim();
+
+    // unify known brands
+    if (v.includes('shopee')) return 'Shopee';
+    if (v.includes('lazada')) return 'Lazada';
+    if (v.includes('amazon')) return 'Amazon';
+    if (v.includes('tiktok')) return 'Tiktok Shop';
+
+    // fallback Title Case
+    return v
+        .split(' ')
+        .filter(Boolean)
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+}
+
 document.getElementById('file').addEventListener('change', e => {
+
     const r = new FileReader();
 
     r.onload = ev => {
@@ -142,8 +168,10 @@ document.getElementById('load').onclick = () => {
 
     for (let i = 1; i < rows.length; i++) {
 
-        const cat = String(rows[i][1] || '').trim(); // Col B
-        const val = String(rows[i][5] || '').trim(); // Col F
+        const rawCat = String(rows[i][1] || '').trim();
+        const cat = normalizeCategory(rawCat);
+
+        const val = String(rows[i][5] || '').trim();
 
         if (!cat || !val) continue;
 
@@ -179,7 +207,6 @@ document.getElementById('load').onclick = () => {
         const grid = document.createElement('div');
         grid.className = 'grid';
 
-        // numeric grouped
         Object.entries(d.num)
             .sort((a,b)=>b[1]-a[1])
             .forEach(([k,v]) => {
@@ -189,7 +216,6 @@ document.getElementById('load').onclick = () => {
                 grid.appendChild(div);
             });
 
-        // serials
         d.serial.forEach(s => {
             const div = document.createElement('div');
             div.className = 'item';
