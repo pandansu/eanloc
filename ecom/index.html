@@ -31,12 +31,27 @@ body {
     align-items: center;
 }
 
-/* hide default file input look */
-input[type="file"] {
-    padding: 10px;
+/* Custom upload button */
+#pickFile {
+    padding: 10px 15px;
+    background: #1976d2;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
 }
 
-/* NEW: filename display */
+#pickFile:hover {
+    background: #1565c0;
+}
+
+/* Hidden native file input */
+#file {
+    display: none;
+}
+
+/* Full filename display */
 .filename {
     flex: 1;
     min-width: 250px;
@@ -44,8 +59,8 @@ input[type="file"] {
     background: #f1f1f1;
     border-radius: 6px;
     font-size: 14px;
-    white-space: nowrap;   /* no truncation */
-    overflow: visible;     /* show full text */
+    white-space: nowrap;
+    overflow: visible;
 }
 
 select, button {
@@ -118,13 +133,19 @@ select, button {
 <h2>Excel Viewer</h2>
 
 <div class="controls">
+
+    <!-- Custom upload button -->
+    <button id="pickFile">Upload Excel File</button>
+
+    <!-- Hidden real file input -->
     <input type="file" id="file">
 
-    <!-- NEW filename display -->
+    <!-- Full filename display -->
     <div class="filename" id="filename">No file selected</div>
 
     <select id="sheet"></select>
     <button id="load">Load</button>
+
 </div>
 
 <div id="out"></div>
@@ -137,6 +158,10 @@ let wb;
 
 const fileInput = document.getElementById('file');
 const filenameEl = document.getElementById('filename');
+
+document.getElementById('pickFile').onclick = () => {
+    fileInput.click();
+};
 
 function normalizeCategory(raw) {
 
@@ -165,7 +190,7 @@ fileInput.addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
 
-    // NEW: show FULL filename
+    // FULL filename display (no truncation)
     filenameEl.textContent = file.name;
 
     const r = new FileReader();
