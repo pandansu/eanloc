@@ -53,6 +53,7 @@ select, button {
     padding: 10px;
 }
 
+/* ACCORDION */
 .accordion {
     background: white;
     margin-bottom: 10px;
@@ -78,7 +79,7 @@ select, button {
     display: block;
 }
 
-/* RED NUMBER BOX */
+/* RED NUMBERS */
 .item.num {
     background: #ffebee;
     border: 1px solid #ef9a9a;
@@ -86,18 +87,16 @@ select, button {
     font-weight: bold;
     padding: 10px;
     border-radius: 6px;
-    margin-bottom: 10px;
-    display: inline-block;
+    margin-bottom: 8px;
 }
 
-/* SERIAL BOX */
+/* SERIALS */
 .item.serial {
     background: #fafafa;
     border: 1px solid #ddd;
     padding: 10px;
     border-radius: 6px;
-    margin-bottom: 10px;
-    display: inline-block;
+    margin-bottom: 8px;
 }
 
 /* GRID */
@@ -107,36 +106,42 @@ select, button {
     gap: 10px;
 }
 
-/* LOOKUP (unchanged) */
-.lookup-wrap {
-    margin-bottom: 10px;
-    display: none;
-}
+/* =========================
+   LOOKUP (NEW POSITION)
+========================= */
 
-.content.active .lookup-wrap {
-    display: block;
+.lookup-row {
+    display: flex;
+    justify-content: flex-end;   /* RIGHT SIDE */
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
 }
 
 .lookup-label {
     font-size: 13px;
-    margin-bottom: 5px;
-}
-
-.lookup-row {
-    display: flex;
-    gap: 10px;
-    align-items: center;
+    color: #333;
 }
 
 .lookup-input {
-    padding: 6px;
+    padding: 6px 8px;
     width: 140px;
 }
 
 .lookup-result {
+    font-size: 20px;   /* BIG RESULT */
     font-weight: bold;
     color: #2e7d32;
-    min-width: 150px;
+    min-width: 180px;
+}
+
+/* only show when open */
+.content .lookup-row {
+    display: none;
+}
+
+.content.active .lookup-row {
+    display: flex;
 }
 
 @media (max-width: 900px) {
@@ -206,15 +211,14 @@ document.getElementById('file').addEventListener('change', e => {
     r.readAsArrayBuffer(file);
 });
 
-/* CATEGORY (unchanged idea) */
+/* BASE LOGIC (UNCHANGED) */
 function normalizeCategory(raw) {
     if (!raw) return null;
     let v = String(raw).toLowerCase().trim();
     return v.charAt(0).toUpperCase() + v.slice(1);
 }
 
-/* LOOKUP */
-function doLookup(rows, input, outputEl) {
+function doLookup(rows, input, resultEl) {
 
     for (let i = 1; i < rows.length; i++) {
 
@@ -228,7 +232,7 @@ function doLookup(rows, input, outputEl) {
 
             const result = (colI && String(colI).trim()) ? colI : colH;
 
-            outputEl.textContent = result || 'No match';
+            resultEl.textContent = result || 'No match';
 
             if (result) navigator.clipboard.writeText(result);
 
@@ -236,7 +240,7 @@ function doLookup(rows, input, outputEl) {
         }
     }
 
-    outputEl.textContent = 'No match';
+    resultEl.textContent = 'No match';
 }
 
 document.getElementById('load').onclick = () => {
@@ -254,13 +258,11 @@ function render() {
     for (let i = 1; i < rawRows.length; i++) {
 
         const cat = normalizeCategory(rawRows[i][1]);
+        if (!cat) continue;
+
+        if (!data[cat]) data[cat] = { rows: [], num: {}, serial: [] };
+
         const val = String(rawRows[i][5] || '').trim();
-
-        if (!cat || !val) continue;
-
-        if (!data[cat]) {
-            data[cat] = { num: {}, serial: [], rows: [] };
-        }
 
         data[cat].rows.push(rawRows[i]);
 
@@ -286,16 +288,13 @@ function render() {
         const content = document.createElement('div');
         content.className = 'content';
 
-        /* LOOKUP TOOL (unchanged behavior) */
-        const lookupWrap = document.createElement('div');
-        lookupWrap.className = 'lookup-wrap';
+        /* LOOKUP ROW (NOW TOP RIGHT INSIDE HEADER AREA) */
+        const lookupRow = document.createElement('div');
+        lookupRow.className = 'lookup-row';
 
         const label = document.createElement('div');
         label.className = 'lookup-label';
         label.textContent = 'Enter EAN';
-
-        const row = document.createElement('div');
-        row.className = 'lookup-row';
 
         const input = document.createElement('input');
         input.className = 'lookup-input';
@@ -310,13 +309,12 @@ function render() {
             }
         });
 
-        row.appendChild(input);
-        row.appendChild(result);
-        lookupWrap.appendChild(label);
-        lookupWrap.appendChild(row);
+        lookupRow.appendChild(label);
+        lookupRow.appendChild(input);
+        lookupRow.appendChild(result);
 
-        /* NUMERIC (RED BOX) */
-        const numericWrap = document.createElement('div');
+        const grid = document.createElement('div');
+        grid.className = 'grid';
 
         Object.entries(d.num)
             .sort((a,b)=>b[1]-a[1])
@@ -324,29 +322,26 @@ function render() {
                 const div = document.createElement('div');
                 div.className = 'item num';
                 div.textContent = `${k} (${v})`;
-                numericWrap.appendChild(div);
+                grid.appendChild(div);
             });
-
-        /* SERIALS ONLY */
-        const serialWrap = document.createElement('div');
 
         d.serial.forEach(s => {
             const div = document.createElement('div');
             div.className = 'item serial';
             div.textContent = s;
-            serialWrap.appendChild(div);
+            grid.appendChild(div);
         });
 
         header.onclick = () => {
             content.classList.toggle('active');
         };
 
-        content.appendChild(lookupWrap);
-        content.appendChild(numericWrap);
-        content.appendChild(serialWrap);
+        content.appendChild(lookupRow);
+        content.appendChild(grid);
 
         acc.appendChild(header);
         acc.appendChild(content);
+
         out.appendChild(acc);
     });
 }
