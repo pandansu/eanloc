@@ -3,73 +3,59 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Excel Category Viewer</title>
+<title>Excel Viewer</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
-* { box-sizing: border-box; }
-
 body {
-    font-family: Arial, sans-serif;
+    font-family: Arial;
     background: #f5f5f5;
     margin: 0;
     padding: 20px;
 }
 
 .container {
-    max-width: 1400px;
+    max-width: 1200px;
     margin: auto;
 }
 
-h1 { margin-top: 0; }
-
 .controls {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
     margin-bottom: 20px;
-    padding: 15px;
-    background: white;
-    border-radius: 8px;
 }
 
-input, select, button {
+select, input, button {
     padding: 10px;
-    font-size: 14px;
-}
-
-.summary {
-    margin-bottom: 15px;
-    color: #666;
 }
 
 .accordion {
     background: white;
+    margin-bottom: 10px;
     border-radius: 8px;
-    margin-bottom: 12px;
     overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0,0,0,.15);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
-.accordion-header {
-    width: 100%;
-    border: none;
-    text-align: left;
-    cursor: pointer;
+.header {
     background: #1976d2;
     color: white;
-    padding: 16px;
-    font-size: 16px;
+    padding: 15px;
+    cursor: pointer;
     font-weight: bold;
 }
 
-.accordion-content {
+.content {
     display: none;
     padding: 15px;
 }
 
-.accordion-content.active {
+.content.active {
     display: block;
 }
 
@@ -80,14 +66,13 @@ input, select, button {
 }
 
 .item {
-    border: 1px solid #ddd;
     background: #fafafa;
+    border: 1px solid #ddd;
     border-radius: 6px;
     padding: 10px;
-    word-break: break-word;
 }
 
-.item.highlight {
+.item.num {
     background: #ffebee;
     border-color: #ef9a9a;
     color: #c62828;
@@ -112,135 +97,116 @@ input, select, button {
 
 <div class="container">
 
-<h1>Excel Category Viewer</h1>
+<h2>Excel Viewer</h2>
 
 <div class="controls">
-    <input type="file" id="fileInput" accept=".xlsx,.xls">
-    <select id="sheetSelect" disabled></select>
-    <button id="loadBtn" disabled>Load</button>
+    <input type="file" id="file">
+    <select id="sheet"></select>
+    <button id="load">Load</button>
 </div>
 
-<div id="output"></div>
+<div id="out"></div>
 
 </div>
 
 <script>
 
-let workbook;
+let wb;
 
-const fileInput = document.getElementById('fileInput');
-const sheetSelect = document.getElementById('sheetSelect');
-const loadBtn = document.getElementById('loadBtn');
-const output = document.getElementById('output');
+document.getElementById('file').addEventListener('change', e => {
+    const r = new FileReader();
 
-fileInput.addEventListener('change', handleFile);
-loadBtn.addEventListener('click', renderSheet);
+    r.onload = ev => {
+        wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
 
-function handleFile(e) {
-    const file = e.target.files[0];
-    if (!file) return;
+        const sheetSel = document.getElementById('sheet');
+        sheetSel.innerHTML = '';
 
-    const reader = new FileReader();
-
-    reader.onload = function(ev) {
-        workbook = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
-
-        sheetSelect.innerHTML = '';
-        workbook.SheetNames.forEach(name => {
-            const opt = document.createElement('option');
-            opt.value = name;
-            opt.textContent = name;
-            sheetSelect.appendChild(opt);
+        wb.SheetNames.forEach(n => {
+            const o = document.createElement('option');
+            o.value = n;
+            o.textContent = n;
+            sheetSel.appendChild(o);
         });
-
-        sheetSelect.disabled = false;
-        loadBtn.disabled = false;
     };
 
-    reader.readAsArrayBuffer(file);
-}
+    r.readAsArrayBuffer(e.target.files[0]);
+});
 
-function isNumeric(value) {
-    return /^\d+$/.test(value.trim());
-}
+document.getElementById('load').onclick = () => {
 
-function renderSheet() {
-
-    const sheet = workbook.Sheets[sheetSelect.value];
+    const sheet = wb.Sheets[document.getElementById('sheet').value];
     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
-    const categories = {};
+    const data = {};
 
     for (let i = 1; i < rows.length; i++) {
 
-        const category = String(rows[i][1] || '').trim(); // Col B
-        const value = String(rows[i][5] || '').trim();    // Col F
+        const cat = String(rows[i][1] || '').trim(); // Col B
+        const val = String(rows[i][5] || '').trim(); // Col F
 
-        if (!category || !value) continue;
+        if (!cat || !val) continue;
 
-        if (!categories[category]) {
-            categories[category] = { numeric: {}, serials: [] };
+        if (!data[cat]) {
+            data[cat] = { num: {}, serial: [] };
         }
 
-        if (isNumeric(value)) {
-            categories[category].numeric[value] =
-                (categories[category].numeric[value] || 0) + 1;
-        } else {
-            categories[category].serials.push(value);
+        if (/^\d+$/.test(val)) {
+            data[cat].num[val] = (data[cat].num[val] || 0) + 1;
+        } else if (/[A-Za-z]/.test(val) && /\d/.test(val)) {
+            data[cat].serial.push(val);
         }
     }
 
-    output.innerHTML = '';
+    const out = document.getElementById('out');
+    out.innerHTML = '';
 
-    Object.entries(categories).forEach(([cat, data]) => {
+    Object.entries(data).forEach(([cat, d]) => {
 
-        const totalNumeric = Object.values(data.numeric)
-            .reduce((a, b) => a + b, 0);
+        const numTotal = Object.values(d.num).reduce((a,b)=>a+b,0);
+        const serialTotal = d.serial.length;
 
-        const totalSerials = data.serials.length;
+        const acc = document.createElement('div');
+        acc.className = 'accordion';
 
-        const header = document.createElement('button');
-        header.className = 'accordion-header';
-        header.textContent = `${cat} (${totalNumeric + totalSerials})`;
+        const header = document.createElement('div');
+        header.className = 'header';
+        header.textContent = `${cat} (${numTotal + serialTotal})`;
 
         const content = document.createElement('div');
-        content.className = 'accordion-content';
+        content.className = 'content';
 
         const grid = document.createElement('div');
         grid.className = 'grid';
 
-        // Numeric grouped first
-        Object.entries(data.numeric)
-            .sort((a, b) => b[1] - a[1])
-            .forEach(([num, count]) => {
+        // numeric grouped
+        Object.entries(d.num)
+            .sort((a,b)=>b[1]-a[1])
+            .forEach(([k,v]) => {
                 const div = document.createElement('div');
-                div.className = 'item highlight';
-                div.textContent = `${num} (${count})`;
+                div.className = 'item num';
+                div.textContent = `${k} (${v})`;
                 grid.appendChild(div);
             });
 
-        // Serial numbers
-        data.serials.forEach(s => {
+        // serials
+        d.serial.forEach(s => {
             const div = document.createElement('div');
             div.className = 'item';
             div.textContent = s;
             grid.appendChild(div);
         });
 
-        header.addEventListener('click', () => {
+        header.onclick = () => {
             content.classList.toggle('active');
-        });
-
-        const acc = document.createElement('div');
-        acc.className = 'accordion';
+        };
 
         content.appendChild(grid);
         acc.appendChild(header);
         acc.appendChild(content);
-
-        output.appendChild(acc);
+        out.appendChild(acc);
     });
-}
+};
 
 </script>
 
