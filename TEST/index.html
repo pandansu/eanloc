@@ -383,42 +383,33 @@ let type = "";
 
 }
 
-let loc = allLocations.length
+const rawLoc = allLocations.length
   ? [...new Set(allLocations)].sort((a,b)=>a.localeCompare(b)).join(", ")
   : "* NOT FOUND *";
 
-if (groupByType && loc !== "* NOT FOUND *") {
+    const productName = nameIndex[ean] || "—";
+let displayLoc = rawLoc;
 
-  const prefixMap = {
+if (groupByType && rawLoc !== "* NOT FOUND *") {
+
+  const typeIcons = {
     C: "📸 ",
     D: "✈️ ",
     M: "🎤 "
   };
 
-  loc = loc
-    .split(", ")
-    .map(location => {
+  const icon = typeIcons[(type || "").toUpperCase()] || "";
 
-      const firstChar = location.charAt(0).toUpperCase();
-
-      return prefixMap[firstChar]
-        ? prefixMap[firstChar] + location
-        : location;
-
-    })
-    .join(", ");
-
+  displayLoc = icon + rawLoc;
 }
-
-    const productName = nameIndex[ean] || "—";
 
 rows.push({
   ean,
   qty,
-  loc,
+  loc: displayLoc,
   productName,
   type
-});  }
+});
 
 if (groupByType) {
 
