@@ -88,28 +88,16 @@ textarea {
 }
 
 #generateBtn {
-  flex: 0.7;
+  flex: 1;
   padding: 10px;
   border: none;
   border-radius: 8px;
   background: #4a90e2;
   color: white;
   cursor: pointer;
-}
-
-#groupBtn {
-  flex: 0.5;
-  padding: 10px;
-  border: none;
-  border-radius: 8px;
-  background: #f39c12;
-  color: white;
-  cursor: pointer;
-}
-
-#groupBtn.active {
-  background: #27ae60;
 }  
+
+
   
 #printBtn {
   flex: 0.4;
@@ -183,6 +171,22 @@ td.name {
     display: none !important;
   }
 }
+
+.group-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.group-toggle {
+  font-size: 14px;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #333;
+}
+  
 </style>
 </head>
 
@@ -207,13 +211,15 @@ td.name {
 
 </div>
 
+<div class="group-row">
+  <label class="group-toggle">
+    <input type="checkbox" id="groupByTypeChk" onchange="toggleGrouping()">
+    Group by Type
+  </label>
+</div>
+
 <div class="btn-row">
   <button id="generateBtn" onclick="generate()">Generate</button>
-
-  <button id="groupBtn" onclick="toggleGrouping()">
-    Group by Type: OFF
-  </button>
-
   <button id="printBtn" onclick="window.print()">Print</button>
 </div>
 
@@ -329,20 +335,10 @@ document.getElementById("excelFile").addEventListener("change", function(e) {
 
   reader.readAsArrayBuffer(file);
 });
+
+  
 function toggleGrouping() {
-
-  groupByType = !groupByType;
-
-  const btn = document.getElementById("groupBtn");
-
-  if (groupByType) {
-    btn.classList.add("active");
-    btn.textContent = "Group by Type: ON";
-  } else {
-    btn.classList.remove("active");
-    btn.textContent = "Group by Type: OFF";
-  }
-
+  groupByType = document.getElementById("groupByTypeChk").checked;
 }
 
 /* GENERATE */
