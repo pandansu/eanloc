@@ -401,19 +401,19 @@ if (groupByType) {
 
   rows.sort((a, b) => {
 
-    const typeCompare = b.type.localeCompare(a.type);
+    const typeCompare = a.type.localeCompare(b.type);
 
     if (typeCompare !== 0) {
       return typeCompare;
     }
 
-    return b.loc.localeCompare(a.loc);
+    return a.loc.localeCompare(b.loc);
 
   });
 
 } else {
 
-  rows.sort((a, b) => b.loc.localeCompare(a.loc));
+  rows.sort((a, b) => a.loc.localeCompare(b.loc));
 
 }
   let html = `
