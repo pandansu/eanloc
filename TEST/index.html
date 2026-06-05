@@ -441,16 +441,29 @@ if (groupByType) {
     </tr>
   `;
 
-  for (const r of rows) {
-    html += `
-      <tr>
-        <td>${r.ean}</td>
-        <td>${r.qty}</td>
-        <td class="loc">${r.loc}</td>
-        <td class="name">${r.productName}</td>
-      </tr>
-    `;
-  }
+
+const typeIcons = {
+  C: "📸 ",
+  D: "✈️ ",
+  M: "🎤 "
+};
+
+for (const r of rows) {
+
+  const icon = groupByType
+    ? (typeIcons[(r.type || "").trim().toUpperCase()] || "")
+    : "";
+
+  html += `
+    <tr>
+      <td>${r.ean}</td>
+      <td>${r.qty}</td>
+      <td class="loc">${icon}${r.loc}</td>
+      <td class="name">${r.productName}</td>
+    </tr>
+  `;
+}
+  
 
   html += "</table>";
 
