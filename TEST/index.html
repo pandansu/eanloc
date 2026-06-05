@@ -401,18 +401,28 @@ if (groupByType) {
 
   rows.sort((a, b) => {
 
-    const typeCompare = a.type.localeCompare(b.type);
+    const typeA = (a.type || "").trim();
+    const typeB = (b.type || "").trim();
+
+    // Blank types always go last
+    if (!typeA && typeB) return 1;
+    if (typeA && !typeB) return -1;
+
+    // Type A → Z
+    const typeCompare = typeA.localeCompare(typeB);
 
     if (typeCompare !== 0) {
       return typeCompare;
     }
 
+    // Location A → Z within same Type
     return a.loc.localeCompare(b.loc);
 
   });
 
 } else {
 
+  // Location A → Z
   rows.sort((a, b) => a.loc.localeCompare(b.loc));
 
 }
