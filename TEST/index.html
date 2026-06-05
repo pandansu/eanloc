@@ -88,7 +88,7 @@ textarea {
 }
 
 #generateBtn {
-  flex: 1;
+  flex: 0.7;
   padding: 10px;
   border: none;
   border-radius: 8px;
@@ -97,6 +97,20 @@ textarea {
   cursor: pointer;
 }
 
+#groupBtn {
+  flex: 0.5;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  background: #f39c12;
+  color: white;
+  cursor: pointer;
+}
+
+#groupBtn.active {
+  background: #27ae60;
+}  
+  
 #printBtn {
   flex: 0.4;
   display: none;
@@ -195,6 +209,11 @@ td.name {
 
 <div class="btn-row">
   <button id="generateBtn" onclick="generate()">Generate</button>
+
+  <button id="groupBtn" onclick="toggleGrouping()">
+    Group by Type: OFF
+  </button>
+
   <button id="printBtn" onclick="window.print()">Print</button>
 </div>
 
@@ -209,7 +228,10 @@ const csvUrl =
 
 let index = {};
 let nameIndex = {};
+let typeIndex = {};
 let ready = false;
+
+let groupByType = false;
 
 /* CSV */
 function parseCSVLine(line) {
@@ -248,16 +270,23 @@ fetch(csvUrl)
     const cols = parseCSVLine(lines[i]);
     if (!cols || cols.length < 6) continue;
 
-    const sku = (cols[0] || '').trim();
-    const loc = (cols[1] || '').trim();
-    const ean = (cols[4] || '').trim();
-    const name = cleanName(cols[5]);
+  const sku = (cols[0] || '').trim();
+  const loc = (cols[1] || '').trim();
+  const type = (cols[2] || '').trim();
+  const ean = (cols[4] || '').trim();
+  const name = cleanName(cols[5]);
 
-    if (sku && loc) {
-      if (!index[sku]) index[sku] = [];
-      index[sku].push(loc);
-    }
 
+if (sku && loc) {
+  if (!index[sku]) index[sku] = [];
+  index[sku].push(loc);
+}
+
+if (sku && type) {
+  typeIndex[sku] = type;
+}
+
+    
     if (ean && name) {
       nameIndex[ean] = name;
     }
@@ -300,6 +329,21 @@ document.getElementById("excelFile").addEventListener("change", function(e) {
 
   reader.readAsArrayBuffer(file);
 });
+function toggleGrouping() {
+
+  groupByType = !groupByType;
+
+  const btn = document.getElementById("groupBtn");
+
+  if (groupByType) {
+    btn.classList.add("active");
+    btn.textContent = "Group by Type: ON";
+  } else {
+    btn.classList.remove("active");
+    btn.textContent = "Group by Type: OFF";
+  }
+
+}
 
 /* GENERATE */
 function generate() {
@@ -321,13 +365,23 @@ function generate() {
 
     const last4 = ean.slice(-4);
 
-    let allLocations = [];
+let allLocations = [];
+let type = "";
+
 
     for (const key in index) {
-      if (key.endsWith(last4)) {
-        allLocations = allLocations.concat(index[key]);
-      }
+
+  if (key.endsWith(last4)) {
+
+    allLocations = allLocations.concat(index[key]);
+
+    if (!type && typeIndex[key]) {
+      type = typeIndex[key];
     }
+
+  }
+
+}
 
     const loc = allLocations.length
       ? [...new Set(allLocations)].sort((a,b)=>a.localeCompare(b)).join(", ")
@@ -335,11 +389,33 @@ function generate() {
 
     const productName = nameIndex[ean] || "—";
 
-    rows.push({ ean, qty, loc, productName });
-  }
+rows.push({
+  ean,
+  qty,
+  loc,
+  productName,
+  type
+});  }
 
-  rows.sort((a, b) => a.loc.localeCompare(b.loc));
+if (groupByType) {
 
+  rows.sort((a, b) => {
+
+    const typeCompare = b.type.localeCompare(a.type);
+
+    if (typeCompare !== 0) {
+      return typeCompare;
+    }
+
+    return b.loc.localeCompare(a.loc);
+
+  });
+
+} else {
+
+  rows.sort((a, b) => b.loc.localeCompare(a.loc));
+
+}
   let html = `
   <table>
     <tr>
