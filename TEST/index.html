@@ -383,33 +383,19 @@ let type = "";
 
 }
 
-const rawLoc = allLocations.length
-  ? [...new Set(allLocations)].sort((a,b)=>a.localeCompare(b)).join(", ")
-  : "* NOT FOUND *";
+    const loc = allLocations.length
+      ? [...new Set(allLocations)].sort((a,b)=>a.localeCompare(b)).join(", ")
+      : "* NOT FOUND *";
 
     const productName = nameIndex[ean] || "—";
-let displayLoc = rawLoc;
-
-if (groupByType && rawLoc !== "* NOT FOUND *") {
-
-  const typeIcons = {
-    C: "📸 ",
-    D: "✈️ ",
-    M: "🎤 "
-  };
-
-  const icon = typeIcons[(type || "").toUpperCase()] || "";
-
-  displayLoc = icon + rawLoc;
-}
 
 rows.push({
   ean,
   qty,
-  loc: displayLoc,
+  loc,
   productName,
   type
-});
+});  }
 
 if (groupByType) {
 
@@ -418,21 +404,21 @@ if (groupByType) {
     const typeA = (a.type || "").trim();
     const typeB = (b.type || "").trim();
 
-    // Blank types always go last
     if (!typeA && typeB) return 1;
     if (typeA && !typeB) return -1;
 
-    // Type A → Z
     const typeCompare = typeA.localeCompare(typeB);
+    if (typeCompare !== 0) return typeCompare;
 
-    if (typeCompare !== 0) {
-      return typeCompare;
-    }
-
-    // Location A → Z within same Type
     return a.loc.localeCompare(b.loc);
 
   });
+
+} else {
+
+  rows.sort((a, b) => a.loc.localeCompare(b.loc));
+
+}
 
 } else {
 
@@ -455,16 +441,27 @@ if (groupByType) {
     </tr>
   `;
 
-  for (const r of rows) {
-    html += `
-      <tr>
-        <td>${r.ean}</td>
-        <td>${r.qty}</td>
-        <td class="loc">${r.loc}</td>
-        <td class="name">${r.productName}</td>
-      </tr>
-    `;
-  }
+const typeIcons = {
+  C: "📸 ",
+  D: "✈️ ",
+  M: "🎤 "
+};
+
+for (const r of rows) {
+
+  const icon = groupByType
+    ? (typeIcons[(r.type || "").toUpperCase()] || "")
+    : "";
+
+  html += `
+    <tr>
+      <td>${r.ean}</td>
+      <td>${r.qty}</td>
+      <td class="loc">${icon}${r.loc}</td>
+      <td class="name">${r.productName}</td>
+    </tr>
+  `;
+}
 
   html += "</table>";
 
