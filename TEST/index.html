@@ -383,9 +383,32 @@ let type = "";
 
 }
 
-    const loc = allLocations.length
-      ? [...new Set(allLocations)].sort((a,b)=>a.localeCompare(b)).join(", ")
-      : "* NOT FOUND *";
+let loc = allLocations.length
+  ? [...new Set(allLocations)].sort((a,b)=>a.localeCompare(b)).join(", ")
+  : "* NOT FOUND *";
+
+if (groupByType && loc !== "* NOT FOUND *") {
+
+  const prefixMap = {
+    C: "📸 ",
+    D: "✈️ ",
+    M: "🎤 "
+  };
+
+  loc = loc
+    .split(", ")
+    .map(location => {
+
+      const firstChar = location.charAt(0).toUpperCase();
+
+      return prefixMap[firstChar]
+        ? prefixMap[firstChar] + location
+        : location;
+
+    })
+    .join(", ");
+
+}
 
     const productName = nameIndex[ean] || "—";
 
