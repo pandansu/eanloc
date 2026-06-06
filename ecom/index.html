@@ -219,7 +219,7 @@ function normalizeCategory(raw) {
     if (v.includes('shopee')) return 'Shopee';
     if (v.includes('lazada')) return 'Lazada';
     if (v.includes('amazon')) return 'Amazon';
-    if (v.includes('tiktok')) return 'Tiktok';   // ✅ remove "Shop"
+    if (v.includes('tiktok')) return 'TikTok';   // ✅ remove "Shop"
     return v.split(' ')
         .filter(Boolean)
         .map(w => w.charAt(0).toUpperCase() + w.slice(1))
@@ -249,7 +249,7 @@ document.getElementById('load').onclick = () => {
     out.innerHTML = '';
 
     // ✅ Fixed order
-    const order = ["Shopee", "Lazada", "Tiktok", "Amazon"];
+    const order = ["Shopee", "Lazada", "TikTok", "Amazon"];
 
     Object.entries(data)
         .sort(([a], [b]) => {
@@ -320,7 +320,12 @@ document.getElementById('load').onclick = () => {
                         const valH = String(rows[i][7] || '').trim(); // Col H
                         const valI = String(rows[i][8] || '').trim(); // Col I
                         if (catRow === cat && valE.endsWith(query)) {
-                            found = valI || valH;
+                            // Try Col I first
+                            if (!isNaN(Number(valI)) && valI !== '') {
+                                found = valI;
+                            } else {
+                                found = valH;
+                            }
                             break;
                         }
                     }
@@ -359,8 +364,27 @@ document.getElementById('load').onclick = () => {
                 grid.appendChild(div);
             });
 
+            
             header.onclick = () => {
+                const isOpening = !content.classList.contains('active');
+            
+                // Close all others
+                document.querySelectorAll('.content').forEach(c => {
+                    if (c !== content) c.classList.remove('active');
+                });
+            
+                // Toggle this one
                 content.classList.toggle('active');
+            
+                // Scroll into view when opening
+                if (isOpening) {
+                    setTimeout(() => {
+                        acc.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }, 50);
+                }
             };
 
             content.appendChild(grid);
