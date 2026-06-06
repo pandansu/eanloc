@@ -360,6 +360,11 @@ document.getElementById('load').onclick = () => {
             });
 
             header.onclick = () => {
+                // Close all other accordions
+                document.querySelectorAll('.content').forEach(c => {
+                    if (c !== content) c.classList.remove('active');
+                });
+                // Toggle this one
                 content.classList.toggle('active');
             };
 
