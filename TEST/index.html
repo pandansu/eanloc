@@ -364,13 +364,27 @@ document.getElementById('load').onclick = () => {
                 grid.appendChild(div);
             });
 
+            
             header.onclick = () => {
-                // Close all other accordions
+                const isOpening = !content.classList.contains('active');
+            
+                // Close all others
                 document.querySelectorAll('.content').forEach(c => {
                     if (c !== content) c.classList.remove('active');
                 });
+            
                 // Toggle this one
                 content.classList.toggle('active');
+            
+                // Scroll into view when opening
+                if (isOpening) {
+                    setTimeout(() => {
+                        acc.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start'
+                        });
+                    }, 50);
+                }
             };
 
             content.appendChild(grid);
