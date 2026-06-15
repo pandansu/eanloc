@@ -18,6 +18,7 @@
     button { cursor: pointer; background: #111827; color: white; border-color: #111827; }
     button.secondary { background: #fff; color: #111827; }
     button:disabled { opacity: .45; cursor: not-allowed; }
+    .copy-col { padding: 4px 7px; margin-left: 8px; font-size: 12px; border-radius: 6px; }
     .stats { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 10px; margin-top: 12px; }
     .stat { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px; }
     .stat b { display: block; font-size: 20px; margin-top: 4px; }
@@ -26,6 +27,9 @@
     table { border-collapse: collapse; width: 100%; background: #fff; }
     th, td { border-bottom: 1px solid #e5e7eb; padding: 8px 10px; text-align: left; font-size: 14px; }
     th { position: sticky; top: 0; background: #f3f4f6; z-index: 1; }
+    tr.multi-group-a td { background: #fff7ed; }
+    tr.multi-group-b td { background: #eef2ff; }
+    tr.multi-group-a td:first-child, tr.multi-group-b td:first-child { font-weight: 700; }
     .tablewrap { max-height: 560px; overflow: auto; border: 1px solid #e5e7eb; border-radius: 10px; }
     .right { margin-left: auto; }
     .hidden { display: none; }
@@ -35,17 +39,12 @@
 <body>
   <div class="app">
     <h1>Order EAN Splitter</h1>
-    <p class="sub">Upload Excel, choose a sheet, then expand Col A / M / P / Q into: Order ID | EAN | Price.</p>
+    <p class="sub">Upload Excel, then expand Col A / M / P / Q into: Order ID | EAN | Price.</p>
 
     <div class="card">
       <div class="row">
         <label for="fileInput">Excel file</label>
         <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" />
-        <label for="sheetSelect">Sheet</label>
-        <select id="sheetSelect" disabled><option>Select file first</option></select>
-        <button id="loadBtn" disabled>Load sheet</button>
-        <button id="copyBtn" class="secondary" disabled>Copy result</button>
-        <button id="downloadBtn" class="secondary" disabled>Download CSV</button>
       </div>
       <div class="note">
         Rules: Col M is split by <b>+</b>. Col Q repeats each product/bundle quantity. Example: EAN+EAN with quantity 3 becomes 6 rows. Price from Col P is repeated from the original product/bundle row.
@@ -55,7 +54,7 @@
         <div class="stat">Source rows<b id="sourceRows">0</b></div>
         <div class="stat">Output rows<b id="outputRows">0</b></div>
         <div class="stat">Bundle rows split<b id="bundleRows">0</b></div>
-        <div class="stat">Skipped rows<b id="skippedRows">0</b></div>
+        <div class="stat">Unique order IDs<b id="uniqueOrders">0</b></div>
       </div>
     </div>
 
@@ -67,7 +66,11 @@
       </div>
       <div class="tablewrap">
         <table id="resultTable">
-          <thead><tr><th>Order ID</th><th>EAN</th><th>Price</th></tr></thead>
+          <thead><tr>
+            <th><span>Order ID</span> <button class="copy-col" data-col="orderId" disabled>Copy</button></th>
+            <th><span>EAN</span> <button class="copy-col" data-col="ean" disabled>Copy</button></th>
+            <th><span>Price</span> <button class="copy-col" data-col="price" disabled>Copy</button></th>
+          </tr></thead>
           <tbody><tr><td colspan="3" style="color:#6b7280">Upload a workbook to begin.</td></tr></tbody>
         </table>
       </div>
@@ -80,13 +83,10 @@ let output = [];
 let filtered = [];
 
 const fileInput = document.getElementById('fileInput');
-const sheetSelect = document.getElementById('sheetSelect');
-const loadBtn = document.getElementById('loadBtn');
-const copyBtn = document.getElementById('copyBtn');
-const downloadBtn = document.getElementById('downloadBtn');
 const filterInput = document.getElementById('filterInput');
 const tbody = document.querySelector('#resultTable tbody');
 const warning = document.getElementById('warning');
+const copyColButtons = document.querySelectorAll('.copy-col');
 
 function val(v) { return v === undefined || v === null ? '' : String(v).trim(); }
 function csvEscape(s) { return '"' + String(s ?? '').replaceAll('"', '""') + '"'; }
@@ -99,20 +99,12 @@ fileInput.addEventListener('change', async (e) => {
   if (!file) return;
   const data = await file.arrayBuffer();
   workbook = XLSX.read(data, { type: 'array', cellDates: false });
-  sheetSelect.innerHTML = '';
-  workbook.SheetNames.forEach(name => {
-    const opt = document.createElement('option');
-    opt.value = name;
-    opt.textContent = name;
-    sheetSelect.appendChild(opt);
-  });
-  sheetSelect.disabled = false;
-  loadBtn.disabled = false;
-});
-
-loadBtn.addEventListener('click', () => {
-  if (!workbook || !sheetSelect.value) return;
-  const ws = workbook.Sheets[sheetSelect.value];
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) {
+    showWarning('No worksheet found in this file.');
+    return;
+  }
+  const ws = workbook.Sheets[sheetName];
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
   transformRows(rows);
   applyFilter();
@@ -120,24 +112,16 @@ loadBtn.addEventListener('click', () => {
 
 filterInput.addEventListener('input', applyFilter);
 
-copyBtn.addEventListener('click', async () => {
-  const text = toTSV(filtered.length ? filtered : output);
-  await navigator.clipboard.writeText(text);
-  copyBtn.textContent = 'Copied';
-  setTimeout(() => copyBtn.textContent = 'Copy result', 900);
-});
-
-downloadBtn.addEventListener('click', () => {
-  const csv = toCSV(output);
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'order_ean_split_result.csv';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
+copyColButtons.forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const col = btn.dataset.col;
+    const rows = filtered.length || filterInput.value.trim() ? filtered : output;
+    const text = rows.map(r => r[col] ?? '').join('\n');
+    await navigator.clipboard.writeText(text);
+    const oldText = btn.textContent;
+    btn.textContent = 'Copied';
+    setTimeout(() => btn.textContent = oldText, 900);
+  });
 });
 
 function transformRows(rows) {
@@ -172,20 +156,42 @@ function transformRows(rows) {
 
     for (let q = 0; q < qty; q++) {
       for (const ean of eans) {
-        output.push({ orderId, ean, price });
+        output.push({ orderId, ean, price, groupClass: '' });
       }
     }
   }
 
+  markMultiRowOrderGroups();
+
   setStat('sourceRows', sourceRows);
   setStat('outputRows', output.length);
   setStat('bundleRows', bundleRows);
-  setStat('skippedRows', skippedRows);
+  setStat('uniqueOrders', new Set(output.map(r => r.orderId)).size);
   const extra = problems.length ? '\n' + problems.join('\n') : '';
   showWarning(skippedRows ? `${skippedRows} row(s) skipped.${extra}` : '');
-  copyBtn.disabled = output.length === 0;
-  downloadBtn.disabled = output.length === 0;
+  copyColButtons.forEach(btn => btn.disabled = output.length === 0);
   filterInput.disabled = output.length === 0;
+}
+
+
+function markMultiRowOrderGroups() {
+  let lastHighlightedClass = 'multi-group-b';
+  let i = 0;
+
+  while (i < output.length) {
+    const orderId = output[i].orderId;
+    let j = i + 1;
+    while (j < output.length && output[j].orderId === orderId) j++;
+
+    const groupSize = j - i;
+    if (groupSize > 1) {
+      const cls = lastHighlightedClass === 'multi-group-a' ? 'multi-group-b' : 'multi-group-a';
+      for (let k = i; k < j; k++) output[k].groupClass = cls;
+      lastHighlightedClass = cls;
+    }
+
+    i = j;
+  }
 }
 
 function applyFilter() {
@@ -204,12 +210,13 @@ function renderTable(rows) {
     const frag = document.createDocumentFragment();
     shown.forEach(r => {
       const tr = document.createElement('tr');
+      if (r.groupClass) tr.className = r.groupClass;
       tr.innerHTML = `<td>${escapeHtml(r.orderId)}</td><td>${escapeHtml(r.ean)}</td><td>${escapeHtml(r.price)}</td>`;
       frag.appendChild(tr);
     });
     tbody.appendChild(frag);
   }
-  document.getElementById('showing').textContent = `Showing ${Math.min(rows.length, limit).toLocaleString()} of ${rows.length.toLocaleString()} rows` + (rows.length > limit ? ' — use CSV for full result' : '');
+  document.getElementById('showing').textContent = `Showing ${Math.min(rows.length, limit).toLocaleString()} of ${rows.length.toLocaleString()} rows` + (rows.length > limit ? ' — filter to narrow results' : '');
 }
 
 function escapeHtml(s) {
@@ -226,8 +233,8 @@ function toCSV(rows) {
 
 function resetData() {
   workbook = null; output = []; filtered = [];
-  sheetSelect.disabled = true; loadBtn.disabled = true; copyBtn.disabled = true; downloadBtn.disabled = true; filterInput.disabled = true; filterInput.value = '';
-  setStat('sourceRows', 0); setStat('outputRows', 0); setStat('bundleRows', 0); setStat('skippedRows', 0);
+  copyColButtons.forEach(btn => btn.disabled = true); filterInput.disabled = true; filterInput.value = '';
+  setStat('sourceRows', 0); setStat('outputRows', 0); setStat('bundleRows', 0); setStat('uniqueOrders', 0);
   showWarning('');
   tbody.innerHTML = '<tr><td colspan="3" style="color:#6b7280">Upload a workbook to begin.</td></tr>';
   document.getElementById('showing').textContent = 'No data loaded';
