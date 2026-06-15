@@ -154,6 +154,19 @@ function transformRows(rows) {
   let sourceRows = 0, bundleRows = 0, skippedRows = 0;
   const problems = [];
 
+  const eanPriceMap = new Map();
+
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i] || [];
+
+    const eanCell = val(row[12]); // Col M
+    const price = val(row[15]);   // Col P
+
+    if (eanCell && !eanCell.includes('+') && price) {
+      eanPriceMap.set(eanCell.trim(), price);
+    }
+  }
+
   for (let i = 1; i < rows.length; i++) { // skip header row
     const row = rows[i] || [];
     const orderId = val(row[0]);      // Col A
@@ -179,11 +192,19 @@ function transformRows(rows) {
       continue;
     }
 
-    for (let q = 0; q < qty; q++) {
-      for (const ean of eans) {
-        output.push({ orderId, ean, price, groupClass: '' });
-      }
-    }
+for (let q = 0; q < qty; q++) {
+  for (const ean of eans) {
+
+    const finalPrice = eanPriceMap.get(ean) || '';
+
+    output.push({
+      orderId,
+      ean,
+      price: finalPrice,
+      groupClass: ''
+    });
+  }
+}
   }
 
   markMultiRowOrderGroups();
