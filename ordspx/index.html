@@ -164,31 +164,19 @@ copyColButtons.forEach(btn => {
 generateExcelBtn.addEventListener('click', () => {
   const rows = filtered.length || filterInput.value.trim() ? filtered : output;
 
-  const aoa = [
-    ['Order ID', 'EAN', 'Price'],
-    ...rows.map(r => [r.orderId, r.ean, r.price])
-  ];
+const aoa = rows.map(r => [
+  r.orderId,
+  r.ean,
+  r.price
+]);
 
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
+const ws = XLSX.utils.aoa_to_sheet(aoa);
 
   ws['!cols'] = [
     { wch: 24 },
     { wch: 20 },
     { wch: 12 }
   ];
-
-  const range = XLSX.utils.decode_range(ws['!ref']);
-
-  for (let C = range.s.c; C <= range.e.c; C++) {
-    const cell = ws[XLSX.utils.encode_cell({ r: 0, c: C })];
-    cell.s = {
-      font: { bold: true },
-      fill: { fgColor: { rgb: 'F3F4F6' } },
-      border: {
-        bottom: { style: 'thin', color: { rgb: 'E5E7EB' } }
-      }
-    };
-  }
 
   rows.forEach((r, index) => {
     let fillColor = null;
@@ -202,7 +190,7 @@ if (fillColor) {
   // C = 1 means EAN.
   // C = 2 means Price, so we skip it.
   for (let C = 0; C < 2; C++) {
-    const cellRef = XLSX.utils.encode_cell({ r: index + 1, c: C });
+    const cellRef = XLSX.utils.encode_cell({ r: index, c: C });
     if (!ws[cellRef]) continue;
 
     ws[cellRef].s = {
