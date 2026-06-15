@@ -19,10 +19,35 @@
     .filename { font-size: 14px; color: #6b7280; }
     label { font-weight: 700; }
     input[type="file"], select, button, input[type="text"] { font: inherit; padding: 9px 11px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
-    button { cursor: pointer; background: #111827; color: white; border-color: #111827; }
-    button.secondary { background: #fff; color: #111827; }
+
+button {
+  cursor: pointer;
+  background: #EE4D2D;
+  color: white;
+  border-color: #EE4D2D;
+}
+
+button:hover {
+  background: #D73211;
+  border-color: #D73211;
+}
+
+
+button.secondary {
+  background: #EE4D2D;
+  color: white;
+  border-color: #EE4D2D;
+}
+
     button:disabled { opacity: .45; cursor: not-allowed; }
-    .copy-col { padding: 4px 7px; margin-left: 8px; font-size: 12px; border-radius: 6px; }
+
+.copy-col {
+  padding: 4px 7px;
+  margin-left: 8px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
     .stats { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 10px; margin-top: 12px; }
     .stat { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px; }
     .stat b { display: block; font-size: 20px; margin-top: 4px; }
@@ -164,19 +189,31 @@ copyColButtons.forEach(btn => {
 generateExcelBtn.addEventListener('click', () => {
   const rows = filtered.length || filterInput.value.trim() ? filtered : output;
 
-const aoa = rows.map(r => [
-  r.orderId,
-  r.ean,
-  r.price
-]);
+  const aoa = [
+    ['Order ID', 'EAN', 'Price'],
+    ...rows.map(r => [r.orderId, r.ean, r.price])
+  ];
 
-const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
 
   ws['!cols'] = [
     { wch: 24 },
     { wch: 20 },
     { wch: 12 }
   ];
+
+  const range = XLSX.utils.decode_range(ws['!ref']);
+
+  for (let C = range.s.c; C <= range.e.c; C++) {
+    const cell = ws[XLSX.utils.encode_cell({ r: 0, c: C })];
+    cell.s = {
+      font: { bold: true },
+      fill: { fgColor: { rgb: 'F3F4F6' } },
+      border: {
+        bottom: { style: 'thin', color: { rgb: 'E5E7EB' } }
+      }
+    };
+  }
 
   rows.forEach((r, index) => {
     let fillColor = null;
@@ -190,7 +227,7 @@ if (fillColor) {
   // C = 1 means EAN.
   // C = 2 means Price, so we skip it.
   for (let C = 0; C < 2; C++) {
-    const cellRef = XLSX.utils.encode_cell({ r: index, c: C });
+    const cellRef = XLSX.utils.encode_cell({ r: index + 1, c: C });
     if (!ws[cellRef]) continue;
 
     ws[cellRef].s = {
