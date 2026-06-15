@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Order EAN Splitter</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root { font-family: Arial, Helvetica, sans-serif; color: #1f2937; background: #f6f7f9; }
+    body { margin: 0; padding: 24px; }
+    .app { max-width: 1100px; margin: 0 auto; }
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    .sub { margin: 0 0 20px; color: #6b7280; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    label { font-weight: 700; }
+    input[type="file"], select, button, input[type="text"] { font: inherit; padding: 9px 11px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+    button { cursor: pointer; background: #111827; color: white; border-color: #111827; }
+    button.secondary { background: #fff; color: #111827; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    .stats { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 10px; margin-top: 12px; }
+    .stat { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px; }
+    .stat b { display: block; font-size: 20px; margin-top: 4px; }
+    .note { color: #6b7280; font-size: 13px; margin-top: 10px; line-height: 1.4; }
+    .warn { color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 10px; display: none; margin-top: 12px; }
+    table { border-collapse: collapse; width: 100%; background: #fff; }
+    th, td { border-bottom: 1px solid #e5e7eb; padding: 8px 10px; text-align: left; font-size: 14px; }
+    th { position: sticky; top: 0; background: #f3f4f6; z-index: 1; }
+    .tablewrap { max-height: 560px; overflow: auto; border: 1px solid #e5e7eb; border-radius: 10px; }
+    .right { margin-left: auto; }
+    .hidden { display: none; }
+    @media (max-width: 700px) { .stats { grid-template-columns: 1fr 1fr; } body { padding: 12px; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>Order EAN Splitter</h1>
+    <p class="sub">Upload Excel, choose a sheet, then expand Col A / M / P / Q into: Order ID | EAN | Price.</p>
+
+    <div class="card">
+      <div class="row">
+        <label for="fileInput">Excel file</label>
+        <input id="fileInput" type="file" accept=".xlsx,.xls,.csv" />
+        <label for="sheetSelect">Sheet</label>
+        <select id="sheetSelect" disabled><option>Select file first</option></select>
+        <button id="loadBtn" disabled>Load sheet</button>
+        <button id="copyBtn" class="secondary" disabled>Copy result</button>
+        <button id="downloadBtn" class="secondary" disabled>Download CSV</button>
+      </div>
+      <div class="note">
+        Rules: Col M is split by <b>+</b>. Col Q repeats each product/bundle quantity. Example: EAN+EAN with quantity 3 becomes 6 rows. Price from Col P is repeated from the original product/bundle row.
+      </div>
+      <div id="warning" class="warn"></div>
+      <div class="stats">
+        <div class="stat">Source rows<b id="sourceRows">0</b></div>
+        <div class="stat">Output rows<b id="outputRows">0</b></div>
+        <div class="stat">Bundle rows split<b id="bundleRows">0</b></div>
+        <div class="stat">Skipped rows<b id="skippedRows">0</b></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="margin-bottom:10px">
+        <label for="filterInput">Filter</label>
+        <input id="filterInput" type="text" placeholder="Search order ID or EAN" disabled />
+        <span id="showing" class="right note">No data loaded</span>
+      </div>
+      <div class="tablewrap">
+        <table id="resultTable">
+          <thead><tr><th>Order ID</th><th>EAN</th><th>Price</th></tr></thead>
+          <tbody><tr><td colspan="3" style="color:#6b7280">Upload a workbook to begin.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+<script>
+let workbook = null;
+let output = [];
+let filtered = [];
+
+const fileInput = document.getElementById('fileInput');
+const sheetSelect = document.getElementById('sheetSelect');
+const loadBtn = document.getElementById('loadBtn');
+const copyBtn = document.getElementById('copyBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const filterInput = document.getElementById('filterInput');
+const tbody = document.querySelector('#resultTable tbody');
+const warning = document.getElementById('warning');
+
+function val(v) { return v === undefined || v === null ? '' : String(v).trim(); }
+function csvEscape(s) { return '"' + String(s ?? '').replaceAll('"', '""') + '"'; }
+function setStat(id, value) { document.getElementById(id).textContent = value; }
+function showWarning(msg) { warning.style.display = msg ? 'block' : 'none'; warning.textContent = msg || ''; }
+
+fileInput.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  resetData();
+  if (!file) return;
+  const data = await file.arrayBuffer();
+  workbook = XLSX.read(data, { type: 'array', cellDates: false });
+  sheetSelect.innerHTML = '';
+  workbook.SheetNames.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    sheetSelect.appendChild(opt);
+  });
+  sheetSelect.disabled = false;
+  loadBtn.disabled = false;
+});
+
+loadBtn.addEventListener('click', () => {
+  if (!workbook || !sheetSelect.value) return;
+  const ws = workbook.Sheets[sheetSelect.value];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+  transformRows(rows);
+  applyFilter();
+});
+
+filterInput.addEventListener('input', applyFilter);
+
+copyBtn.addEventListener('click', async () => {
+  const text = toTSV(filtered.length ? filtered : output);
+  await navigator.clipboard.writeText(text);
+  copyBtn.textContent = 'Copied';
+  setTimeout(() => copyBtn.textContent = 'Copy result', 900);
+});
+
+downloadBtn.addEventListener('click', () => {
+  const csv = toCSV(output);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'order_ean_split_result.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+});
+
+function transformRows(rows) {
+  output = [];
+  let sourceRows = 0, bundleRows = 0, skippedRows = 0;
+  const problems = [];
+
+  for (let i = 1; i < rows.length; i++) { // skip header row
+    const row = rows[i] || [];
+    const orderId = val(row[0]);      // Col A
+    const eanCell = val(row[12]);     // Col M
+    const price = val(row[15]);       // Col P
+    const qtyText = val(row[16]);     // Col Q
+
+    if (!orderId && !eanCell && !qtyText && !price) continue;
+    sourceRows++;
+
+    const qty = parseInt(qtyText, 10);
+    if (!orderId || !eanCell || !Number.isFinite(qty) || qty <= 0) {
+      skippedRows++;
+      if (problems.length < 8) problems.push(`Row ${i + 1}: missing Order ID/EAN or invalid quantity '${qtyText}'`);
+      continue;
+    }
+
+    const eans = eanCell.split('+').map(x => x.trim()).filter(Boolean);
+    if (eans.length > 1) bundleRows++;
+    if (eans.length === 0) {
+      skippedRows++;
+      if (problems.length < 8) problems.push(`Row ${i + 1}: no usable EAN`);
+      continue;
+    }
+
+    for (let q = 0; q < qty; q++) {
+      for (const ean of eans) {
+        output.push({ orderId, ean, price });
+      }
+    }
+  }
+
+  setStat('sourceRows', sourceRows);
+  setStat('outputRows', output.length);
+  setStat('bundleRows', bundleRows);
+  setStat('skippedRows', skippedRows);
+  const extra = problems.length ? '\n' + problems.join('\n') : '';
+  showWarning(skippedRows ? `${skippedRows} row(s) skipped.${extra}` : '');
+  copyBtn.disabled = output.length === 0;
+  downloadBtn.disabled = output.length === 0;
+  filterInput.disabled = output.length === 0;
+}
+
+function applyFilter() {
+  const term = filterInput.value.trim().toLowerCase();
+  filtered = term ? output.filter(r => r.orderId.toLowerCase().includes(term) || r.ean.toLowerCase().includes(term)) : output;
+  renderTable(filtered);
+}
+
+function renderTable(rows) {
+  tbody.innerHTML = '';
+  const limit = 3000;
+  const shown = rows.slice(0, limit);
+  if (!shown.length) {
+    tbody.innerHTML = '<tr><td colspan="3" style="color:#6b7280">No matching rows.</td></tr>';
+  } else {
+    const frag = document.createDocumentFragment();
+    shown.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${escapeHtml(r.orderId)}</td><td>${escapeHtml(r.ean)}</td><td>${escapeHtml(r.price)}</td>`;
+      frag.appendChild(tr);
+    });
+    tbody.appendChild(frag);
+  }
+  document.getElementById('showing').textContent = `Showing ${Math.min(rows.length, limit).toLocaleString()} of ${rows.length.toLocaleString()} rows` + (rows.length > limit ? ' — use CSV for full result' : '');
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+}
+
+function toTSV(rows) {
+  return ['Order ID\tEAN\tPrice'].concat(rows.map(r => `${r.orderId}\t${r.ean}\t${r.price}`)).join('\n');
+}
+
+function toCSV(rows) {
+  return ['Order ID,EAN,Price'].concat(rows.map(r => [r.orderId, r.ean, r.price].map(csvEscape).join(','))).join('\n');
+}
+
+function resetData() {
+  workbook = null; output = []; filtered = [];
+  sheetSelect.disabled = true; loadBtn.disabled = true; copyBtn.disabled = true; downloadBtn.disabled = true; filterInput.disabled = true; filterInput.value = '';
+  setStat('sourceRows', 0); setStat('outputRows', 0); setStat('bundleRows', 0); setStat('skippedRows', 0);
+  showWarning('');
+  tbody.innerHTML = '<tr><td colspan="3" style="color:#6b7280">Upload a workbook to begin.</td></tr>';
+  document.getElementById('showing').textContent = 'No data loaded';
+}
+</script>
+</body>
+</html>
