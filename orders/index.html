@@ -1,0 +1,562 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Process Online Orders</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+
+  <style>
+    :root { font-family: Arial, Helvetica, sans-serif; color: #1f2937; background: #f6f7f9; }
+    body { margin: 0; padding: 24px; }
+    .app { max-width: 1100px; margin: 0 auto; }
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    .sub { margin: 0 0 20px; color: #6b7280; }
+    .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+
+.tab-btn {
+  background: #F3F4F6;
+  color: #4B5563;
+  border: 1px solid #D1D5DB;
+  font-weight: 700;
+}
+
+.tab-btn.active {
+  color: #fff;
+}
+    .upload-wrap { display: flex; align-items: center; gap: 12px; }
+    .filename { font-size: 14px; color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 520px; }
+    label { font-weight: 700; }
+    input[type="file"], button, input[type="text"] { font: inherit; padding: 9px 11px; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; }
+
+button {
+  cursor: pointer;
+  background: var(--platform-color);
+  color: white;
+  border-color: var(--platform-color);
+}
+
+button:hover {
+  background: var(--platform-hover);
+  border-color: var(--platform-hover);
+}
+
+
+.tab-btn:hover {
+  background: #E5E7EB;
+  color: #374151;
+  border-color: #9CA3AF;
+}
+
+.tab-btn.active:hover {
+  color: #fff;
+}
+    button:disabled { opacity: .45; cursor: not-allowed; }
+
+.copy-col {
+  padding: 4px 7px;
+  margin-left: 8px;
+  font-size: 12px;
+  border-radius: 6px;
+  background: var(--platform-color);
+  border-color: var(--platform-color);
+  color: white;
+}
+
+    .stats { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); gap: 10px; margin-top: 12px; }
+    .stat { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 10px; }
+    .stat b { display: block; font-size: 20px; margin-top: 4px; }
+    .note { color: #6b7280; font-size: 13px; margin-top: 10px; line-height: 1.4; }
+    .warn { color: #92400e; background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 10px; display: none; margin-top: 12px; white-space: pre-line; }
+    table { border-collapse: collapse; width: 100%; background: #fff; }
+    th, td { border-bottom: 1px solid #e5e7eb; padding: 8px 10px; text-align: left; font-size: 14px; }
+    th { position: sticky; top: 0; background: #f3f4f6; z-index: 1; }
+    tr.multi-group-a td { background: #fff2cc; }
+    tr.multi-group-b td { background: #fce4d6; }
+    .tablewrap { max-height: 560px; overflow: auto; border: 1px solid #e5e7eb; border-radius: 10px; }
+    .right { margin-left: auto; }
+    @media (max-width: 700px) { .stats { grid-template-columns: 1fr; } body { padding: 12px; } .filename { max-width: 250px; } }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <h1>Process Online Orders</h1>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-platform="shopee">Shopee</button>
+      <button class="tab-btn" data-platform="lazada">Lazada</button>
+      <button class="tab-btn" data-platform="tiktok">TikTok</button>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <div class="upload-wrap">
+          <button id="pickFile">Upload Shopee File</button>
+          <input type="file" id="fileInput" accept=".xlsx,.xls" hidden>
+          <div class="filename" id="filename">No file selected</div>
+        </div>
+      </div>
+
+      <div id="warning" class="warn"></div>
+
+      <div class="stats">
+        <div class="stat">Source rows<b id="sourceRows">0</b></div>
+        <div class="stat">Output rows<b id="outputRows">0</b></div>
+        <div class="stat">Bundle rows split<b id="bundleRows">0</b></div>
+        <div class="stat">Unique order IDs<b id="uniqueOrders">0</b></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row" style="margin-bottom:10px">
+        <label for="filterInput">Filter</label>
+        <input id="filterInput" type="text" placeholder="Search order ID or SKU/EAN" disabled />
+        <button id="generateExcel" disabled>Generate Excel</button>
+        <span id="showing" class="right note">No data loaded</span>
+      </div>
+
+      <div class="tablewrap">
+        <table id="resultTable">
+          <thead>
+            <tr>
+              <th><span>Order ID</span> <button class="copy-col" data-col="orderId" disabled>Copy</button></th>
+              <th><span id="skuHeader">EAN</span> <button class="copy-col" data-col="sku" disabled>Copy</button></th>
+              <th><span>Price</span> <button class="copy-col" data-col="price" disabled>Copy</button></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td colspan="3" style="color:#6b7280">Upload a workbook to begin.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+<script>
+let currentPlatform = 'shopee';
+let output = [];
+let filtered = [];
+
+const platformState = {
+  shopee: { output: [], filtered: [], filename: 'No file selected', filterTerm: '', warning: '', stats: { sourceRows: 0, outputRows: 0, bundleRows: 0, uniqueOrders: 0 } },
+  lazada: { output: [], filtered: [], filename: 'No file selected', filterTerm: '', warning: '', stats: { sourceRows: 0, outputRows: 0, bundleRows: 0, uniqueOrders: 0 } },
+  tiktok: { output: [], filtered: [], filename: 'No file selected', filterTerm: '', warning: '', stats: { sourceRows: 0, outputRows: 0, bundleRows: 0, uniqueOrders: 0 } }
+};
+
+const platformConfig = {
+  shopee: {
+    name: 'Shopee',
+    skuLabel: 'EAN',
+    uploadText: 'Upload Shopee File',
+    outputFile: 'shopee_split_orders.xlsx',
+    orderCol: 0,   // Col A
+    skuCol: 12,    // Col M
+    priceCol: 15,  // Col P
+    qtyCol: 16,    // Col Q
+    note: 'Shopee rules: Col A = Order ID, Col M = EAN, Col P = Price, Col Q = Quantity. Col M is split by + for bundles and repeated by quantity. Bundle prices are not used; split EANs use matching standalone EAN prices only.'
+  },
+  lazada: {
+    name: 'Lazada',
+    skuLabel: 'EAN',
+    uploadText: 'Upload Lazada File',
+    outputFile: 'lazada_split_orders.xlsx',
+    orderCol: 12,  // Col M
+    skuCol: 5,     // Col F
+    priceCol: 47,  // Col AV
+    qtyCol: null,
+    note: 'Lazada rules: Col M = Order ID, Col F = SKU, Col AV = Price. Col F is split by + for bundles. Lazada repeat SKUs are already separate rows, so no quantity expansion is needed. Bundle prices are not used; split SKUs use matching standalone SKU prices only.'
+  },
+  tiktok: {
+    name: 'TikTok',
+    skuLabel: 'EAN',
+    uploadText: 'Upload TikTok File',
+    outputFile: 'tiktok_split_orders.xlsx',
+    orderCol: 0,       // Col A
+    skuCol: 6,         // Col G
+    priceCol: null,
+    priceMinusCol: 11, // Col L
+    priceDeductCol: 14,// Col O
+    qtyCol: 9,         // Col J
+    note: 'TikTok rules: Col A = Order ID, Col G = EAN, Col J = Quantity, Price = Col L minus Col O. Col G is split by + for bundles and repeated by quantity. Bundle prices are not used; split EANs use matching standalone EAN prices only.'
+  }
+};
+
+const fileInput = document.getElementById('fileInput');
+const pickFile = document.getElementById('pickFile');
+const filename = document.getElementById('filename');
+const filterInput = document.getElementById('filterInput');
+const tbody = document.querySelector('#resultTable tbody');
+const warning = document.getElementById('warning');
+const copyColButtons = document.querySelectorAll('.copy-col');
+const generateExcelBtn = document.getElementById('generateExcel');
+const skuHeader = document.getElementById('skuHeader');
+const tabButtons = document.querySelectorAll('.tab-btn');
+
+function val(v) { return v === undefined || v === null ? '' : String(v).trim(); }
+function setStat(id, value) { document.getElementById(id).textContent = value; }
+function showWarning(msg) { warning.style.display = msg ? 'block' : 'none'; warning.textContent = msg || ''; }
+
+function updatePlatformUI() {
+  const cfg = platformConfig[currentPlatform];
+
+  pickFile.textContent = cfg.uploadText;
+  skuHeader.textContent = cfg.skuLabel;
+  filterInput.placeholder = `Search order ID or ${cfg.skuLabel}`;
+
+  tabButtons.forEach(btn =>
+    btn.classList.toggle('active', btn.dataset.platform === currentPlatform)
+  );
+
+  let color = '#EE4D2D';
+  let hover = '#D73211';
+
+if (currentPlatform === 'lazada') {
+  color = '#FF3366';
+  hover = '#E62E5C';
+}
+
+  if (currentPlatform === 'tiktok') {
+    color = '#000000';
+    hover = '#333333';
+  }
+
+  document.documentElement.style.setProperty('--platform-color', color);
+  document.documentElement.style.setProperty('--platform-hover', hover);
+
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  if (btn.classList.contains('active')) {
+    btn.style.background = color;
+    btn.style.borderColor = color;
+    btn.style.color = '#fff';
+  } else {
+    btn.style.background = '#F3F4F6';
+    btn.style.borderColor = '#D1D5DB';
+    btn.style.color = '#4B5563';
+  }
+});
+
+  document.querySelectorAll('button:not(.tab-btn)').forEach(btn => {
+    btn.style.background = color;
+    btn.style.borderColor = color;
+  });
+}
+
+
+function saveCurrentState() {
+  const s = platformState[currentPlatform];
+  s.output = output;
+  s.filtered = filtered;
+  s.filename = filename.textContent || 'No file selected';
+  s.filterTerm = filterInput.value || '';
+  s.warning = warning.textContent || '';
+  s.stats = {
+    sourceRows: document.getElementById('sourceRows').textContent || 0,
+    outputRows: document.getElementById('outputRows').textContent || 0,
+    bundleRows: document.getElementById('bundleRows').textContent || 0,
+    uniqueOrders: document.getElementById('uniqueOrders').textContent || 0
+  };
+}
+
+function loadCurrentState() {
+  const s = platformState[currentPlatform];
+  output = s.output;
+  filtered = s.filtered;
+  filename.textContent = s.filename;
+  filterInput.value = s.filterTerm;
+  setStat('sourceRows', s.stats.sourceRows);
+  setStat('outputRows', s.stats.outputRows);
+  setStat('bundleRows', s.stats.bundleRows);
+  setStat('uniqueOrders', s.stats.uniqueOrders);
+  showWarning(s.warning);
+
+  const hasData = output.length > 0;
+  copyColButtons.forEach(btn => btn.disabled = !hasData);
+  filterInput.disabled = !hasData;
+  generateExcelBtn.disabled = !hasData;
+
+  if (hasData) {
+    renderTable(filtered);
+  } else {
+    tbody.innerHTML = '<tr><td colspan="3" style="color:#6b7280">Upload a workbook to begin.</td></tr>';
+    document.getElementById('showing').textContent = 'No data loaded';
+  }
+}
+
+function resetData() {
+  output = [];
+  filtered = [];
+  fileInput.value = '';
+  filename.textContent = 'No file selected';
+  copyColButtons.forEach(btn => btn.disabled = true);
+  filterInput.disabled = true;
+  generateExcelBtn.disabled = true;
+  filterInput.value = '';
+  setStat('sourceRows', 0);
+  setStat('outputRows', 0);
+  setStat('bundleRows', 0);
+  setStat('uniqueOrders', 0);
+  showWarning('');
+  tbody.innerHTML = '<tr><td colspan="3" style="color:#6b7280">Upload a workbook to begin.</td></tr>';
+  document.getElementById('showing').textContent = 'No data loaded';
+  platformState[currentPlatform] = {
+    output: [],
+    filtered: [],
+    filename: 'No file selected',
+    filterTerm: '',
+    warning: '',
+    stats: { sourceRows: 0, outputRows: 0, bundleRows: 0, uniqueOrders: 0 }
+  };
+}
+
+updatePlatformUI();
+loadCurrentState();
+
+tabButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
+    saveCurrentState();
+    currentPlatform = btn.dataset.platform;
+    fileInput.value = '';
+    updatePlatformUI();
+    loadCurrentState();
+  });
+});
+
+pickFile.addEventListener('click', () => fileInput.click());
+
+fileInput.addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  resetData();
+
+  if (!file) return;
+  filename.textContent = file.name;
+
+  const data = await file.arrayBuffer();
+  const workbook = XLSX.read(data, { type: 'array', cellDates: false });
+  const sheetName = workbook.SheetNames[0];
+
+  if (!sheetName) {
+    showWarning('No worksheet found in this file.');
+    return;
+  }
+
+  const ws = workbook.Sheets[sheetName];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+
+  transformRows(rows);
+  applyFilter();
+  saveCurrentState();
+});
+
+filterInput.addEventListener('input', () => {
+  applyFilter();
+  saveCurrentState();
+});
+
+copyColButtons.forEach(btn => {
+  btn.addEventListener('click', async () => {
+    const col = btn.dataset.col;
+    const rows = filtered.length || filterInput.value.trim() ? filtered : output;
+    const text = rows.map(r => r[col] ?? '').join('\n');
+    await navigator.clipboard.writeText(text);
+    const oldText = btn.textContent;
+    btn.textContent = 'Copied';
+    setTimeout(() => btn.textContent = oldText, 900);
+  });
+});
+
+generateExcelBtn.addEventListener('click', () => {
+  const cfg = platformConfig[currentPlatform];
+  const rows = filtered.length || filterInput.value.trim() ? filtered : output;
+
+  const aoa = rows.map(r => [r.orderId, r.sku, r.price]);
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+
+  ws['!cols'] = [{ wch: 24 }, { wch: 22 }, { wch: 12 }];
+
+  rows.forEach((r, index) => {
+    let fillColor = null;
+    if (r.groupClass === 'multi-group-a') fillColor = 'FFFF00'; // Yellow
+    if (r.groupClass === 'multi-group-b') fillColor = 'FF9900'; // Orange
+
+    if (fillColor) {
+      // Highlight Order ID and SKU/EAN only. Price column is not highlighted.
+      for (let C = 0; C < 2; C++) {
+        const cellRef = XLSX.utils.encode_cell({ r: index, c: C });
+        if (!ws[cellRef]) continue;
+        ws[cellRef].s = { fill: { fgColor: { rgb: fillColor } } };
+      }
+    }
+  });
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Split Orders');
+  XLSX.writeFile(wb, cfg.outputFile);
+});
+
+function parseMoney(v) {
+  const cleaned = val(v).replace(/[^0-9.\-]/g, '');
+  if (!cleaned) return NaN;
+  return Number(cleaned);
+}
+
+function formatPrice(n) {
+  if (!Number.isFinite(n)) return '';
+  return Math.round(n * 100) / 100;
+}
+
+function getSourcePrice(row, cfg) {
+  if (cfg.priceMinusCol !== undefined && cfg.priceDeductCol !== undefined) {
+    const base = parseMoney(row[cfg.priceMinusCol]);
+    const deduct = parseMoney(row[cfg.priceDeductCol]);
+    if (!Number.isFinite(base)) return '';
+    return formatPrice(base - (Number.isFinite(deduct) ? deduct : 0));
+  }
+
+  return val(row[cfg.priceCol]);
+}
+
+function buildStandalonePriceMap(rows, cfg) {
+  const priceMap = new Map();
+
+const startRow = currentPlatform === 'tiktok' ? 2 : 1;
+
+for (let i = startRow; i < rows.length; i++) {
+    const row = rows[i] || [];
+    const skuCell = val(row[cfg.skuCol]);
+    const price = getSourcePrice(row, cfg);
+
+    if (skuCell && !skuCell.includes('+') && price !== '') {
+      priceMap.set(skuCell.trim(), price);
+    }
+  }
+
+  return priceMap;
+}
+
+function transformRows(rows) {
+  const cfg = platformConfig[currentPlatform];
+  output = [];
+  let sourceRows = 0, bundleRows = 0, skippedRows = 0;
+  const problems = [];
+  const priceMap = buildStandalonePriceMap(rows, cfg);
+
+const startRow = currentPlatform === 'tiktok' ? 2 : 1;
+
+for (let i = startRow; i < rows.length; i++) {
+    const row = rows[i] || [];
+    const orderId = val(row[cfg.orderCol]);
+    const skuCell = val(row[cfg.skuCol]);
+    const sourcePrice = getSourcePrice(row, cfg);
+    const qtyText = cfg.qtyCol === null ? '1' : val(row[cfg.qtyCol]);
+
+    if (!orderId && !skuCell && !qtyText && !sourcePrice) continue;
+    sourceRows++;
+
+    const qty = cfg.qtyCol === null ? 1 : parseInt(qtyText, 10);
+    if (!orderId || !skuCell || !Number.isFinite(qty) || qty <= 0) {
+      skippedRows++;
+      if (problems.length < 8) problems.push(`Row ${i + 1}: missing Order ID/${cfg.skuLabel} or invalid quantity '${qtyText}'`);
+      continue;
+    }
+
+    const skus = skuCell.split('+').map(x => x.trim()).filter(Boolean);
+    if (skus.length > 1) bundleRows++;
+
+    if (skus.length === 0) {
+      skippedRows++;
+      if (problems.length < 8) problems.push(`Row ${i + 1}: no usable ${cfg.skuLabel}`);
+      continue;
+    }
+
+    for (let q = 0; q < qty; q++) {
+      for (const sku of skus) {
+        const finalPrice = priceMap.get(sku) || '';
+        output.push({ orderId, sku, price: finalPrice, groupClass: '' });
+      }
+    }
+  }
+
+  markMultiRowOrderGroups();
+
+  setStat('sourceRows', sourceRows);
+  setStat('outputRows', output.length);
+  setStat('bundleRows', bundleRows);
+  setStat('uniqueOrders', new Set(output.map(r => r.orderId)).size);
+
+  const extra = problems.length ? '\n' + problems.join('\n') : '';
+  showWarning(skippedRows ? `${skippedRows} row(s) skipped.${extra}` : '');
+
+  copyColButtons.forEach(btn => btn.disabled = output.length === 0);
+  filterInput.disabled = output.length === 0;
+  generateExcelBtn.disabled = output.length === 0;
+}
+
+function markMultiRowOrderGroups() {
+  let lastHighlightedClass = 'multi-group-b';
+  let i = 0;
+
+  while (i < output.length) {
+    const orderId = output[i].orderId;
+    let j = i + 1;
+    while (j < output.length && output[j].orderId === orderId) j++;
+
+    const groupSize = j - i;
+    if (groupSize > 1) {
+      const cls = lastHighlightedClass === 'multi-group-a' ? 'multi-group-b' : 'multi-group-a';
+      for (let k = i; k < j; k++) output[k].groupClass = cls;
+      lastHighlightedClass = cls;
+    }
+
+    i = j;
+  }
+}
+
+function applyFilter() {
+  const term = filterInput.value.trim().toLowerCase();
+
+  filtered = term
+    ? output.filter(r => r.orderId.toLowerCase().includes(term) || r.sku.toLowerCase().includes(term))
+    : output;
+
+  renderTable(filtered);
+}
+
+function renderTable(rows) {
+  tbody.innerHTML = '';
+  const limit = 3000;
+  const shown = rows.slice(0, limit);
+
+  if (!shown.length) {
+    tbody.innerHTML = '<tr><td colspan="3" style="color:#6b7280">No matching rows.</td></tr>';
+  } else {
+    const frag = document.createDocumentFragment();
+    shown.forEach(r => {
+      const tr = document.createElement('tr');
+      if (r.groupClass) tr.className = r.groupClass;
+      tr.innerHTML = `<td>${escapeHtml(r.orderId)}</td><td>${escapeHtml(r.sku)}</td><td>${escapeHtml(r.price)}</td>`;
+      frag.appendChild(tr);
+    });
+    tbody.appendChild(frag);
+  }
+
+  document.getElementById('showing').textContent =
+    `Showing ${Math.min(rows.length, limit).toLocaleString()} of ${rows.length.toLocaleString()} rows` +
+    (rows.length > limit ? ' — filter to narrow results' : '');
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/[&<>'"]/g, c => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    "'": '&#39;',
+    '"': '&quot;'
+  }[c]));
+}
+</script>
+</body>
+</html>
