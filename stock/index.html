@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>New Stock Entry</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+#sheet,
+#load {
+    display: none;
+}
+body {
+    font-family: Arial, sans-serif;
+    background: #f5f5f5;
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1200px;
+    margin: auto;
+}
+
+.controls {
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    align-items: center;
+}
+
+#pickFile, #load {
+    padding: 10px 15px;
+    background: #00695C;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+#file {
+    display: none;
+}
+
+.filename {
+    flex: 1;
+    min-width: 250px;
+    padding: 10px;
+    background: #f1f1f1;
+    border-radius: 6px;
+}
+
+select {
+    padding: 10px;
+}
+
+.accordion {
+    background: white;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.header {
+    background: #00695C;
+    color: white;
+    padding: 12px 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.order-stats {
+    margin-left: auto;
+    white-space: nowrap;
+}
+
+.ean-filter {
+    width: 120px;
+    padding: 4px 8px;
+    border: none;
+    border-radius: 4px;
+}
+
+.content {
+    display: none;
+    padding: 15px;
+}
+
+.content.active {
+    display: block;
+}
+
+.ean-card {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    background: #fafafa;
+}
+
+.ean-header {
+    background: #eeeeee;
+    padding: 10px 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    font-weight: bold;
+}
+
+.copy-btn {
+    background: #00695C;
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 5px;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.copy-btn:hover {
+    background: #0d47a1;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    padding: 12px;
+}
+
+.item {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 10px;
+    word-break: break-word;
+}
+
+.item.missing {
+    background: #ffebee;
+    border-color: #ef9a9a;
+    color: #c62828;
+    font-weight: bold;
+}
+
+.empty {
+    background: white;
+    border-radius: 8px;
+    padding: 15px;
+    color: #666;
+}
+
+@media (max-width: 900px) {
+    .grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 600px) {
+    .grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 400px) {
+    .grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<h2>New Stock Entry</h2>
+
+<div class="controls">
+    <button id="pickFile">Upload Excel File</button>
+    <input type="file" id="file" accept=".xlsx,.xls,.csv">
+    <div class="filename" id="filename">No file selected</div>
+    <select id="sheet"></select>
+    <button id="load">Load</button>
+</div>
+
+<div id="out"></div>
+
+</div>
+
+<script>
+let wb;
+
+document.getElementById('pickFile').onclick = () => {
+    document.getElementById('file').click();
+};
+
+document.getElementById('file').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    document.getElementById('filename').textContent = file.name;
+
+    const r = new FileReader();
+    r.onload = ev => {
+        wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
+
+        const sheetSel = document.getElementById('sheet');
+        sheetSel.innerHTML = '';
+
+        wb.SheetNames.forEach(n => {
+            const o = document.createElement('option');
+            o.value = n;
+            o.textContent = n;
+            sheetSel.appendChild(o);
+        });
+
+        loadSheet();
+    };
+    r.readAsArrayBuffer(file);
+});
+
+document.getElementById('load').onclick = loadSheet;
+
+document.getElementById('sheet').addEventListener('change', loadSheet);
+
+function clean(v) {
+    return String(v ?? '').trim();
+}
+
+function getQty(v) {
+    const n = Number(v);
+    return Number.isFinite(n) && n > 0 ? n : 1;
+}
+
+function loadSheet() {
+    if (!wb) return;
+
+    const sheetName = document.getElementById('sheet').value;
+    const sheet = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+
+    // Group: DeliveryOrderCode (Col A) -> EAN (Col F)
+    const data = {};
+
+    for (let i = 1; i < rows.length; i++) {
+        const deliveryOrderCode = clean(rows[i][0]); // Col A
+        const ean = clean(rows[i][5]);               // Col F
+        const productSN = clean(rows[i][8]);         // Col I
+        const qty = getQty(rows[i][9]);              // Col J
+
+        if (!deliveryOrderCode || !ean) continue;
+
+        if (!data[deliveryOrderCode]) {
+            data[deliveryOrderCode] = {};
+        }
+
+
+	if (!data[deliveryOrderCode][ean]) {
+    data[deliveryOrderCode][ean] = {
+        description: clean(rows[i][6]), // Col G
+        serials: [],
+        missingQty: 0
+    };
+}
+
+
+
+        if (productSN) {
+            data[deliveryOrderCode][ean].serials.push(productSN);
+        } else {
+            data[deliveryOrderCode][ean].missingQty += qty;
+        }
+    }
+
+    render(data);
+}
+
+function render(data) {
+    const out = document.getElementById('out');
+    out.innerHTML = '';
+
+    const orders = Object.entries(data);
+
+    if (orders.length === 0) {
+        out.innerHTML = '<div class="empty">No matching rows found. Check that DeliveryOrderCode is Col A, EAN is Col F, ProductSN is Col I, and quantity is Col J.</div>';
+        return;
+    }
+
+    orders.forEach(([orderCode, eanGroups]) => {
+        const orderSerialCount = Object.values(eanGroups)
+            .reduce((sum, g) => sum + g.serials.length, 0);
+
+        const orderMissingCount = Object.values(eanGroups)
+            .reduce((sum, g) => sum + g.missingQty, 0);
+
+        const acc = document.createElement('div');
+        acc.className = 'accordion';
+
+        const header = document.createElement('div');
+        header.className = 'header';
+header.innerHTML = `
+    <span>${orderCode}</span>
+
+    <span class="order-stats">
+${Object.keys(eanGroups).length} EAN | ${orderSerialCount} SN${orderMissingCount ? ' | ' + orderMissingCount + ' ACC' : ''}
+
+    </span>
+
+    <input class="ean-filter" type="text" placeholder="Filter">
+`;
+
+
+const filterInput = header.querySelector('.ean-filter');
+
+filterInput.onclick = e => {
+    e.stopPropagation();
+    filterInput.select();
+};
+
+
+filterInput.addEventListener('input', e => {
+    const digits = e.target.value.replace(/\D/g, '');
+    e.target.value = digits;
+
+    content.querySelectorAll('.ean-card').forEach(card => {
+        const ean = card.dataset.ean || '';
+
+        if (digits.length < 4) {
+            card.style.display = '';
+        } else {
+            card.style.display = ean.includes(digits) ? '' : 'none';
+        }
+    });
+});
+
+        const content = document.createElement('div');
+        content.className = 'content';
+
+        Object.entries(eanGroups).forEach(([ean, group]) => {
+            const card = document.createElement('div');
+            card.className = 'ean-card';
+		card.dataset.ean = ean;
+
+            const eanHeader = document.createElement('div');
+            eanHeader.className = 'ean-header';
+
+            const title = document.createElement('div');
+title.textContent = group.serials.length > 0
+    ? `${ean} (${group.serials.length}) - ${group.description}`
+    : `${ean} (${group.missingQty}) - ${group.description}` ;
+
+
+
+            eanHeader.appendChild(title);
+
+            if (group.serials.length > 0) {
+                const btn = document.createElement('button');
+                btn.className = 'copy-btn';
+                btn.textContent = 'Copy Serials';
+                btn.onclick = e => {
+                    e.stopPropagation();
+                    navigator.clipboard.writeText(group.serials.join('\n'));
+                    btn.textContent = 'Copied!';
+                    setTimeout(() => btn.textContent = 'Copy Serials', 1200);
+                };
+                eanHeader.appendChild(btn);
+            }
+
+            const grid = document.createElement('div');
+            grid.className = 'grid';
+
+            if (group.missingQty > 0) {
+                const missing = document.createElement('div');
+                missing.className = 'item missing';
+                missing.textContent = `${ean} (${group.missingQty})`;
+                grid.appendChild(missing);
+            }
+
+
+
+
+if (group.serials.length > 0) {
+    eanHeader.onclick = () => {
+        grid.classList.toggle('active');
+    };
+
+    group.serials.forEach(sn => {
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.textContent = sn;
+        grid.appendChild(div);
+    });
+
+    grid.style.display = 'none';
+
+    eanHeader.onclick = () => {
+        grid.style.display = grid.style.display === 'none' ? 'grid' : 'none';
+    };
+}
+
+
+
+
+            card.appendChild(eanHeader);
+            card.appendChild(grid);
+            content.appendChild(card);
+        });
+
+        header.onclick = () => {
+            const isOpening = !content.classList.contains('active');
+
+            document.querySelectorAll('.content').forEach(c => {
+                if (c !== content) c.classList.remove('active');
+            });
+
+            content.classList.toggle('active');
+
+            if (isOpening) {
+                setTimeout(() => {
+                    acc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 50);
+            }
+        };
+
+        acc.appendChild(header);
+        acc.appendChild(content);
+        out.appendChild(acc);
+if (orders.length === 1) {
+    content.classList.add('active');
+}
+
+    });
+}
+
+document.addEventListener('keydown', e => {
+
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+
+    const activeContent = document.querySelector('.content.active');
+    if (!activeContent) return;
+
+    const acc = activeContent.closest('.accordion');
+    const filter = acc.querySelector('.ean-filter');
+    if (!filter) return;
+
+    if (
+        document.activeElement.tagName === 'INPUT' &&
+        document.activeElement !== filter
+    ) {
+        return;
+    }
+
+    if (/^\d$/.test(e.key)) {
+
+        if (document.activeElement !== filter) {
+            filter.value = '';
+        }
+
+        filter.focus();
+        filter.value += e.key;
+
+        filter.dispatchEvent(new Event('input', { bubbles: true }));
+
+        e.preventDefault();
+    }
+
+    if (e.key === 'Backspace' && document.activeElement === filter) {
+        filter.value = filter.value.slice(0, -1);
+        filter.dispatchEvent(new Event('input', { bubbles: true }));
+        e.preventDefault();
+    }
+
+    if (e.key === 'Escape' && document.activeElement === filter) {
+        filter.value = '';
+        filter.dispatchEvent(new Event('input', { bubbles: true }));
+        filter.blur();
+        e.preventDefault();
+    }
+});
+</script>
+
+</body>
+</html>
