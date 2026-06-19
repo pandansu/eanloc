@@ -307,6 +307,7 @@ const csvUrl =
 let nameIndex = {};
 let serialIndex = {};
 let requiredRows = [];
+let wrongItemRows = [];
 
 const saved = localStorage.getItem("serialIndex");
 
@@ -516,6 +517,8 @@ function checkSerials() {
   let notFound = [];
   let wrongItems = [];
 
+  wrongItemRows = [];
+
   for (const s of list) {
 
     const serial = s.trim();
@@ -541,16 +544,20 @@ function checkSerials() {
       }
     }
 
-    if (!matched) {
+if (!matched) {
 
-      const ean = Object.keys(nameIndex).find(
-        key => nameIndex[key] === product
-        ) || "EAN Not Found";
+  const ean = Object.keys(nameIndex).find(
+    key => nameIndex[key] === product
+  ) || "";
 
-    wrongItems.push(
-    serial + " → " + product + " → " + ean
-    );
+  wrongItemRows.push({
+    ean,
+    product,
+    serial
+  });
+
 }
+    
   }
 
   renderTable();
@@ -601,6 +608,22 @@ function renderTable() {
     `;
   }
 
+  for (const w of wrongItemRows) {
+
+  html += `
+    <tr class="bad">
+      <td>${w.ean}</td>
+      <td>WRONG</td>
+      <td>0</td>
+      <td>
+        <b>${w.product}</b>
+        <br>
+        <small>${w.serial}</small>
+      </td>
+    </tr>
+  `;
+}
+  
   html += "</table>";
 
   result.innerHTML = html;
