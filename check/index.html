@@ -323,18 +323,19 @@ function cleanName(name) {
 
 /* CSV */
 
+
 fetch(csvUrl)
 .then(r => r.text())
 .then(text => {
 
-  const lines = text.split(/\r?\n/);
+  const workbook = XLSX.read(text, { type: "string" });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-  for (let i = 1; i < lines.length; i++) {
+  for (let i = 1; i < rows.length; i++) {
 
-    const cols = lines[i].split(",");
-
-    const ean = (cols[4] || '').trim();
-    const name = cleanName(cols[5] || '');
+    const ean = String(rows[i][4] || "").trim();   // Col E
+    const name = cleanName(String(rows[i][5] || "")); // Col F
 
     if (ean && name) {
       nameIndex[ean] = name;
@@ -343,6 +344,8 @@ fetch(csvUrl)
 
   document.getElementById("generateBtn").disabled = false;
 });
+
+  
 
 /* EXCEL PRODUCT FILE */
 
