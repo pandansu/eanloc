@@ -582,14 +582,18 @@ function renderTable() {
 
   const hideDone = document.getElementById("hideDone").checked;
 
-  let totalScanned = 0;
-  let totalRequired = 0;
+let totalScanned = 0;
+let totalRequired = 0;
 
-  for (const r of requiredRows) {
-    totalScanned += r.scanned;
-    totalRequired += r.qty;
-  }
+for (const r of requiredRows) {
+  totalScanned += r.scanned;
+  totalRequired += r.qty;
+}
 
+for (const w of wrongItemRows) {
+  totalScanned += w.count;
+}
+  
   let html = `
   <table>
     <tr>
