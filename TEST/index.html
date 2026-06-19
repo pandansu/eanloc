@@ -221,7 +221,9 @@ td:nth-child(4) {
 
     <div class="serial-container">
 
-      <textarea id="input"></textarea>
+      <textarea id="input" Placeholder="6937224133099 3
+6941565981059 2
+6937224... "></textarea>
 
       <button
         type="button"
@@ -245,11 +247,13 @@ td:nth-child(4) {
   <!-- SERIAL NUMBERS -->
   <div class="textarea-wrap">
 
-    <label>Serial Numbers</label>
+    <label>Scanned Serial Numbers</label>
 
     <div class="serial-container">
 
-      <textarea id="serials"></textarea>
+      <textarea id="serials" Placeholder="ANGZNBF002018N
+82JVNBJ00E023S
+ANGZP4F00..."></textarea>
 
       <button
         type="button"
@@ -538,8 +542,15 @@ function checkSerials() {
     }
 
     if (!matched) {
-      wrongItems.push(serial + " → " + product);
-    }
+
+      const ean = Object.keys(nameIndex).find(
+        key => nameIndex[key] === product
+        ) || "EAN Not Found";
+
+    wrongItems.push(
+    serial + " → " + ean + product
+    );
+}
   }
 
   renderTable();
@@ -602,7 +613,7 @@ function renderErrors(notFound, wrongItems) {
   let html = "";
 
   if (notFound.length) {
-    html += "<h3>❌ Not Found in Excel</h3>";
+    html += "<h3>❌ Not Found in Inventory Serial Numbers file</h3>";
     html += notFound.map(x => `<div class="errorItem">${x}</div>`).join("");
   }
 
