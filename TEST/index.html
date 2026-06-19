@@ -543,18 +543,27 @@ function checkSerials() {
         break;
       }
     }
-
 if (!matched) {
 
   const ean = Object.keys(nameIndex).find(
     key => nameIndex[key] === product
   ) || "";
 
-  wrongItemRows.push({
-    ean,
-    product,
-    serial
-  });
+  let existing = wrongItemRows.find(
+    x => x.ean === ean
+  );
+
+  if (existing) {
+    existing.count++;
+    existing.serials.push(serial);
+  } else {
+    wrongItemRows.push({
+      ean,
+      product,
+      count: 1,
+      serials: [serial]
+    });
+  }
 
 }
     
@@ -608,18 +617,14 @@ function renderTable() {
     `;
   }
 
-  for (const w of wrongItemRows) {
+for (const w of wrongItemRows) {
 
   html += `
     <tr class="bad">
       <td>${w.ean}</td>
-      <td>WRONG</td>
+      <td>${w.count}</td>
       <td>0</td>
-      <td>
-        <b>${w.product}</b>
-        <br>
-        <small>${w.serial}</small>
-      </td>
+      <td>${w.product} (${w.serials.join(", ")})</td>
     </tr>
   `;
 }
