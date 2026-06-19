@@ -542,8 +542,15 @@ function checkSerials() {
     }
 
     if (!matched) {
-      wrongItems.push(serial + " → " + product);
-    }
+
+      const ean = Object.keys(nameIndex).find(
+        key => nameIndex[key] === product
+        ) || "EAN Not Found";
+
+    wrongItems.push(
+    serial + " → " + product + " → " + ean
+    );
+}
   }
 
   renderTable();
