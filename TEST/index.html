@@ -518,7 +518,6 @@ function checkSerials() {
   const used = new Set();
 
   let notFound = [];
-  let wrongItems = [];
 
   wrongItemRows = [];
 
@@ -573,7 +572,7 @@ if (!matched) {
   }
 
   renderTable();
-  renderErrors(notFound, wrongItems);
+  renderErrors(notFound);
 }
 
 /* TABLE */
@@ -643,18 +642,13 @@ for (const w of wrongItemRows) {
 
 /* ERRORS */
 
-function renderErrors(notFound, wrongItems) {
+function renderErrors(notFound) {
 
   let html = "";
 
   if (notFound.length) {
     html += "<h3>❌ Not Found in Inventory Serial Numbers file</h3>";
     html += notFound.map(x => `<div class="errorItem">${x}</div>`).join("");
-  }
-
-  if (wrongItems.length) {
-    html += "<h3>⚠️ Wrong Item List</h3>";
-    html += wrongItems.map(x => `<div class="errorItem">${x}</div>`).join("");
   }
 
   errors.innerHTML = html;
