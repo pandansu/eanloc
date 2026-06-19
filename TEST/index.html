@@ -292,7 +292,7 @@ ANGZP4F00..."></textarea>
 
 <div class="btn-row">
   <button id="generateBtn" onclick="generate()">Generate List</button>
-  <button id="checkBtn" onclick="checkSerials()" disabled>Check Serials</button>
+  <button id="checkBtn" onclick="checkSerials()">Check Serials</button>
 </div>
 
 <div id="result"></div>
@@ -308,11 +308,6 @@ let nameIndex = {};
 let serialIndex = {};
 let requiredRows = [];
 let wrongItemRows = [];
-
-function updateCheckButtonState() {
-  document.getElementById("checkBtn").disabled =
-    requiredRows.length === 0;
-}
 
 const saved = localStorage.getItem("serialIndex");
 
@@ -508,7 +503,6 @@ function generate() {
   }
 
   renderTable();
-  updateCheckButtonState();
 }
 
 /* CHECK */
