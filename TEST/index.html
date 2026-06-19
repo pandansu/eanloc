@@ -478,6 +478,9 @@ function importRequiredItems(e) {
 
 function generate() {
 
+  wrongItemRows = [];
+  errors.innerHTML = "";
+  
   const lines = input.value.trim().split("\n");
 
   requiredRows = [];
