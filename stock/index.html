@@ -162,6 +162,12 @@ select {
     color: #666;
 }
 
+.accordion-icon {
+    width: 18px;
+    text-align: center;
+    font-size: 14px;
+}
+
 @media (max-width: 900px) {
     .grid { grid-template-columns: repeat(3, 1fr); }
 }
@@ -304,19 +310,27 @@ function render(data) {
 
         const header = document.createElement('div');
         header.className = 'header';
+
+
+
 header.innerHTML = `
+    <span class="accordion-icon">▶</span>
+
     <span>${orderCode}</span>
 
     <span class="order-stats">
-${Object.keys(eanGroups).length} EAN | ${orderSerialCount} SN${orderMissingCount ? ' | ' + orderMissingCount + ' ACC' : ''}
-
+        ${Object.keys(eanGroups).length} EAN | ${orderSerialCount} SN${orderMissingCount ? ' | ' + orderMissingCount + ' ACC' : ''}
     </span>
 
     <input class="ean-filter" type="text" placeholder="Filter">
 `;
 
 
+
+
 const filterInput = header.querySelector('.ean-filter');
+
+const icon = header.querySelector('.accordion-icon');
 
 filterInput.onclick = e => {
     e.stopPropagation();
@@ -366,8 +380,8 @@ title.textContent = group.serials.length > 0
                 btn.onclick = e => {
                     e.stopPropagation();
                     navigator.clipboard.writeText(group.serials.join('\n'));
-                    btn.textContent = 'Copied!';
-                    setTimeout(() => btn.textContent = 'Copy Serials', 1200);
+                    btn.textContent = 'Copied';
+                    setTimeout(() => btn.textContent = 'Copied ✓', 1200);
                 };
                 eanHeader.appendChild(btn);
             }
@@ -412,28 +426,43 @@ if (group.serials.length > 0) {
             content.appendChild(card);
         });
 
-        header.onclick = () => {
-            const isOpening = !content.classList.contains('active');
 
-            document.querySelectorAll('.content').forEach(c => {
-                if (c !== content) c.classList.remove('active');
-            });
+header.onclick = () => {
+    const isOpening = !content.classList.contains('active');
 
-            content.classList.toggle('active');
+    document.querySelectorAll('.content').forEach(c => {
+        if (c !== content) c.classList.remove('active');
+    });
 
-            if (isOpening) {
-                setTimeout(() => {
-                    acc.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 50);
-            }
-        };
+    document.querySelectorAll('.accordion-icon').forEach(i => {
+        i.textContent = '▶';
+    });
+
+    content.classList.toggle('active');
+
+    if (content.classList.contains('active')) {
+        icon.textContent = '▼';
+    } else {
+        icon.textContent = '▶';
+    }
+
+    if (isOpening) {
+        setTimeout(() => {
+            acc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 50);
+    }
+};
+
 
         acc.appendChild(header);
         acc.appendChild(content);
         out.appendChild(acc);
+
 if (orders.length === 1) {
     content.classList.add('active');
+    icon.textContent = '▼';
 }
+
 
     });
 }
