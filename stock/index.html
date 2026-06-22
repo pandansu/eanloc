@@ -505,12 +505,20 @@ document.addEventListener('keydown', e => {
         e.preventDefault();
     }
 
-    if (e.key === 'Escape' && document.activeElement === filter) {
-        filter.value = '';
-        filter.dispatchEvent(new Event('input', { bubbles: true }));
-        filter.blur();
-        e.preventDefault();
-    }
+
+if (e.key === 'Escape') {
+
+    document.querySelectorAll('.ean-filter').forEach(f => {
+        f.value = '';
+        f.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+
+    document.activeElement?.blur();
+
+    e.preventDefault();
+}
+
+
 });
 </script>
 
