@@ -307,6 +307,7 @@ const csvUrl =
 let nameIndex = {};
 let serialIndex = {};
 let requiredRows = [];
+let wrongItemRows = [];
 
 const saved = localStorage.getItem("serialIndex");
 
@@ -477,6 +478,9 @@ function importRequiredItems(e) {
 
 function generate() {
 
+  wrongItemRows = [];
+  errors.innerHTML = "";
+  
   const lines = input.value.trim().split("\n");
 
   requiredRows = [];
@@ -514,7 +518,8 @@ function checkSerials() {
   const used = new Set();
 
   let notFound = [];
-  let wrongItems = [];
+
+  wrongItemRows = [];
 
   for (const s of list) {
 
@@ -540,21 +545,34 @@ function checkSerials() {
         break;
       }
     }
+if (!matched) {
 
-    if (!matched) {
+  const ean = Object.keys(nameIndex).find(
+    key => nameIndex[key] === product
+  ) || "";
 
-      const ean = Object.keys(nameIndex).find(
-        key => nameIndex[key] === product
-        ) || "EAN Not Found";
+  let existing = wrongItemRows.find(
+    x => x.ean === ean
+  );
 
-    wrongItems.push(
-    serial + " → " + product + " → " + ean
-    );
+  if (existing) {
+    existing.count++;
+    existing.serials.push(serial);
+  } else {
+    wrongItemRows.push({
+      ean,
+      product,
+      count: 1,
+      serials: [serial]
+    });
+  }
+
 }
+    
   }
 
   renderTable();
-  renderErrors(notFound, wrongItems);
+  renderErrors(notFound);
 }
 
 /* TABLE */
@@ -563,14 +581,18 @@ function renderTable() {
 
   const hideDone = document.getElementById("hideDone").checked;
 
-  let totalScanned = 0;
-  let totalRequired = 0;
+let totalScanned = 0;
+let totalRequired = 0;
 
-  for (const r of requiredRows) {
-    totalScanned += r.scanned;
-    totalRequired += r.qty;
-  }
+for (const r of requiredRows) {
+  totalScanned += r.scanned;
+  totalRequired += r.qty;
+}
 
+for (const w of wrongItemRows) {
+  totalScanned += w.count;
+}
+  
   let html = `
   <table>
     <tr>
@@ -601,6 +623,18 @@ function renderTable() {
     `;
   }
 
+for (const w of wrongItemRows) {
+
+  html += `
+    <tr class="bad">
+      <td>${w.ean}</td>
+      <td>${w.count}</td>
+      <td>0</td>
+      <td>${w.product}</td>
+    </tr>
+  `;
+}
+  
   html += "</table>";
 
   result.innerHTML = html;
@@ -608,18 +642,13 @@ function renderTable() {
 
 /* ERRORS */
 
-function renderErrors(notFound, wrongItems) {
+function renderErrors(notFound) {
 
   let html = "";
 
   if (notFound.length) {
     html += "<h3>❌ Not Found in Inventory Serial Numbers file</h3>";
     html += notFound.map(x => `<div class="errorItem">${x}</div>`).join("");
-  }
-
-  if (wrongItems.length) {
-    html += "<h3>⚠️ Wrong Item List</h3>";
-    html += wrongItems.map(x => `<div class="errorItem">${x}</div>`).join("");
   }
 
   errors.innerHTML = html;
