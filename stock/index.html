@@ -6,6 +6,7 @@
 <title>Stock Entry Assistant</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
 <style>
 #sheet,
@@ -35,7 +36,7 @@ body {
     align-items: center;
 }
 
-#pickFile, #load {
+#pickFile, #pickPdf, #load {
     padding: 10px 15px;
     background: #00695C;
     color: white;
@@ -168,6 +169,21 @@ select {
     font-size: 14px;
 }
 
+
+
+#pickFile,
+#pickPdf {
+    width: 160px;
+    box-sizing: border-box;
+}
+
+.filename {
+    flex: 1;
+
+}
+
+
+
 @media (max-width: 900px) {
     .grid { grid-template-columns: repeat(3, 1fr); }
 }
@@ -187,20 +203,36 @@ select {
 
 <h2>Stock Entry Assistant</h2>
 
+
+
 <div class="controls">
     <button id="pickFile">Upload Excel File</button>
     <input type="file" id="file" accept=".xlsx,.xls,.csv">
-    <div class="filename" id="filename">No file selected</div>
+
+    <div class="filename" id="filename">No file selected - Serial Number file for EAN</div>
+
+    <div style="width:100%"></div>
+
+    <button id="pickPdf" style="display:none;">Upload Invoice PDF</button>
+    <input type="file" id="pdfFile" accept=".pdf" style="display:none">
+
+    <div class="filename" id="pdfname" style="display:none;">
+        No file selected - Optional, Invoice PDF for arranging in correct sequence
+    </div>
+
     <select id="sheet"></select>
     <button id="load">Load</button>
 </div>
+
 
 <div id="out"></div>
 
 </div>
 
 <script>
+
 let wb;
+let pdfEanSequence = [];
 
 document.getElementById('pickFile').onclick = () => {
     document.getElementById('file').click();
@@ -211,6 +243,8 @@ document.getElementById('file').addEventListener('change', e => {
     if (!file) return;
 
     document.getElementById('filename').textContent = file.name;
+document.getElementById('pickPdf').style.display = '';
+document.getElementById('pdfname').style.display = '';   
 
     const r = new FileReader();
     r.onload = ev => {
@@ -238,6 +272,43 @@ document.getElementById('sheet').addEventListener('change', loadSheet);
 function clean(v) {
     return String(v ?? '').trim();
 }
+
+
+document.getElementById('pickPdf').onclick = () => {
+    document.getElementById('pdfFile').click();
+};
+
+document.getElementById('pdfFile').addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    document.getElementById('pdfname').textContent = file.name;
+
+    const buffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+
+    const found = [];
+
+    for (let p = 1; p <= pdf.numPages; p++) {
+        const page = await pdf.getPage(p);
+        const textContent = await page.getTextContent();
+
+        const pageText = textContent.items
+            .map(item => item.str)
+            .join(' ');
+
+        const matches = pageText.match(/\b\d{13}\b/g);
+
+        if (matches) {
+            matches.forEach(ean => found.push(ean));
+        }
+    }
+
+    pdfEanSequence = found;
+
+    if (wb) loadSheet();
+});
+
 
 function getQty(v) {
     const n = Number(v);
@@ -291,7 +362,28 @@ function render(data) {
     const out = document.getElementById('out');
     out.innerHTML = '';
 
-    const orders = Object.entries(data);
+
+let orders = Object.entries(data);
+
+if (pdfEanSequence.length > 0) {
+    const eanRank = new Map();
+
+    pdfEanSequence.forEach((ean, index) => {
+        if (!eanRank.has(ean)) {
+            eanRank.set(ean, index);
+        }
+    });
+
+    orders.sort((a, b) => {
+        const aRanks = Object.keys(a[1])
+            .map(ean => eanRank.has(ean) ? eanRank.get(ean) : Infinity);
+
+        const bRanks = Object.keys(b[1])
+            .map(ean => eanRank.has(ean) ? eanRank.get(ean) : Infinity);
+
+        return Math.min(...aRanks) - Math.min(...bRanks);
+    });
+}
 
     if (orders.length === 0) {
         out.innerHTML = '<div class="empty">No matching rows found. Check that DeliveryOrderCode is Col A, EAN is Col F, ProductSN is Col I, and quantity is Col J.</div>';
@@ -356,7 +448,25 @@ filterInput.addEventListener('input', e => {
         const content = document.createElement('div');
         content.className = 'content';
 
-        Object.entries(eanGroups).forEach(([ean, group]) => {
+let eanEntries = Object.entries(eanGroups);
+
+if (pdfEanSequence.length > 0) {
+    const eanRank = new Map();
+
+    pdfEanSequence.forEach((ean, index) => {
+        if (!eanRank.has(ean)) {
+            eanRank.set(ean, index);
+        }
+    });
+
+    eanEntries.sort((a, b) => {
+        const ar = eanRank.has(a[0]) ? eanRank.get(a[0]) : Infinity;
+        const br = eanRank.has(b[0]) ? eanRank.get(b[0]) : Infinity;
+        return ar - br;
+    });
+}
+
+eanEntries.forEach(([ean, group]) => {
             const card = document.createElement('div');
             card.className = 'ean-card';
 		card.dataset.ean = ean;
