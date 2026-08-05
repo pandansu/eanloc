@@ -225,26 +225,20 @@ td:nth-child(4) {
 6941565981059 2
 6937224... "></textarea>
 
-<button
-  type="button"
-  class="upload-inside-btn"
-  onclick="document.getElementById('requiredImportFile').click()">
-  📄
-</button>
+      <button
+        type="button"
+        class="upload-inside-btn"
+        onclick="document.getElementById('requiredImportFile').click()">
+        📄
+      </button>
 
-<input
-  type="file"
-  id="requiredImportFile"
-  accept=".xlsx,.xls"
-  style="display:none">
-
-
+      <input
+        type="file"
+        id="requiredImportFile"
+        accept=".xlsx,.xls"
+        style="display:none">
 
     </div>
-
-
-
-
 
     <div class="clear-x" onclick="input.value=''">×</div>
 
@@ -305,57 +299,6 @@ ANGZP4F00..."></textarea>
 <div id="errors"></div>
 
 </div>
-
-<div id="columnModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:white;width:95%;max-width:800px;padding:20px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,0.25);">
-    <h3 style="margin-top:0;">Select Required Item Columns</h3>
-
-    <div style="display:flex;gap:12px;margin-bottom:14px;">
-      <div style="flex:1;">
-        <label>EAN Column</label>
-        <select id="eanCol" style="width:100%;padding:10px;"></select>
-      </div>
-
-      <div style="flex:1;">
-        <label>Quantity Column</label>
-        <select id="qtyCol" style="width:100%;padding:10px;"></select>
-      </div>
-    </div>
-
-    <div style="font-weight:bold;margin-bottom:6px;">Excel Preview</div>
-
-    <div id="excelPreview" style="max-height:260px;overflow:auto;border:1px solid #ddd;border-radius:8px;"></div>
-
-    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
-      <button type="button" onclick="closeColumnModal()">Cancel</button>
-      <button type="button" onclick="importSelectedColumns()" style="background:#4a90e2;color:white;">Import</button>
-    </div>
-  </div>
-</div>
-
-
-<div id="serialModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:white;width:95%;max-width:800px;padding:20px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,0.25);">
-
-    <h3 style="margin-top:0;">Select Serial Number Column</h3>
-
-    <div style="margin-bottom:14px;">
-      <label>Serial Column</label>
-      <select id="serialCol" style="width:100%;padding:10px;"></select>
-    </div>
-
-    <div style="font-weight:bold;margin-bottom:6px;">Excel Preview</div>
-
-    <div id="serialPreview" style="max-height:260px;overflow:auto;border:1px solid #ddd;border-radius:8px;"></div>
-
-    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
-      <button type="button" onclick="closeSerialModal()">Cancel</button>
-      <button type="button" onclick="importSelectedSerialColumn()" style="background:#4a90e2;color:white;">Import</button>
-    </div>
-
-  </div>
-</div>
-
 <script>
 
 const csvUrl =
@@ -365,8 +308,6 @@ let nameIndex = {};
 let serialIndex = {};
 let requiredRows = [];
 let wrongItemRows = [];
-let requiredRowsData = [];
-let serialRowsData = [];
 
 const saved = localStorage.getItem("serialIndex");
 
@@ -460,7 +401,6 @@ document
   .getElementById("serialImportFile")
   .addEventListener("change", importSerialsToTextarea);
 
-
 function importSerialsToTextarea(e) {
 
   const file = e.target.files[0];
@@ -474,40 +414,25 @@ function importSerialsToTextarea(e) {
     const workbook = XLSX.read(data, { type: "array" });
 
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    serialRowsData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-    const serialSelect =
-      document.getElementById("serialCol");
+    const serialList = [];
 
-    serialSelect.innerHTML = "";
+    for (let i = 1; i < rows.length; i++) {
 
-    const maxCols =
-      Math.max(...serialRowsData.map(r => r.length));
+      const serial = String(rows[i][0] || "").trim();
 
-    const headerRow = serialRowsData[0] || [];
-
-    for (let c = 0; c < maxCols; c++) {
-
-      const letter = XLSX.utils.encode_col(c);
-      const header = String(headerRow[c] || "").trim();
-
-      const label = header
-        ? `${letter} - ${header}`
-        : `${letter} - blank`;
-
-      serialSelect.innerHTML +=
-        `<option value="${c}">${label}</option>`;
+      if (serial) {
+        serialList.push(serial);
+      }
     }
 
-    renderSerialPreview();
-
-    document.getElementById("serialModal").style.display = "flex";
+    document.getElementById("serials").value =
+      serialList.join("\n");
   };
 
   reader.readAsArrayBuffer(file);
 }
-
-
 /* REQUIRED ITEMS IMPORT (NEW) */
 
 document
@@ -527,152 +452,26 @@ function importRequiredItems(e) {
     const workbook = XLSX.read(data, { type: "array" });
 
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    requiredRowsData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
-    const eanSelect = document.getElementById("eanCol");
-    const qtySelect = document.getElementById("qtyCol");
+    const output = [];
 
-    eanSelect.innerHTML = "";
-    qtySelect.innerHTML = "";
+    // B2 = EAN, C2 = Qty
+    for (let i = 1; i < rows.length; i++) {
 
-    const maxCols = Math.max(...requiredRowsData.map(r => r.length));
+      const ean = String(rows[i][1] || "").trim();
+      const qty = String(rows[i][2] || "").trim();
 
+      if (ean && qty) {
+        output.push(`${ean} ${qty}`);
+      }
+    }
 
-
-const headerRow = requiredRowsData[0] || [];
-
-for (let c = 0; c < maxCols; c++) {
-
-  const letter = XLSX.utils.encode_col(c);
-  const header = String(headerRow[c] || "").trim();
-
-  const label = header
-    ? `${letter} - ${header}`
-    : `${letter} - blank`;
-
-  eanSelect.innerHTML += `<option value="${c}">${label}</option>`;
-  qtySelect.innerHTML += `<option value="${c}">${label}</option>`;
-}
-
-
-
-renderExcelPreview();
-document.getElementById("columnModal").style.display = "flex";
-
+    document.getElementById("input").value =
+      output.join("\n");
   };
 
   reader.readAsArrayBuffer(file);
-}
-
-function importSelectedColumns() {
-
-  const eanCol = parseInt(document.getElementById("eanCol").value);
-  const qtyCol = parseInt(document.getElementById("qtyCol").value);
-
-  const output = [];
-
-  for (let i = 1; i < requiredRowsData.length; i++) {
-
-    const ean = String(requiredRowsData[i][eanCol] || "").trim();
-    const qty = String(requiredRowsData[i][qtyCol] || "").trim();
-
-    if (ean && qty) {
-      output.push(`${ean} ${qty}`);
-    }
-  }
-
-  document.getElementById("input").value = output.join("\n");
-
- 
-document.getElementById("columnModal").style.display = "none";
-}
-
-function renderExcelPreview() {
-
-  const previewRows = requiredRowsData.slice(0, 6);
-  const maxCols = Math.max(...previewRows.map(r => r.length));
-
-  let html = "<table style='margin-top:0;font-size:12px;'>";
-
-  html += "<tr>";
-  for (let c = 0; c < maxCols; c++) {
-    html += `<th>${XLSX.utils.encode_col(c)}</th>`;
-  }
-  html += "</tr>";
-
-  for (let r = 0; r < previewRows.length; r++) {
-    html += "<tr>";
-
-    for (let c = 0; c < maxCols; c++) {
-      html += `<td>${previewRows[r][c] || ""}</td>`;
-    }
-
-    html += "</tr>";
-  }
-
-  html += "</table>";
-
-  document.getElementById("excelPreview").innerHTML = html;
-}
-
-function closeColumnModal() {
-  document.getElementById("columnModal").style.display = "none";
-}
-
-function renderSerialPreview() {
-
-  const previewRows = serialRowsData.slice(0, 6);
-  const maxCols = Math.max(...previewRows.map(r => r.length));
-
-  let html = "<table style='margin-top:0;font-size:12px;'>";
-
-  html += "<tr>";
-  for (let c = 0; c < maxCols; c++) {
-    html += `<th>${XLSX.utils.encode_col(c)}</th>`;
-  }
-  html += "</tr>";
-
-  for (let r = 0; r < previewRows.length; r++) {
-
-    html += "<tr>";
-
-    for (let c = 0; c < maxCols; c++) {
-      html += `<td>${previewRows[r][c] || ""}</td>`;
-    }
-
-    html += "</tr>";
-  }
-
-  html += "</table>";
-
-  document.getElementById("serialPreview").innerHTML = html;
-}
-
-function importSelectedSerialColumn() {
-
-  const col =
-    parseInt(document.getElementById("serialCol").value);
-
-  const serialList = [];
-
-  for (let i = 1; i < serialRowsData.length; i++) {
-
-    const serial =
-      String(serialRowsData[i][col] || "").trim();
-
-    if (serial) {
-      serialList.push(serial);
-    }
-  }
-
-  document.getElementById("serials").value =
-    serialList.join("\n");
-
-  document.getElementById("serialModal").style.display = "none";
-}
-
-function closeSerialModal() {
-  document.getElementById("serialModal").style.display = "none";
 }
 
 /* GENERATE */
