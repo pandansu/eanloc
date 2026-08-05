@@ -6,7 +6,10 @@
 // @match        https://scsm-djifx.lingyingdms.com/*
 // @grant        GM_addStyle
 // @require      https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js
+// @updateURL    https://raw.githubusercontent.com/pandansu/eanloc/refs/heads/main/tm-qtychk/qtychk.user.js
+// @downloadURL  https://raw.githubusercontent.com/pandansu/eanloc/refs/heads/main/tm-qtychk/qtychk.user.js
 // ==/UserScript==
+
 
 (function () {
   'use strict';
