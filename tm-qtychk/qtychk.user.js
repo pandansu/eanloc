@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Quanty Checker
 // @namespace    http://tampermonkey.net/
-// @version      5.5
+// @version      5.6
 // @description  Upload Excel, manual start, collapsible via fixed 'QC' button toggle, top/bottom stacked orientation.
 // @match        https://scsm-djifx.lingyingdms.com/*
 // @grant        GM_addStyle
@@ -526,7 +526,7 @@
 
     const dialog = getOrderDialog();
     if (!dialog) {
-      statusEl.textContent = '❌ Error: Order details dialog ("发货单详情") not found.\nPlease open the order details page first!';
+      statusEl.textContent = '❌ Error:\n Order details not found.\n Please open the order details page';
       return;
     }
 
