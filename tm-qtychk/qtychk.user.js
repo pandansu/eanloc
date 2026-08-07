@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Quanty Checker
 // @namespace    http://tampermonkey.net/
-// @version      5.61
+// @version      5.7
 // @description  Upload Excel, manual start, collapsible via fixed 'QC' button toggle, top/bottom stacked orientation.
 // @match        https://scsm-djifx.lingyingdms.com/*
 // @grant        GM_addStyle
@@ -31,8 +31,8 @@
     #eanQtyBadge {
       width: 44px;
       height: 44px;
-      border-radius: 50%;
-      background: #0d6efd;
+      border-radius: 10%;
+      background: rgba(13, 110, 253, 0.1)
       color: white;
       font-weight: bold;
       font-size: 12px;
