@@ -28,23 +28,29 @@
     }
 
     /* Floating QC Badge (Permanent Anchor) */
-    #eanQtyBadge {
-      width: 44px;
-      height: 44px;
-      border-radius: 50%;
-      background: rgba(13, 110, 253, 0.1)
-      color: grey;
-      font-size: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      /* box-shadow: 0 4px 12px rgba(0,0,0,.3); */
-      cursor: cursor;
-      transition: background-color 0.2s, transform 0.15s ease;
-      position: absolute;
-      top: 0;
-      left: 0;
-      z-index: 2;
+  #eanQtyBadge {
+  width: 44px;
+  height: 44px;
+  padding: 8px 14px;
+  box-sizing: border-box;
+
+  background: rgba(25, 118, 210, 0.1);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 12px;
+  cursor: pointer;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  transition: background-color 0.2s, transform 0.15s ease;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 2;
+}
     }
     #eanQtyBadge:hover { background: #0b5ed7; transform: scale(1.05); }
 
