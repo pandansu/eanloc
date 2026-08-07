@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Quanty Checker
 // @namespace    http://tampermonkey.net/
-// @version      5.6
+// @version      5.61
 // @description  Upload Excel, manual start, collapsible via fixed 'QC' button toggle, top/bottom stacked orientation.
 // @match        https://scsm-djifx.lingyingdms.com/*
 // @grant        GM_addStyle
