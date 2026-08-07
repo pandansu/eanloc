@@ -31,15 +31,14 @@
     #eanQtyBadge {
       width: 44px;
       height: 44px;
-      border-radius: 10%;
+      border-radius: 50%;
       background: rgba(13, 110, 253, 0.1)
-      color: white;
-      font-weight: bold;
+      color: grey;
       font-size: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 12px rgba(0,0,0,.3);
+      /* box-shadow: 0 4px 12px rgba(0,0,0,.3); */
       cursor: cursor;
       transition: background-color 0.2s, transform 0.15s ease;
       position: absolute;
