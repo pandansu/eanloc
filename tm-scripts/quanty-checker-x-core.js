@@ -209,6 +209,13 @@
       user-select: text;
     }
     .ean-missing-box ul { margin: 4px 0 0 16px; padding: 0; font-family: monospace; }
+
+    /* Hide the widget entirely when printing — it's a fixed-position DOM
+       element sitting on top of the page, so without this it would show
+       up in any printout or "print to PDF" of the underlying page. */
+    @media print {
+      #eanQtyCheckContainer { display: none !important; }
+    }
   `);
 
   const container = document.createElement('div');
@@ -242,13 +249,24 @@
             <span class="ean-panel-title">Extracted Data</span>
             <button id="eanFlipBackBtn" class="ean-small-btn" title="Back to Control Panel">🔄 Back</button>
           </div>
-          <textarea id="eanTsvArea" readonly placeholder="No data extracted. "></textarea>
+          <textarea id="eanTsvArea" readonly placeholder="No data extracted yet. Upload an Excel or PDF file."></textarea>
         </div>
       </div>
     </div>
-    <div id="eanQtyBadge" title="Click to toggle panel (Drag to move)">QC</div>
+    <div id="eanQtyBadge" title="Click to toggle EAN Checker (Drag to move)">QC</div>
   `;
   document.body.appendChild(container);
+
+  // Watch the whole page (not just the order-details dialog) for other
+  // dialogs opening/closing, and hide the QC badge/panel while they're
+  // open so it doesn't visually collide with their input fields.
+  // (getForeignDialogs / updateContainerVisibilityForDialogs are defined
+  // further down but hoisted, since they're function declarations.)
+  updateContainerVisibilityForDialogs();
+  const globalDialogObserver = new MutationObserver(() => {
+    updateContainerVisibilityForDialogs();
+  });
+  globalDialogObserver.observe(document.body, { childList: true, subtree: true });
 
   const badge = document.getElementById('eanQtyBadge');
   const panel = document.getElementById('eanQtyCheckPanel');
@@ -328,7 +346,7 @@
     }
 
     const firstHeader = fileType === 'pdf' ? 'No' : 'Row';
-    let lines = [`${firstHeader}\tEAN`];
+    let lines = [`${firstHeader}\tEAN\tQty`];
 
     extractedItems.forEach((item) => {
       lines.push(`${item.row}\t${item.ean}\t${item.qty}`);
@@ -691,14 +709,14 @@
           }
 
           // Always keep the row, matching the standalone extractor's behavior:
-          // an unresolved qty is recorded as "##" rather than silently
+          // an unresolved qty is recorded as "Not Found" rather than silently
           // dropping the item from the output. Qty checking against the UI
           // table (highlightActiveTable) already treats unmatched/zero
           // quantities as mismatches, so nothing is lost by keeping them here.
-          let qtyRaw = qtyWord ? qtyWord.text.trim() : "##";
+          let qtyRaw = qtyWord ? qtyWord.text.trim() : "Not Found";
           let qty = qtyWord ? normalizeQty(qtyRaw) : 0;
 
-          list.push({ row: lineNo || "##", ean: cleanEan, qty: qtyWord ? qty : "##" });
+          list.push({ row: lineNo || "Not Found", ean: cleanEan, qty: qtyWord ? qty : "Not Found" });
           if (qtyWord) {
             map.set(cleanEan, (map.get(cleanEan) || 0) + qty);
           }
@@ -807,6 +825,25 @@
       const title = d.querySelector('.ui-dialog-title, .p-dialog-title');
       return title && title.textContent.trim().includes('发货单详情');
     }) || null;
+  }
+
+  // Any other open dialog (e.g. the "扫描串号" serial-number scanner) that
+  // isn't the order-details dialog we intentionally overlay. The QC badge
+  // is position:fixed with a very high z-index, so without this check it
+  // would visually render on top of unrelated dialogs' input fields.
+  function getForeignDialogs() {
+    const dialogs = [...document.querySelectorAll('div.ui-dialog, .ui-dialog, .p-dialog')];
+    return dialogs.filter(d => {
+      if (d.offsetParent === null) return false; // not visible
+      const title = d.querySelector('.ui-dialog-title, .p-dialog-title');
+      const titleText = title ? title.textContent.trim() : '';
+      return !titleText.includes('发货单详情');
+    });
+  }
+
+  function updateContainerVisibilityForDialogs() {
+    const hasForeignDialog = getForeignDialogs().length > 0;
+    container.style.display = hasForeignDialog ? 'none' : '';
   }
 
   function getTableRoot() {
