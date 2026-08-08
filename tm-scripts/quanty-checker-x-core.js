@@ -242,11 +242,11 @@
             <span class="ean-panel-title">Extracted Data</span>
             <button id="eanFlipBackBtn" class="ean-small-btn" title="Back to Control Panel">🔄 Back</button>
           </div>
-          <textarea id="eanTsvArea" readonly placeholder="No data extracted yet. Upload an Excel or PDF file."></textarea>
+          <textarea id="eanTsvArea" readonly placeholder="No data extracted. "></textarea>
         </div>
       </div>
     </div>
-    <div id="eanQtyBadge" title="Click to toggle EAN Checker (Drag to move)">QC</div>
+    <div id="eanQtyBadge" title="Click to toggle panel (Drag to move)">QC</div>
   `;
   document.body.appendChild(container);
 
@@ -328,7 +328,7 @@
     }
 
     const firstHeader = fileType === 'pdf' ? 'No' : 'Row';
-    let lines = [`${firstHeader}\tEAN\tQty`];
+    let lines = [`${firstHeader}\tEAN`];
 
     extractedItems.forEach((item) => {
       lines.push(`${item.row}\t${item.ean}\t${item.qty}`);
