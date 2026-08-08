@@ -1,9 +1,10 @@
 // ==UserScript==
-// @name         Quantity Checker (Remote Loader)
+// @name         Quanty Checker X (Remote Loader)
 // @namespace    http://tampermonkey.net/
-// @version      2.3
-// @description  Loader for Quantity Checker — fetches the actual logic from GitHub via @require.
+// @version      2.2
+// @description  Loader for Quanty Checker X — fetches the actual logic from GitHub via @require.
 // @match        https://scsm-djifx.lingyingdms.com/*
+// @noframes
 // @grant        GM_addStyle
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -11,9 +12,9 @@
 // @grant        GM_registerMenuCommand
 // @require      https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js
-// @require      https://raw.githubusercontent.com/pandansu/eanloc/refs/heads/main/tm-scripts/quanty-checker-x-core.js?v=2.3
-// @updateURL    https://raw.githubusercontent.com/pandansu/eanloc/refs/heads/main/tm-scripts/quanty-checker-x-core.js
-// @downloadURL  https://raw.githubusercontent.com/pandansu/eanloc/refs/heads/main/tm-scripts/quanty-checker-x-core.js
+// @require      https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/quanty-checker-x-core.js?v=2.2
+// @updateURL    https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/quanty-checker-x-loader.user.js
+// @downloadURL  https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/quanty-checker-x-loader.user.js
 // ==/UserScript==
 
 // This file intentionally contains no logic — everything lives in
