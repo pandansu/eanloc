@@ -11,9 +11,9 @@
 // @grant        GM_registerMenuCommand
 // @require      https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js
-// @require      https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/quanty-checker-x-core.js?v=2.4
-// @updateURL    https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/quanty-checker-x-loader.user.js
-// @downloadURL  https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/quanty-checker-x-loader.user.js
+// @require      https://raw.githubusercontent.com/pandansu/eanloc/refs/heads/main/tm-scripts/quanty-checker-x-core.js?v=2.4
+// @updateURL    https://raw.githubusercontent.com/pandansu/eanloc/refs/heads/main/tm-scripts/quanty-checker-x-loader.user.js
+// @downloadURL  https://raw.githubusercontent.com/pandansu/eanloc/refs/heads/main/tm-scripts/quanty-checker-x-loader.user.js
 // ==/UserScript==
 
 // This file intentionally contains no logic — everything lives in
