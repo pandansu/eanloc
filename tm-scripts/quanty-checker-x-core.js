@@ -210,7 +210,7 @@
     tr.ean-more,  tr.ean-more > td  { background-color: #f8d7da !important; }
     tr.ean-miss,  tr.ean-miss > td  { background-color: #f8d7da !important; }
 
-    .injected-header-qty { text-align: center !important; font-weight: bold; }
+    .injected-header-qty { text-align: left !important; font-weight: bold; }
     .injected-excel-qty { text-align: left !important; font-weight: bold; padding-left: 8px; }
 
     .ean-missing-box {
@@ -263,7 +263,7 @@
             <span class="ean-panel-title">Extracted Data</span>
             <button id="eanFlipBackBtn" class="ean-small-btn" title="Back to Control Panel">🔄 Back</button>
           </div>
-          <textarea id="eanTsvArea" readonly placeholder="No data extracted yet. Upload an Excel or PDF file."></textarea>
+          <textarea id="eanTsvArea" readonly placeholder="No data extracted yet."></textarea>
         </div>
       </div>
     </div>
@@ -382,7 +382,7 @@
     }
 
     const firstHeader = fileType === 'pdf' ? 'No' : 'Row';
-    let lines = [`${firstHeader}\tEAN\tQty`];
+    let lines = [`${firstHeader}\tEAN`];
 
     extractedItems.forEach((item) => {
       lines.push(`${item.row}\t${item.ean}\t${item.qty}`);
@@ -924,7 +924,7 @@
 
     const th = document.createElement('th');
     th.className = 'injected-header-qty';
-    th.textContent = 'File Qty';
+    th.textContent = 'Req Qty';
 
     const headers = theadTr.querySelectorAll('th');
     const targetTh = unitPriceIdx !== -1 ? headers[unitPriceIdx] : headers[qtyIdx + 1];
@@ -1023,7 +1023,7 @@
     if (missingItems.length > 0) {
       missingContainer.innerHTML = `
         <div class="ean-missing-box">
-          <strong>⚠️ Missing in UI (${missingItems.length}):</strong>
+          <strong>⚠️ Missing items (${missingItems.length}):</strong>
           <ul>
             ${missingItems.map(item => `<li>${item.ean} (Qty: ${item.qty})</li>`).join('')}
           </ul>
