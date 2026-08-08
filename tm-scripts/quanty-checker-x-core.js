@@ -1,6 +1,20 @@
 (function () {
   'use strict';
 
+  // Skip initialization specifically inside the small serial-number scan
+  // iframe (assets/imei.html) — it matches the same @match pattern as the
+  // main app, so without this check Tampermonkey runs a second, duplicate
+  // instance of the whole widget inside that tiny iframe, which is what
+  // caused the badge to render clipped inside that field.
+  //
+  // This is deliberately narrow (checks for this specific path) rather
+  // than a blanket @noframes, since the main app content on this site may
+  // itself be loaded inside an iframe/shell wrapper — a blanket frame
+  // exclusion would incorrectly block the script from running at all.
+  if (/\/assets\/imei\.html(?:$|[?#])/.test(location.pathname + location.search + location.hash)) {
+    return;
+  }
+
   pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
   GM_addStyle(`
