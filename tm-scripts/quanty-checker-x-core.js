@@ -266,7 +266,22 @@
   const globalDialogObserver = new MutationObserver(() => {
     updateContainerVisibilityForDialogs();
   });
-  globalDialogObserver.observe(document.body, { childList: true, subtree: true });
+  // childList/subtree alone only catches dialogs being added/removed from
+  // the DOM. Some dialogs (like the serial-number scanner) may already
+  // exist in the DOM and just get shown/hidden via a style or class
+  // attribute change, which childList-only observation won't catch — so
+  // broaden this to also watch attribute changes.
+  globalDialogObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['style', 'class']
+  });
+
+  // Belt-and-suspenders on top of the observer: a lightweight poll that
+  // doesn't depend on correctly guessing how the site toggles dialog
+  // visibility. Cheap enough to run frequently without noticeable cost.
+  setInterval(updateContainerVisibilityForDialogs, 400);
 
   // Belt-and-suspenders alongside the @media print CSS rule: some print
   // flows (e.g. anything that calls window.print() directly, or triggers
