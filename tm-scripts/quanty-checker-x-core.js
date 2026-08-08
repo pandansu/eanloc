@@ -691,14 +691,14 @@
           }
 
           // Always keep the row, matching the standalone extractor's behavior:
-          // an unresolved qty is recorded as "?" rather than silently
+          // an unresolved qty is recorded as "##" rather than silently
           // dropping the item from the output. Qty checking against the UI
           // table (highlightActiveTable) already treats unmatched/zero
           // quantities as mismatches, so nothing is lost by keeping them here.
-          let qtyRaw = qtyWord ? qtyWord.text.trim() : "?";
+          let qtyRaw = qtyWord ? qtyWord.text.trim() : "##";
           let qty = qtyWord ? normalizeQty(qtyRaw) : 0;
 
-          list.push({ row: lineNo || "?", ean: cleanEan, qty: qtyWord ? qty : "?" });
+          list.push({ row: lineNo || "##", ean: cleanEan, qty: qtyWord ? qty : "##" });
           if (qtyWord) {
             map.set(cleanEan, (map.get(cleanEan) || 0) + qty);
           }
