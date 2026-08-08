@@ -11,9 +11,9 @@
 // @grant        GM_registerMenuCommand
 // @require      https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js
-// @require      https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/scan-checker-core.js?v=1.0
-// @updateURL    https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/scan-checker-loader.user.js
-// @downloadURL  https://raw.githubusercontent.com/YOUR_USERNAME/YOUR_REPO/main/scan-checker-loader.user.js
+// @require      https://raw.githubusercontent.com/pandansu/eanloc/refs/heads/main/tm-scripts/scan-checker-core.js?v=1.0
+// @updateURL    https://raw.githubusercontent.com/pandansu/eanloc/refs/heads/main/tm-scripts/scan-checker-core.js
+// @downloadURL  https://raw.githubusercontent.com/pandansu/eanloc/refs/heads/main/tm-scripts/scan-checker-core.js
 // ==/UserScript==
 
 // This file intentionally contains no logic — everything lives in
