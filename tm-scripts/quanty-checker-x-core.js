@@ -268,6 +268,13 @@
   });
   globalDialogObserver.observe(document.body, { childList: true, subtree: true });
 
+  // Belt-and-suspenders alongside the @media print CSS rule: some print
+  // flows (e.g. anything that calls window.print() directly, or triggers
+  // the browser's native print pipeline) fire these events reliably even
+  // in edge cases where a CSS media-query rule might not apply as expected.
+  window.addEventListener('beforeprint', () => { container.style.display = 'none'; });
+  window.addEventListener('afterprint', () => { updateContainerVisibilityForDialogs(); });
+
   const badge = document.getElementById('eanQtyBadge');
   const panel = document.getElementById('eanQtyCheckPanel');
   const cardInner = document.getElementById('eanCardInner');
@@ -834,7 +841,13 @@
   function getForeignDialogs() {
     const dialogs = [...document.querySelectorAll('div.ui-dialog, .ui-dialog, .p-dialog')];
     return dialogs.filter(d => {
-      if (d.offsetParent === null) return false; // not visible
+      // offsetParent === null is NOT a reliable visibility check here: modern
+      // Chrome always returns null offsetParent for position:fixed elements,
+      // even when they're fully visible. This site's dialogs use fixed
+      // positioning (inline left/top/z-index), so that check was silently
+      // treating every dialog as "not visible" and never triggering the hide.
+      const computed = window.getComputedStyle(d);
+      if (computed.display === 'none' || computed.visibility === 'hidden') return false;
       const title = d.querySelector('.ui-dialog-title, .p-dialog-title');
       const titleText = title ? title.textContent.trim() : '';
       return !titleText.includes('发货单详情');
