@@ -245,6 +245,42 @@
   `;
   document.body.appendChild(container);
 
+  // Watch the whole page for other dialogs opening/closing, and hide the SC badge/panel
+  // while they're open so it doesn't visually collide with their input fields[cite: 4].
+  function getForeignDialogs() {
+    const dialogs = [...document.querySelectorAll('div.ui-dialog, .ui-dialog, .p-dialog')];
+    return dialogs.filter(d => {
+      const computed = window.getComputedStyle(d);
+      if (computed.display === 'none' || computed.visibility === 'hidden') return false;
+      const title = d.querySelector('.ui-dialog-title, .p-dialog-title');
+      const titleText = title ? title.textContent.trim() : '';
+      return !titleText.includes('发货单详情');
+    });
+  }
+
+  function updateContainerVisibilityForDialogs() {
+    const hasForeignDialog = getForeignDialogs().length > 0;
+    container.style.display = hasForeignDialog ? 'none' : '';
+  }
+
+  updateContainerVisibilityForDialogs();
+  const globalDialogObserver = new MutationObserver(() => {
+    updateContainerVisibilityForDialogs();
+  });
+  globalDialogObserver.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['style', 'class']
+  });
+
+  setInterval(updateContainerVisibilityForDialogs, 400);
+
+  window.addEventListener('beforeprint', () => { container.style.display = 'none'; });
+  window.addEventListener('afterprint', () => { updateContainerVisibilityForDialogs(); });
+
+  
+
   const badge = document.getElementById('scanCheckerBadge');
   const panel = document.getElementById('scanCheckerPanel');
   const cardInner = document.getElementById('scCardInner');
