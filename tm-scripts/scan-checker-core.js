@@ -1,10 +1,8 @@
+
 (function () {
   'use strict';
 
-  // Skip initialization specifically inside the small serial-number scan
-  // iframe (assets/imei.html) — it matches the same @match pattern as the
-  // main app, so without this check Tampermonkey would run a second,
-  // duplicate instance of the whole widget inside that tiny iframe.
+  // Skip initialization specifically inside the small serial-number scan iframe
   if (/\/assets\/imei\.html(?:$|[?#])/.test(location.pathname + location.search + location.hash)) {
     return;
   }
@@ -190,11 +188,8 @@
       font-size: 11px;
       font-family: monospace;
     }
-    .sc-progress-row.status-not-started { background: #f1f3f5; color: #495057; }
-    .sc-progress-row.status-in-progress { background: #fff3cd; color: #664d03; }
-    .sc-progress-row.status-complete { background: #d1e7dd; color: #0f5132; }
-    .sc-progress-row.status-over { background: #f8d7da; color: #842029; font-weight: bold; }
-    .sc-progress-row.status-wrong-item { background: #f8d7da; color: #842029; font-weight: bold; }
+    .sc-progress-row.status-missing { background: #e9ecef; color: #343a40; }
+    .sc-progress-row.status-error { background: #f8d7da; color: #842029; }
 
     .sc-qty-expected-label {
       display: inline-block;
@@ -203,6 +198,11 @@
       color: #6c757d;
       font-style: italic;
     }
+
+    /* Table row highlighting styles */
+    tr.sc-row-not-completed, tr.sc-row-not-completed td { background-color: #fff3cd !important; }
+    tr.sc-row-completed, tr.sc-row-completed td { background-color: #d1e7dd !important; }
+    tr.sc-row-error, tr.sc-row-error td { background-color: #f8d7da !important; }
 
     @media print {
       #scanCheckerContainer { display: none !important; }
@@ -267,9 +267,14 @@
   let extractedItems = [];
   let fileType = 'excel';
 
-  /* ------------------- GCP VISION KEY MANAGEMENT -------------------
-     Shares the same stored key as other tools on this domain (gcp_vision_key)
-     so you don't need to re-enter it separately for this tool. */
+  // Global persistent seen sets so switching tabs never un-registers already seen items
+  let persistentMainSeen = new Set();
+  let persistentAccessorySeen = new Set();
+
+  // Persistent error maps for each table type so errors stay remembered across tab switches
+  let mainErrorMap = new Map();
+  let accessoryErrorMap = new Map();
+
   function getGcpApiKey() {
     let apiKey = GM_getValue("gcp_vision_key", "");
     if (!apiKey) {
@@ -288,7 +293,6 @@
     GM_registerMenuCommand("Scan Checker: Reset Vision API Key", resetGcpApiKey);
   }
 
-  /* ------------------- EAN / UPC CHECKSUM VALIDATION ------------------- */
   function isValidEanChecksum(code) {
     if (!/^\d+$/.test(code)) return false;
     const len = code.length;
@@ -308,7 +312,6 @@
 
   const QTY_REGEX = /^\d+(\.\d{1,2})?$/;
 
-  /* ------------------- HELPERS ------------------- */
   function normText(v) { return (v == null ? '' : String(v)).replace(/\s+/g, '').trim(); }
 
   function normalizeEAN(v) {
@@ -332,14 +335,13 @@
 
   function delay(ms) { return new Promise(res => setTimeout(res, ms)); }
 
-  /* ------------------- TSV GENERATION ------------------- */
   function updateTsvView() {
     if (!extractedItems || extractedItems.length === 0) {
       tsvArea.value = "No data extracted yet.";
       return;
     }
     const firstHeader = fileType === 'pdf' ? 'No' : 'Row';
-    let lines = [`${firstHeader}\tEAN\tQty`];
+    let lines = [`${firstHeader}\tEAN`];
     extractedItems.forEach((item) => {
       lines.push(`${item.row}\t${item.ean}\t${item.qty}`);
     });
@@ -349,7 +351,6 @@
   flipBtn.addEventListener('click', () => cardInner.classList.add('is-flipped'));
   flipBackBtn.addEventListener('click', () => cardInner.classList.remove('is-flipped'));
 
-  /* ------------------- PANEL ORIENTATION / DRAG ------------------- */
   let isOpen = false;
 
   function updatePanelOrientation() {
@@ -477,7 +478,6 @@
     clampToWindowBounds();
   });
 
-  /* ------------------- FILE PARSERS (Excel / PDF) ------------------- */
   async function readExcel(file) {
     const buf = await file.arrayBuffer();
     const wb = XLSX.read(buf, { type: 'array', cellDates: false, raw: true });
@@ -617,9 +617,9 @@
             qtyWord = rightWords.find(w => QTY_REGEX.test(w.text.trim()));
           }
 
-          let qtyRaw = qtyWord ? qtyWord.text.trim() : "Not Found";
+          let qtyRaw = qtyWord ? qtyWord.text.trim() : "##";
           let qty = qtyWord ? normalizeQty(qtyRaw) : 0;
-          list.push({ row: lineNo || "Not Found", ean: cleanEan, qty: qtyWord ? qty : "Not Found" });
+          list.push({ row: lineNo || "##", ean: cleanEan, qty: qtyWord ? qty : "##" });
           if (qtyWord) map.set(cleanEan, (map.get(cleanEan) || 0) + qty);
         });
       }
@@ -658,12 +658,16 @@
     });
   }
 
-  /* ------------------- UNIFIED FILE PROCESSOR ------------------- */
   async function processFile(file) {
     if (!file) return;
     const fileName = file.name.toLowerCase();
 
     try {
+      persistentMainSeen.clear();
+      persistentAccessorySeen.clear();
+      mainErrorMap.clear();
+      accessoryErrorMap.clear();
+
       if (fileName.endsWith('.pdf')) {
         fileType = 'pdf';
         statusEl.textContent = 'Reading PDF...';
@@ -697,19 +701,6 @@
     }
   }
 
-  /* ==================================================================
-     AUTO-SELECT (选择商品) + LIVE SCAN PROGRESS MONITOR
-     ------------------------------------------------------------------
-     Ticks matching EAN rows in the "选择商品" picker (the site's own
-     official add-product mechanism — nothing is faked), then watches
-     the resulting entry table's 串号数 (Serial Count) column, which is
-     what actually increments as the operator scans real serial
-     numbers. 发货数 (Qty) is a separate, manually-editable field on
-     that table and is NEVER written to by this script — only a small
-     read-only "Expected: N" label is added next to it for reference.
-     ================================================================== */
-
-  let scanMonitorObserver = null;
   let scanMonitorInterval = null;
 
   function getProductPickerDialog() {
@@ -720,10 +711,6 @@
       const title = d.querySelector('.ui-dialog-title, .p-dialog-title');
       return title && title.textContent.trim() === '选择商品';
     }) || null;
-  }
-
-  function getReceiptEntryTable() {
-    return document.querySelector('.receipt-table') || null;
   }
 
   async function autoSelectAndMonitor() {
@@ -794,7 +781,7 @@
     }
 
     await delay(500);
-    statusEl.textContent = `✓ Added ${matchedCount} product(s). Monitoring scans...`;
+    statusEl.textContent = `Total ${extractedItems.length} product(s) in invoice. Monitoring scans...`;
 
     injectExpectedQtyLabels();
     startScanMonitor();
@@ -802,125 +789,208 @@
   }
 
   function injectExpectedQtyLabels() {
-    const table = getReceiptEntryTable();
-    if (!table || !expectedMap) return;
+    if (!expectedMap) return;
+    const tables = document.querySelectorAll('.receipt-table');
+    tables.forEach(table => {
+      const headers = [...table.querySelectorAll('.ui-table-scrollable-header-table thead th')];
+      const headerTexts = headers.map(th => normText(th.textContent));
+      const isAccessory = headerTexts.some(t => t.includes('配件编码'));
 
-    const headers = [...table.querySelectorAll('.ui-table-scrollable-header-table thead th')];
-    const eanIdx = headers.findIndex(th => normText(th.textContent) === '商品编码');
-    const qtyIdx = headers.findIndex(th => normText(th.textContent) === '发货数');
-    if (eanIdx === -1 || qtyIdx === -1) return;
+      const rows = [...table.querySelectorAll('.ui-table-scrollable-body-table tbody tr')]
+        .filter(tr => tr.querySelectorAll('td').length > 0);
 
-    const rows = [...table.querySelectorAll('.ui-table-scrollable-body-table tbody tr')]
-      .filter(tr => tr.querySelectorAll('td').length > 0);
+      if (isAccessory) {
+        const eanIdx = headers.findIndex(th => normText(th.textContent) === '配件编码');
+        const qtyIdx = headers.findIndex(th => normText(th.textContent) === '发货数');
+        if (eanIdx === -1 || qtyIdx === -1) return;
 
-    rows.forEach(tr => {
-      const tds = tr.querySelectorAll('td');
-      if (tds.length <= Math.max(eanIdx, qtyIdx)) return;
+        rows.forEach(tr => {
+          const tds = tr.querySelectorAll('td');
+          if (tds.length <= Math.max(eanIdx, qtyIdx)) return;
+          const eanCellSpan = tds[eanIdx].querySelector('span') || tds[eanIdx];
+          const ean = normalizeEAN(eanCellSpan.textContent.trim());
+          if (!ean || !expectedMap.has(ean)) return;
 
-      const ean = normalizeEAN(tds[eanIdx].textContent.trim());
-      if (!ean || !expectedMap.has(ean)) return;
+          const qtyCell = tds[qtyIdx];
+          if (qtyCell.querySelector('.sc-qty-expected-label')) return;
 
-      const qtyCell = tds[qtyIdx];
-      if (qtyCell.querySelector('.sc-qty-expected-label')) return;
+          const label = document.createElement('span');
+          label.className = 'sc-qty-expected-label';
+          label.textContent = `Expected: ${expectedMap.get(ean)}`;
+          qtyCell.appendChild(label);
+        });
+      } else {
+        const eanIdx = headers.findIndex(th => normText(th.textContent) === '商品编码');
+        const qtyIdx = headers.findIndex(th => normText(th.textContent) === '发货数');
+        if (eanIdx === -1 || qtyIdx === -1) return;
 
-      const label = document.createElement('span');
-      label.className = 'sc-qty-expected-label';
-      label.textContent = `Expected: ${expectedMap.get(ean)}`;
-      qtyCell.appendChild(label);
-    });
-  }
+        rows.forEach(tr => {
+          const tds = tr.querySelectorAll('td');
+          if (tds.length <= Math.max(eanIdx, qtyIdx)) return;
 
-  function readScanProgress() {
-    const table = getReceiptEntryTable();
-    if (!table || !expectedMap) return null;
+          const ean = normalizeEAN(tds[eanIdx].textContent.trim());
+          if (!ean || !expectedMap.has(ean)) return;
 
-    const headers = [...table.querySelectorAll('.ui-table-scrollable-header-table thead th')];
-    const eanIdx = headers.findIndex(th => normText(th.textContent) === '商品编码');
-    const serialCountIdx = headers.findIndex(th => normText(th.textContent) === '串号数');
-    if (eanIdx === -1 || serialCountIdx === -1) return null;
+          const qtyCell = tds[qtyIdx];
+          if (qtyCell.querySelector('.sc-qty-expected-label')) return;
 
-    const rows = [...table.querySelectorAll('.ui-table-scrollable-body-table tbody tr')]
-      .filter(tr => tr.querySelectorAll('td').length > 0);
-
-    const scannedByEan = new Map();
-    rows.forEach(tr => {
-      const tds = tr.querySelectorAll('td');
-      if (tds.length <= Math.max(eanIdx, serialCountIdx)) return;
-      const ean = normalizeEAN(tds[eanIdx].textContent.trim());
-      if (!ean) return;
-      const scanned = parseInt(tds[serialCountIdx].textContent.trim(), 10) || 0;
-      scannedByEan.set(ean, (scannedByEan.get(ean) || 0) + scanned);
-    });
-
-    const results = [];
-    expectedMap.forEach((expectedQty, ean) => {
-      const scanned = scannedByEan.get(ean) || 0;
-      let status = 'not-started';
-      if (scanned > expectedQty) status = 'over';
-      else if (scanned === expectedQty && expectedQty > 0) status = 'complete';
-      else if (scanned > 0) status = 'in-progress';
-      results.push({ ean, expectedQty, scanned, status });
-    });
-
-    scannedByEan.forEach((scanned, ean) => {
-      if (!expectedMap.has(ean) && scanned > 0) {
-        results.push({ ean, expectedQty: null, scanned, status: 'wrong-item' });
+          const label = document.createElement('span');
+          label.className = 'sc-qty-expected-label';
+          label.textContent = `Expected: ${expectedMap.get(ean)}`;
+          qtyCell.appendChild(label);
+        });
       }
     });
-
-    return results;
   }
 
-  function updateScanProgressPanel() {
-    const results = readScanProgress();
-    if (!results) {
-      progressContainer.innerHTML = '';
+  function updateScanProgressAndColor() {
+    if (!expectedMap) {
+      if (progressContainer) progressContainer.innerHTML = '';
       return;
     }
 
-    const statusLabels = {
-      'not-started': '⬜ Not started',
-      'in-progress': '🟡 In progress',
-      'complete': '✅ Complete',
-      'over': '🔴 OVER-SCANNED',
-      'wrong-item': '🔴 WRONG ITEM'
-    };
+    const tables = document.querySelectorAll('.receipt-table');
+    if (tables.length === 0) return;
 
-    let html = '<div style="margin-top:8px;"><strong>Scan Progress:</strong></div>';
-    results.forEach(r => {
-      const qtyText = r.status === 'wrong-item'
-        ? `${r.scanned} scanned (not in file)`
-        : `${r.scanned} / ${r.expectedQty}`;
-      html += `<div class="sc-progress-row status-${r.status}">
-        <span>${r.ean}</span><span>${qtyText} ${statusLabels[r.status]}</span>
-      </div>`;
+    let visibleMainErrors = new Map();
+    let visibleAccessoryErrors = new Map();
+
+    tables.forEach(table => {
+      const headers = [...table.querySelectorAll('.ui-table-scrollable-header-table thead th')];
+      const headerTexts = headers.map(th => normText(th.textContent));
+      const isAccessory = headerTexts.some(t => t.includes('配件编码'));
+
+      const rows = [...table.querySelectorAll('.ui-table-scrollable-body-table tbody tr')]
+        .filter(tr => tr.querySelectorAll('td').length > 0);
+
+      if (isAccessory) {
+        const eanIdx = headers.findIndex(th => normText(th.textContent) === '配件编码');
+        const qtyInputIdx = headers.findIndex(th => normText(th.textContent) === '发货数');
+        if (eanIdx === -1 || qtyInputIdx === -1) return;
+
+        rows.forEach(tr => {
+          const tds = tr.querySelectorAll('td');
+          if (tds.length <= Math.max(eanIdx, qtyInputIdx)) return;
+          const eanCellSpan = tds[eanIdx].querySelector('span') || tds[eanIdx];
+          const ean = normalizeEAN(eanCellSpan.textContent.trim());
+          if (!ean) return;
+
+          persistentAccessorySeen.add(ean);
+
+          const inputEl = tds[qtyInputIdx].querySelector('input');
+          const val = inputEl ? normalizeQty(inputEl.value) : 0;
+
+          tr.classList.remove('sc-row-not-completed', 'sc-row-completed', 'sc-row-error');
+
+          if (!expectedMap.has(ean)) {
+            tr.classList.add('sc-row-error');
+            visibleAccessoryErrors.set(ean, { ean, detail: 'Unknown EAN' });
+          } else {
+            const expectedQty = expectedMap.get(ean) || 0;
+            if (val === expectedQty && expectedQty > 0) {
+              tr.classList.add('sc-row-completed');
+            } else if (val > expectedQty) {
+              tr.classList.add('sc-row-error');
+              visibleAccessoryErrors.set(ean, { ean, detail: `Over-scanned (${val}/${expectedQty})` });
+            } else {
+              tr.classList.add('sc-row-not-completed');
+            }
+          }
+        });
+        accessoryErrorMap = visibleAccessoryErrors;
+      } else {
+        const eanIdx = headers.findIndex(th => normText(th.textContent) === '商品编码');
+        const serialCountIdx = headers.findIndex(th => normText(th.textContent) === '串号数');
+        if (eanIdx === -1 || serialCountIdx === -1) return;
+
+        rows.forEach(tr => {
+          const tds = tr.querySelectorAll('td');
+          if (tds.length <= Math.max(eanIdx, serialCountIdx)) return;
+          const ean = normalizeEAN(tds[eanIdx].textContent.trim());
+          if (!ean) return;
+
+          persistentMainSeen.add(ean);
+
+          const scanned = parseInt(tds[serialCountIdx].textContent.trim(), 10) || 0;
+
+          tr.classList.remove('sc-row-not-completed', 'sc-row-completed', 'sc-row-error');
+
+          if (!expectedMap.has(ean)) {
+            tr.classList.add('sc-row-error');
+            visibleMainErrors.set(ean, { ean, detail: 'Unknown EAN' });
+          } else {
+            const expectedQty = expectedMap.get(ean) || 0;
+            if (scanned === expectedQty && expectedQty > 0) {
+              tr.classList.add('sc-row-completed');
+            } else if (scanned > expectedQty) {
+              tr.classList.add('sc-row-error');
+              visibleMainErrors.set(ean, { ean, detail: `Over-scanned (${scanned}/${expectedQty})` });
+            } else {
+              tr.classList.add('sc-row-not-completed');
+            }
+          }
+        });
+        mainErrorMap = visibleMainErrors;
+      }
     });
+
+    // Compute missing items union across globally persistent seen sets
+    const globalSeenUnion = new Set([...persistentMainSeen, ...persistentAccessorySeen]);
+    const missingItems = [];
+    expectedMap.forEach((expectedQty, ean) => {
+      if (!globalSeenUnion.has(ean)) {
+        missingItems.push({ ean, expectedQty });
+      }
+    });
+
+    // Combine error maps from both tables globally
+    const combinedErrorMap = new Map([...mainErrorMap, ...accessoryErrorMap]);
+    const errorItems = [...combinedErrorMap.values()];
+
+    let html = '';
+    if (missingItems.length > 0) {
+      html += `<div style="margin-top:8px; color: #343a40;"><strong>📋 Not yet added (${missingItems.length}):</strong></div>`;
+      missingItems.forEach(item => {
+        html += `<div class="sc-progress-row status-missing">
+          <span>${item.ean}</span><span>Expected: ${item.expectedQty}</span>
+        </div>`;
+      });
+    }
+
+    if (errorItems.length > 0) {
+      html += `<div style="margin-top:10px; color: #842029;"><strong>⚠️ Over-scanned / Wrong (${errorItems.length}):</strong></div>`;
+      errorItems.forEach(item => {
+        html += `<div class="sc-progress-row status-error">
+          <span>${item.ean}</span><span>${item.detail}</span>
+        </div>`;
+      });
+    }
 
     progressContainer.innerHTML = html;
   }
 
   function startScanMonitor() {
-    const table = getReceiptEntryTable();
-    if (!table) return;
+    updateScanProgressAndColor();
 
-    updateScanProgressPanel();
-
-    if (scanMonitorObserver) scanMonitorObserver.disconnect();
-    scanMonitorObserver = new MutationObserver(() => {
-      injectExpectedQtyLabels();
-      updateScanProgressPanel();
+    document.addEventListener('input', (e) => {
+      if (e.target.closest('.receipt-table')) {
+        updateScanProgressAndColor();
+      }
     });
-    scanMonitorObserver.observe(table, {
-      childList: true,
-      subtree: true,
-      characterData: true
+
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('.table-tap') || e.target.closest('.ui-tabview') || e.target.tagName === 'A' || e.target.tagName === 'LI') {
+        setTimeout(updateScanProgressAndColor, 150);
+      }
     });
 
     if (scanMonitorInterval) clearInterval(scanMonitorInterval);
-    scanMonitorInterval = setInterval(updateScanProgressPanel, 800);
+    scanMonitorInterval = setInterval(() => {
+      injectExpectedQtyLabels();
+      updateScanProgressAndColor();
+    }, 1000);
   }
 
-  /* ------------------- EVENT LISTENERS ------------------- */
   dropZone.addEventListener('click', () => fileInput.click());
 
   fileInput.addEventListener('change', () => {
