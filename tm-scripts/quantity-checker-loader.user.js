@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Quantityy Checker (Remote Loader)
+// @name         Quantity Checker (Remote Loader)
 // @namespace    http://tampermonkey.net/
 // @version      2.5
 // @description  Loader for Quantity Checker — fetches the actual logic from GitHub via @require.
