@@ -38,7 +38,7 @@
       background: #0d6efd;
       color: white;
       font-weight: bold;
-      font-size: 15px;
+      font-size: 13px;
       display: flex;
       align-items: center;
       justify-content: center;
