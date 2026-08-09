@@ -237,7 +237,7 @@
             <span class="sc-panel-title">Extracted Data</span>
             <button id="scFlipBackBtn" class="sc-small-btn" title="Back to Control Panel">🔄 Back</button>
           </div>
-          <textarea id="scTsvArea" readonly placeholder="No data extracted yet. Upload a manifest file."></textarea>
+          <textarea id="scTsvArea" readonly placeholder="No data extracted yet."></textarea>
         </div>
       </div>
     </div>
