@@ -11,7 +11,7 @@
   // than a blanket @noframes, since the main app content on this site may
   // itself be loaded inside an iframe/shell wrapper — a blanket frame
   // exclusion would incorrectly block the script from running at all.
-  if (/\/assets\/imei\.html(?:$|[?#])/.test(location.pathname + location.search + location.hash)) {
+  if (/(\/assets\/imei\.html|\/imeiprint\/)/.test(location.pathname + location.search + location.hash)) {
     return;
   }
 
