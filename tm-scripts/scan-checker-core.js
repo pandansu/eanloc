@@ -3,7 +3,7 @@
   'use strict';
 
   // Skip initialization specifically inside the small serial-number scan iframe
-  if (/\/assets\/imei\.html(?:$|[?#])/.test(location.pathname + location.search + location.hash)) {
+  if (/(\/assets\/imei\.html|\/imeiprint\/)/.test(location.pathname + location.search + location.hash)) {
     return;
   }
 
