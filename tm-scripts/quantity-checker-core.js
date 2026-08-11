@@ -879,7 +879,8 @@
       if (computed.display === 'none' || computed.visibility === 'hidden') return false;
       const title = d.querySelector('.ui-dialog-title, .p-dialog-title');
       const titleText = title ? title.textContent.trim() : '';
-      return !titleText.includes('发货单详情');
+      /* return !titleText.includes('发货单详情');  --To include English version below */
+      return !titleText.includes('发货单详情') && !titleText.includes('OrderAdv');
     });
   }
 
