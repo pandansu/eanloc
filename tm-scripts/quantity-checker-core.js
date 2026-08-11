@@ -854,14 +854,23 @@
     }
     return false;
   }
-
+/*
   function getOrderDialog() {
     const dialogs = [...document.querySelectorAll('div.ui-dialog, .ui-dialog, .p-dialog')];
     return dialogs.find(d => {
       const title = d.querySelector('.ui-dialog-title, .p-dialog-title');
       return title && title.textContent.trim().includes('发货单详情');
     }) || null;
-  }
+  } Ensure English Dialog is also included as Below */
+
+  function getOrderDialog() {
+  const dialogs = [...document.querySelectorAll('div.ui-dialog, .ui-dialog, .p-dialog')];
+  return dialogs.find(d => {
+    const title = d.querySelector('.ui-dialog-title, .p-dialog-title');
+    const titleText = title ? title.textContent.trim() : '';
+    return titleText.includes('发货单详情') || titleText.includes('Invoice details');
+  }) || null;
+}
 
   // Any other open dialog (e.g. the "扫描串号" serial-number scanner) that
   // isn't the order-details dialog we intentionally overlay. The QC badge
