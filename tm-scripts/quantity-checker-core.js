@@ -1,16 +1,6 @@
 (function () {
   'use strict';
 
-  // Skip initialization specifically inside the small serial-number scan
-  // iframe (assets/imei.html) — it matches the same @match pattern as the
-  // main app, so without this check Tampermonkey runs a second, duplicate
-  // instance of the whole widget inside that tiny iframe, which is what
-  // caused the badge to render clipped inside that field.
-  //
-  // This is deliberately narrow (checks for this specific path) rather
-  // than a blanket @noframes, since the main app content on this site may
-  // itself be loaded inside an iframe/shell wrapper — a blanket frame
-  // exclusion would incorrectly block the script from running at all.
   if (/(\/assets\/imei\.html|\/imeiprint\/)/.test(location.pathname + location.search + location.hash)) {
     return;
   }
@@ -96,11 +86,6 @@
       left: 0;
       transform: rotateY(180deg);
       visibility: hidden;
-      /* Force zero height on the hidden face. In some browsers, an
-         absolutely-positioned child with a 3D transform inside a
-         preserve-3d ancestor still gets counted toward the ancestor's
-         scrollable content height, which produces an unwanted scrollbar
-         on the panel even though the back face is invisible. */
       max-height: 0;
       overflow: hidden;
     }
@@ -224,9 +209,6 @@
     }
     .ean-missing-box ul { margin: 4px 0 0 16px; padding: 0; font-family: monospace; }
 
-    /* Hide the widget entirely when printing — it's a fixed-position DOM
-       element sitting on top of the page, so without this it would show
-       up in any printout or "print to PDF" of the underlying page. */
     @media print {
       #eanQtyCheckContainer { display: none !important; }
     }
@@ -271,20 +253,10 @@
   `;
   document.body.appendChild(container);
 
-  // Watch the whole page (not just the order-details dialog) for other
-  // dialogs opening/closing, and hide the QC badge/panel while they're
-  // open so it doesn't visually collide with their input fields.
-  // (getForeignDialogs / updateContainerVisibilityForDialogs are defined
-  // further down but hoisted, since they're function declarations.)
   updateContainerVisibilityForDialogs();
   const globalDialogObserver = new MutationObserver(() => {
     updateContainerVisibilityForDialogs();
   });
-  // childList/subtree alone only catches dialogs being added/removed from
-  // the DOM. Some dialogs (like the serial-number scanner) may already
-  // exist in the DOM and just get shown/hidden via a style or class
-  // attribute change, which childList-only observation won't catch — so
-  // broaden this to also watch attribute changes.
   globalDialogObserver.observe(document.body, {
     childList: true,
     subtree: true,
@@ -292,15 +264,8 @@
     attributeFilter: ['style', 'class']
   });
 
-  // Belt-and-suspenders on top of the observer: a lightweight poll that
-  // doesn't depend on correctly guessing how the site toggles dialog
-  // visibility. Cheap enough to run frequently without noticeable cost.
   setInterval(updateContainerVisibilityForDialogs, 400);
 
-  // Belt-and-suspenders alongside the @media print CSS rule: some print
-  // flows (e.g. anything that calls window.print() directly, or triggers
-  // the browser's native print pipeline) fire these events reliably even
-  // in edge cases where a CSS media-query rule might not apply as expected.
   window.addEventListener('beforeprint', () => { container.style.display = 'none'; });
   window.addEventListener('afterprint', () => { updateContainerVisibilityForDialogs(); });
 
@@ -348,10 +313,7 @@
     GM_registerMenuCommand("Reset Vision API Key", resetGcpApiKey);
   }
 
-  /* ------------------- EAN / UPC CHECKSUM VALIDATION -------------------
-     Standard GS1 mod-10 check digit, supports EAN-8, EAN-13/UPC-A (12-13
-     digits), and GTIN-14. Filters out PO numbers, invoice numbers, etc.
-     that happen to land in the 12-14 digit range but aren't real codes. */
+  /* ------------------- EAN / UPC CHECKSUM VALIDATION ------------------- */
   function isValidEanChecksum(code) {
     if (!/^\d+$/.test(code)) return false;
     const len = code.length;
@@ -369,9 +331,6 @@
     return calculated === checkDigit;
   }
 
-  // Unified quantity matcher used everywhere qty is parsed from the PDF:
-  // whole numbers or up to 2 decimal places. (Previously the fallback
-  // path only accepted strict X.XX and would miss plain integer quantities.)
   const QTY_REGEX = /^\d+(\.\d{1,2})?$/;
 
   /* ------------------- TSV GENERATION ------------------- */
@@ -637,7 +596,6 @@
           });
         });
 
-        // Loosened to strip non-letters before comparing, so "Qty:", "QTY" etc. still hit.
         let qtyHeader = allWords.find(w => w.text.toLowerCase().replace(/[^a-z]/g, '') === "qty");
         let qtyColumnX = qtyHeader ? qtyHeader.x : null;
 
@@ -649,12 +607,6 @@
           }
         }
 
-        // Detect the UOM column, since on stock-transfer-style documents Qty
-        // sits immediately to the left of it — the most reliable anchor of all
-        // (more reliable than a fixed column x, which can drift slightly across
-        // pages or rows). Try the "UOM" header first; if it's not detected,
-        // fall back to finding a short alphabetic token (e.g. "UNIT", "PCS",
-        // "SET") that repeats across many rows on the right side of the table.
         let uomHeader = allWords.find(w => w.text.toLowerCase().replace(/[^a-z]/g, '') === "uom");
         let uomColumnX = uomHeader ? uomHeader.x : null;
 
@@ -676,10 +628,6 @@
           }
         }
 
-        // Locate EAN candidates. Restricted to exactly 13 digits (standard
-        // EAN-13, matching the confirmed Item Code format), then filtered to
-        // only those passing the GS1 mod-10 checksum so stray 13-digit numbers
-        // don't get treated as real product codes.
         let eanCandidates = allWords.filter(w => /^\d{13}$/.test(w.text.trim()));
         let eanWords = eanCandidates.filter(w => isValidEanChecksum(w.text.trim()));
         skippedInvalid += (eanCandidates.length - eanWords.length);
@@ -689,10 +637,6 @@
           let cleanEan = normalizeEAN(ean.text.trim());
           if (!cleanEan) return;
 
-          // Find Line Number: strictly left of EAN, must parse as a plausible
-          // line number (1-9998), and pick the one vertically closest to the
-          // EAN's row (not just the leftmost candidate) — matches the
-          // standalone extractor's logic.
           let lineNoCandidates = allWords.filter(w => {
             let val = parseInt(w.text.trim(), 10);
             return !isNaN(val) && val > 0 && val < 9999 &&
@@ -706,8 +650,6 @@
 
           let qtyWord = null;
 
-          // Strategy 1 (most reliable): qty is the number immediately left of
-          // the UOM column, on the same row as the EAN.
           if (uomColumnX) {
             let candidateQtys = allWords.filter(w => {
               return w.x < uomColumnX &&
@@ -716,14 +658,12 @@
                      QTY_REGEX.test(w.text.trim());
             });
 
-            // Closest to the UOM column (largest x) wins — that's "immediately left of UOM".
             candidateQtys.sort((a, b) => b.x - a.x);
             if (candidateQtys.length > 0) {
               qtyWord = candidateQtys[0];
             }
           }
 
-          // Strategy 2: fixed Qty-column x position (±75px), same row as EAN.
           if (!qtyWord && qtyColumnX) {
             let candidateQtys = allWords.filter(w => {
               return Math.abs(w.x - qtyColumnX) < 75 &&
@@ -737,18 +677,11 @@
             }
           }
 
-          // Strategy 3 (last resort): first numeric-looking word to the right of the EAN.
-          // Distance threshold (+150) matches the standalone extractor.
           if (!qtyWord) {
             let rightWords = allWords.filter(w => w.minX > (ean.maxX + 150) && Math.abs(w.y - ean.y) < 16);
             qtyWord = rightWords.find(w => QTY_REGEX.test(w.text.trim()));
           }
 
-          // Always keep the row, matching the standalone extractor's behavior:
-          // an unresolved qty is recorded as "##" rather than silently
-          // dropping the item from the output. Qty checking against the UI
-          // table (highlightActiveTable) already treats unmatched/zero
-          // quantities as mismatches, so nothing is lost by keeping them here.
           let qtyRaw = qtyWord ? qtyWord.text.trim() : "##";
           let qty = qtyWord ? normalizeQty(qtyRaw) : 0;
 
@@ -783,9 +716,6 @@
           if (response.status === 200) {
             resolve(JSON.parse(response.responseText));
           } else {
-            // 400/401/403 from Vision usually means an expired, revoked, or
-            // malformed key. Clear it so the next PDF upload prompts fresh
-            // instead of silently failing with the same bad key every time.
             if (response.status === 400 || response.status === 401 || response.status === 403) {
               GM_setValue("gcp_vision_key", "");
               reject(`API key rejected (HTTP ${response.status}) — it's been cleared, so you'll be prompted for a new one on your next upload. Details: ${response.responseText}`);
@@ -825,7 +755,6 @@
         return;
       }
 
-      // Update DropZone UI to show success state
       dropZone.classList.add('has-file');
       dropIcon.textContent = fileType === 'pdf' ? '📄' : '📊';
       dropText.innerHTML = `<strong>${file.name}</strong>`;
@@ -854,41 +783,23 @@
     }
     return false;
   }
-/*
+
   function getOrderDialog() {
     const dialogs = [...document.querySelectorAll('div.ui-dialog, .ui-dialog, .p-dialog')];
     return dialogs.find(d => {
       const title = d.querySelector('.ui-dialog-title, .p-dialog-title');
-      return title && title.textContent.trim().includes('发货单详情');
+      const text = title ? title.textContent.trim() : '';
+      return text.includes('发货单详情') || text.includes('Invoice details');
     }) || null;
-  } Ensure English Dialog is also included as Below */
+  }
 
-  function getOrderDialog() {
-  const dialogs = [...document.querySelectorAll('div.ui-dialog, .ui-dialog, .p-dialog')];
-  return dialogs.find(d => {
-    const title = d.querySelector('.ui-dialog-title, .p-dialog-title');
-    const titleText = title ? title.textContent.trim() : '';
-    return titleText.includes('发货单详情') || titleText.includes('Invoice details');
-  }) || null;
-}
-
-  // Any other open dialog (e.g. the "扫描串号" serial-number scanner) that
-  // isn't the order-details dialog we intentionally overlay. The QC badge
-  // is position:fixed with a very high z-index, so without this check it
-  // would visually render on top of unrelated dialogs' input fields.
   function getForeignDialogs() {
     const dialogs = [...document.querySelectorAll('div.ui-dialog, .ui-dialog, .p-dialog')];
     return dialogs.filter(d => {
-      // offsetParent === null is NOT a reliable visibility check here: modern
-      // Chrome always returns null offsetParent for position:fixed elements,
-      // even when they're fully visible. This site's dialogs use fixed
-      // positioning (inline left/top/z-index), so that check was silently
-      // treating every dialog as "not visible" and never triggering the hide.
       const computed = window.getComputedStyle(d);
       if (computed.display === 'none' || computed.visibility === 'hidden') return false;
       const title = d.querySelector('.ui-dialog-title, .p-dialog-title');
       const titleText = title ? title.textContent.trim() : '';
-      /* return !titleText.includes('发货单详情');  --To include English version below */
       return !(titleText.includes('发货单详情') || titleText.includes('Invoice details'));
     });
   }
@@ -966,9 +877,10 @@
     const root = getTableRoot();
     if (!root) return false;
 
-    const eanIdx = headerIndex(root, ['商品编码', '配件编码']);
-    const qtyIdx = headerIndex(root, ['发货数']);
-    const unitPriceIdx = headerIndex(root, ['单价']);
+    // Support both Chinese and English table headers
+    const eanIdx = headerIndex(root, ['商品编码', '配件编码', 'Item Code', 'Accessory Code']);
+    const qtyIdx = headerIndex(root, ['发货数', 'Delivery Qty']);
+    const unitPriceIdx = headerIndex(root, ['单价', 'Unit Price']);
 
     if (eanIdx === -1 || qtyIdx === -1) return false;
 
@@ -1066,7 +978,8 @@
     statusEl.textContent = 'Scanning tabs...';
 
     let successCount = 0;
-    const tabsToScan = ['商品', '配件'];
+    // Support both Chinese and English tab labels
+    const tabsToScan = ['商品', '配件', 'Item', 'Accessory'];
 
     for (const tabName of tabsToScan) {
       if (findTab(tabName)) {
@@ -1092,8 +1005,9 @@
       return;
     }
 
-    if (findTab('商品')) {
-      switchTab('商品');
+    const defaultTab = findTab('商品') ? '商品' : (findTab('Item') ? 'Item' : null);
+    if (defaultTab) {
+      switchTab(defaultTab);
       await delay(300);
       highlightActiveTable();
     }
@@ -1120,7 +1034,6 @@
   }
 
   /* ------------------- EVENT LISTENERS ------------------- */
-  // Click drop zone to select file
   dropZone.addEventListener('click', () => fileInput.click());
 
   fileInput.addEventListener('change', () => {
@@ -1128,7 +1041,6 @@
     processFile(file);
   });
 
-  // Prevent browser default behavior for drag events globally
   ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
     document.addEventListener(eventName, (e) => {
       e.preventDefault();
@@ -1136,7 +1048,6 @@
     }, false);
   });
 
-  // Drag visual effects on Drop Zone
   ['dragenter', 'dragover'].forEach(eventName => {
     dropZone.addEventListener(eventName, () => {
       dropZone.classList.add('is-dragover');
@@ -1149,7 +1060,6 @@
     }, false);
   });
 
-  // Handle dropped files
   dropZone.addEventListener('drop', (e) => {
     const dt = e.dataTransfer;
     const files = dt.files;
