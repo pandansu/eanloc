@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Invoice TSV Extractor</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;margin:0;padding:16px;background:#0f1115;color:#e6e6e6;min-height:100vh}
+  .wrap{max-width:1100px;margin:0 auto}
+  h1{font-size:1.3rem;margin:0 0 8px}
+  p{margin:0 0 12px;color:#aab2c0;line-height:1.4}
+  .drop{border:2px dashed #3a3f4b;border-radius:12px;padding:28px;text-align:center;background:#161a22;transition:.15s}
+  .drop.over{border-color:#6aa9ff;background:#1b2230}
+  .drop input{display:none}
+  .drop label,.btn{display:inline-block;padding:10px 16px;background:#2563eb;color:#fff;border-radius:8px;cursor:pointer;font-weight:600;border:0}
+  .btn.secondary{background:#1a2030;color:#e6e6e6;border:1px solid #2c3340}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .status{margin:14px 0 8px;font-size:.92rem;color:#9aa3b2;white-space:pre-wrap}
+  .progress{height:6px;background:#1f2530;border-radius:99px;overflow:hidden;margin:8px 0 12px}
+  .progress>div{height:100%;background:linear-gradient(90deg,#2563eb,#60a5fa);width:0;transition:width .2s}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px}
+  textarea{width:100%;min-height:240px;background:#0b0d12;color:#cfd6e4;border:1px solid #232936;border-radius:8px;padding:12px;font-family:ui-monospace,Menlo,monospace;font-size:.86rem;resize:vertical}
+  table{width:100%;border-collapse:collapse;margin-top:14px;background:#111620;border:1px solid #232936;border-radius:10px;overflow:hidden}
+  th,td{padding:10px 12px;border-bottom:1px solid #232936;text-align:left;font-size:.92rem;vertical-align:top}
+  th{background:#151b26;color:#dce4f2}
+  tr:last-child td{border-bottom:none}
+  .meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:12px}
+  .card{background:#111620;border:1px solid #232936;border-radius:10px;padding:10px 12px}
+  .card .k{display:block;color:#8f98a8;font-size:.78rem;margin-bottom:4px}
+  .card .v{font-weight:600;word-break:break-word}
+  canvas{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Invoice TSV Extractor</h1>
+  <p>Uploads a PDF, tries text extraction first, and falls back to OCR if no item rows are found.</p>
+
+  <div class="drop" id="drop">
+    <p style="margin:0 0 12px">Drop PDF here, or</p>
+    <label for="file">Choose PDF</label>
+    <input id="file" type="file" accept="application/pdf">
+  </div>
+
+  <div class="status" id="status">Ready.</div>
+  <div class="progress"><div id="bar"></div></div>
+
+  <div class="row">
+    <button class="btn" id="extract" disabled>Extract TSV</button>
+    <button class="btn secondary" id="copy" disabled>Copy TSV</button>
+    <button class="btn secondary" id="download" disabled>Download TSV</button>
+    <button class="btn secondary" id="clear" disabled>Clear</button>
+  </div>
+
+  <div class="meta">
+    <div class="card"><span class="k">Invoice</span><span class="v" id="invoiceNo">-</span></div>
+    <div class="card"><span class="k">Date</span><span class="v" id="invoiceDate">-</span></div>
+    <div class="card"><span class="k">Rows</span><span class="v" id="rowCount">0</span></div>
+    <div class="card"><span class="k">Mode</span><span class="v" id="mode">-</span></div>
+  </div>
+
+  <table id="table" style="display:none">
+    <thead>
+      <tr><th>item_code</th><th>qty</th><th>description</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <textarea id="out" placeholder="TSV output will appear here..." readonly></textarea>
+  <canvas id="canvas"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.4/dist/tesseract.min.js"></script>
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+
+const $ = id => document.getElementById(id);
+const drop = $('drop'), fileIn = $('file'), status = $('status'), bar = $('bar');
+const out = $('out'), btnExtract = $('extract'), btnCopy = $('copy'), btnDownload = $('download'), btnClear = $('clear');
+const table = $('table'), tbody = table.querySelector('tbody'), canvas = $('canvas'), ctx = canvas.getContext('2d');
+const invoiceNo = $('invoiceNo'), invoiceDate = $('invoiceDate'), rowCount = $('rowCount'), mode = $('mode');
+
+let pdfFile = null;
+let parsed = [];
+let meta = { invoice_no: '', invoice_date: '' };
+
+const setStatus = t => status.textContent = t;
+const setProgress = p => bar.style.width = Math.round(p * 100) + '%';
+const setButtons = on => { btnExtract.disabled = btnCopy.disabled = btnDownload.disabled = btnClear.disabled = !on; };
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]));
+}
+
+function guessMeta(text) {
+  const inv = (text.match(/Doc No\s*:\s*([A-Z0-9\-\.]+)/i) || text.match(/\bINV-[A-Z0-9\-\.]+/i) || [,''])[1] || '';
+  const date = (text.match(/Date\s*:\s*(\d{2}\/\d{2}\/\d{4})/i) || [,''])[1] || '';
+  meta.invoice_no = inv;
+  meta.invoice_date = date;
+  invoiceNo.textContent = inv || '-';
+  invoiceDate.textContent = date || '-';
+}
+
+function parseItemsFromText(text) {
+  const rows = [];
+  const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  for (const line of lines) {
+    const m = line.match(/^(\d+)\s+([0-9]{8,14})\s+(.+?)\s+(\d+(?:\.\d+)?)\s+(?:UNIT|PCS|PC|EA)\b/i);
+    if (m) rows.push({ item_code: m[2], qty: m[4], description: m[3].trim() });
+  }
+  return rows;
+}
+
+function toTSV(items) {
+  return items.map(x => `${x.item_code}\t${x.qty}`).join('\n');
+}
+
+async function extractPdfText(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let all = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    setStatus(`Text extraction page ${i}/${pdf.numPages}...`);
+    setProgress((i - 1) / pdf.numPages);
+    const page = await pdf.getPage(i);
+    const tc = await page.getTextContent();
+    all += '\n' + tc.items.map(x => x.str).join(' ') + '\n';
+  }
+  setProgress(1);
+  return all;
+}
+
+async function ocrPdf(file) {
+  setStatus('OCR fallback starting...');
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  const worker = await Tesseract.createWorker('eng');
+  const pages = [];
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    setStatus(`OCR render page ${i}/${pdf.numPages}...`);
+    setProgress((i - 1) / pdf.numPages);
+    const page = await pdf.getPage(i);
+    const viewport = page.getViewport({ scale: 2.0 });
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    setStatus(`OCR recognize page ${i}/${pdf.numPages}...`);
+    const { data } = await worker.recognize(canvas);
+    pages.push(data.text || '');
+    setProgress(i / pdf.numPages);
+  }
+
+  await worker.terminate();
+  return pages.join('\n');
+}
+
+async function runExtraction() {
+  if (!pdfFile) return;
+  try {
+    parsed = [];
+    table.style.display = 'none';
+    tbody.innerHTML = '';
+    out.value = '';
+    btnCopy.disabled = btnDownload.disabled = true;
+    rowCount.textContent = '0';
+
+    mode.textContent = 'Text';
+    setStatus('Trying text extraction...');
+    const text = await extractPdfText(pdfFile);
+    guessMeta(text);
+    parsed = parseItemsFromText(text);
+
+    if (!parsed.length) {
+      mode.textContent = 'OCR';
+      setStatus('No line items found from text. Switching to OCR fallback...');
+      const ocrText = await ocrPdf(pdfFile);
+      guessMeta(ocrText);
+      parsed = parseItemsFromText(ocrText);
+    }
+
+    if (!parsed.length) {
+      setStatus('No line items found even after OCR. The table may need a custom parser.');
+      return;
+    }
+
+    const tsv = toTSV(parsed);
+    out.value = tsv;
+    tbody.innerHTML = parsed.map(r => `<tr><td>${escapeHtml(r.item_code)}</td><td>${escapeHtml(r.qty)}</td><td>${escapeHtml(r.description)}</td></tr>`).join('');
+    table.style.display = '';
+    rowCount.textContent = String(parsed.length);
+    setStatus(`Done. Extracted ${parsed.length} line item${parsed.length > 1 ? 's' : ''}.`);
+    btnCopy.disabled = btnDownload.disabled = false;
+  } catch (err) {
+    console.error(err);
+    setStatus('Error: ' + (err && err.message ? err.message : String(err)));
+  }
+}
+
+function handleFile(file) {
+  pdfFile = file;
+  parsed = [];
+  meta = { invoice_no: '', invoice_date: '' };
+  out.value = '';
+  tbody.innerHTML = '';
+  table.style.display = 'none';
+  invoiceNo.textContent = '-';
+  invoiceDate.textContent = '-';
+  rowCount.textContent = '0';
+  mode.textContent = '-';
+  btnExtract.disabled = false;
+  btnCopy.disabled = btnDownload.disabled = true;
+  btnClear.disabled = false;
+  setProgress(0);
+  setStatus(`Loaded: ${file.name}`);
+}
+
+['dragover','dragenter'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) handleFile(f); });
+fileIn.addEventListener('change', e => { const f = e.target.files[0]; if (f) handleFile(f); });
+
+btnExtract.addEventListener('click', runExtraction);
+btnCopy.addEventListener('click', async () => {
+  await navigator.clipboard.writeText(out.value);
+  setStatus('TSV copied to clipboard.');
+});
+btnDownload.addEventListener('click', () => {
+  const blob = new Blob([out.value], { type: 'text/tab-separated-values' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (meta.invoice_no || 'invoice') + '.tsv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  setStatus('TSV downloaded.');
+});
+btnClear.addEventListener('click', () => {
+  pdfFile = null;
+  parsed = [];
+  meta = { invoice_no: '', invoice_date: '' };
+  fileIn.value = '';
+  out.value = '';
+  tbody.innerHTML = '';
+  table.style.display = 'none';
+  invoiceNo.textContent = '-';
+  invoiceDate.textContent = '-';
+  rowCount.textContent = '0';
+  mode.textContent = '-';
+  btnExtract.disabled = btnCopy.disabled = btnDownload.disabled = btnClear.disabled = true;
+  setProgress(0);
+  setStatus('Ready.');
+});
+
+setButtons(false);
+</script>
+</body>
+</html>
