@@ -2,6 +2,38 @@
 (function () {
   'use strict';
 
+  // Target Page Auto-Fill Handler (Runs on https://pandansu.github.io/eanloc/list/)
+  if (location.href.includes('pandansu.github.io/eanloc/list')) {
+    const pendingData = GM_getValue('pending_pick_list_tsv', null);
+    if (pendingData) {
+      GM_setValue('pending_pick_list_tsv', null); // Clear storage flag
+
+      const fillInterval = setInterval(() => {
+        const inputEl = document.getElementById('input');
+        const chkEl = document.getElementById('groupByTypeChk');
+        const genBtn = document.getElementById('generateBtn');
+
+        if (inputEl && chkEl && genBtn) {
+          inputEl.value = pendingData;
+          chkEl.checked = true;
+          chkEl.dispatchEvent(new Event('change'));
+
+          // Poll click 'Generate' until CSV data finishes loading and table generates
+          const genInterval = setInterval(() => {
+            genBtn.click();
+            const resultEl = document.getElementById('result');
+            if (resultEl && resultEl.querySelector('table')) {
+              clearInterval(genInterval);
+            }
+          }, 300);
+
+          clearInterval(fillInterval);
+        }
+      }, 200);
+    }
+    return; // Stop scan checker logic on the target page
+  }
+
   // Skip initialization specifically inside the small serial-number scan iframe
   if (/(\/assets\/imei\.html|\/imeiprint\/)/.test(location.pathname + location.search + location.hash)) {
     return;
@@ -217,7 +249,10 @@
         <div class="sc-card-front">
           <div class="sc-panel-header" id="scDragHandle">
             <span class="sc-panel-title">Scan Checker</span>
-            <button id="scFlipBtn" class="sc-small-btn" title="View Extracted Data">🔄 Flip</button>
+            <div style="display: flex; gap: 4px;">
+              <button id="scListBtn" class="sc-small-btn" title="Open Pick List">📋 List</button>
+              <button id="scFlipBtn" class="sc-small-btn" title="View Extracted Data">🔄 Flip</button>
+            </div>
           </div>
 
           <div id="scDropZone">
@@ -246,7 +281,7 @@
   document.body.appendChild(container);
 
   // Watch the whole page for other dialogs opening/closing, and hide the SC badge/panel
-  // while they're open so it doesn't visually collide with their input fields[cite: 4].
+  // while they're open so it doesn't visually collide with their input fields.
   function getForeignDialogs() {
     const dialogs = [...document.querySelectorAll('div.ui-dialog, .ui-dialog, .p-dialog')];
     return dialogs.filter(d => {
@@ -254,7 +289,7 @@
       if (computed.display === 'none' || computed.visibility === 'hidden') return false;
       const title = d.querySelector('.ui-dialog-title, .p-dialog-title');
       const titleText = title ? title.textContent.trim() : '';
-      return !titleText.includes('发货单详情');
+      return !titleText.includes('发货单详情') && !titleText.includes('Invoice details');
     });
   }
 
@@ -279,7 +314,6 @@
   window.addEventListener('beforeprint', () => { container.style.display = 'none'; });
   window.addEventListener('afterprint', () => { updateContainerVisibilityForDialogs(); });
 
-  
 
   const badge = document.getElementById('scanCheckerBadge');
   const panel = document.getElementById('scanCheckerPanel');
@@ -287,6 +321,22 @@
   const dragHandle = document.getElementById('scDragHandle');
   const dragHandleBack = document.getElementById('scDragHandleBack');
   const flipBtn = document.getElementById('scFlipBtn');
+
+  const listBtn = document.getElementById('scListBtn');
+
+  listBtn.addEventListener('click', () => {
+    if (!extractedItems || extractedItems.length === 0) {
+      alert('No extracted data available to generate pick list.');
+      return;
+    }
+
+    // Format into EAN \t Qty TSV lines
+    const tsvLines = extractedItems.map(item => `${item.ean}\t${item.qty}`).join('\n');
+    GM_setValue('pending_pick_list_tsv', tsvLines);
+
+    window.open('https://pandansu.github.io/eanloc/list/', '_blank');
+  });
+
   const flipBackBtn = document.getElementById('scFlipBackBtn');
   const tsvArea = document.getElementById('scTsvArea');
 
@@ -376,8 +426,7 @@
       tsvArea.value = "No data extracted yet.";
       return;
     }
-    const firstHeader = fileType === 'pdf' ? 'No' : 'Row';
-    let lines = [`${firstHeader}\tEAN`];
+    let lines = ["No\tEAN"];
     extractedItems.forEach((item) => {
       lines.push(`${item.row}\t${item.ean}\t${item.qty}`);
     });
@@ -523,15 +572,15 @@
     const range = XLSX.utils.decode_range(ref);
     const map = new Map();
     const list = [];
+    let itemIndex = 1;
 
     for (let r = 1; r <= range.e.r; r++) {
       const eanCell = sheet[XLSX.utils.encode_cell({ r, c: 1 })];
       const qtyCell = sheet[XLSX.utils.encode_cell({ r, c: 2 })];
-      const rowNum = r + 1;
       const ean = normalizeEAN(eanCell ? eanCell.v : '');
       const qty = normalizeQty(qtyCell ? qtyCell.v : '');
       if (!ean) continue;
-      list.push({ row: rowNum, ean, qty });
+      list.push({ row: itemIndex++, ean, qty });
       map.set(ean, (map.get(ean) || 0) + qty);
     }
     return { map, list };
@@ -745,7 +794,9 @@
       const computed = window.getComputedStyle(d);
       if (computed.display === 'none' || computed.visibility === 'hidden') return false;
       const title = d.querySelector('.ui-dialog-title, .p-dialog-title');
-      return title && title.textContent.trim() === '选择商品';
+      if (!title) return false;
+      const txt = title.textContent.trim();
+      return txt === '选择商品' || txt === 'Select products';
     }) || null;
   }
 
@@ -759,9 +810,12 @@
     statusEl.textContent = 'Opening product picker...';
 
     const pickerBtn = [...document.querySelectorAll('button .ui-button-text, .ui-button-text')]
-      .find(el => el.textContent.trim() === '选择商品');
+      .find(el => {
+        const txt = el.textContent.trim();
+        return txt === '选择商品' || txt === 'Select products';
+      });
     if (!pickerBtn) {
-      statusEl.textContent = '❌ Could not find "选择商品" button on this page.';
+      statusEl.textContent = '❌ Could not find "选择商品" / "Select products" button on this page.';
       autoSelectBtn.disabled = false;
       return;
     }
@@ -809,11 +863,14 @@
     await delay(200);
 
     const confirmBtn = [...dialog.querySelectorAll('.ui-dialog-buttonpane button .ui-button-text, .ui-dialog-buttonpane .ui-button-text')]
-      .find(el => el.textContent.trim() === '选择');
+      .find(el => {
+        const txt = el.textContent.trim();
+        return txt === '选择' || txt === 'Select';
+      });
     if (confirmBtn) {
       confirmBtn.closest('button').click();
     } else {
-      statusEl.textContent = '⚠️ Selected rows, but could not find the "选择" confirm button — please click it manually.';
+      statusEl.textContent = '⚠️ Selected rows, but could not find the "选择" / "Select" confirm button — please click it manually.';
     }
 
     await delay(500);
@@ -829,15 +886,21 @@
     const tables = document.querySelectorAll('.receipt-table');
     tables.forEach(table => {
       const headers = [...table.querySelectorAll('.ui-table-scrollable-header-table thead th')];
-      const headerTexts = headers.map(th => normText(th.textContent));
-      const isAccessory = headerTexts.some(t => t.includes('配件编码'));
+      const headerTexts = headers.map(th => normText(th.textContent).toLowerCase());
+      const isAccessory = headerTexts.some(t => t.includes('配件编码') || t.includes('accessorycode'));
 
       const rows = [...table.querySelectorAll('.ui-table-scrollable-body-table tbody tr')]
         .filter(tr => tr.querySelectorAll('td').length > 0);
 
       if (isAccessory) {
-        const eanIdx = headers.findIndex(th => normText(th.textContent) === '配件编码');
-        const qtyIdx = headers.findIndex(th => normText(th.textContent) === '发货数');
+        const eanIdx = headers.findIndex(th => {
+          const t = normText(th.textContent).toLowerCase();
+          return t === '配件编码' || t === 'accessorycode';
+        });
+        const qtyIdx = headers.findIndex(th => {
+          const t = normText(th.textContent).toLowerCase();
+          return t === '发货数' || t === 'deliveryqty';
+        });
         if (eanIdx === -1 || qtyIdx === -1) return;
 
         rows.forEach(tr => {
@@ -856,8 +919,14 @@
           qtyCell.appendChild(label);
         });
       } else {
-        const eanIdx = headers.findIndex(th => normText(th.textContent) === '商品编码');
-        const qtyIdx = headers.findIndex(th => normText(th.textContent) === '发货数');
+        const eanIdx = headers.findIndex(th => {
+          const t = normText(th.textContent).toLowerCase();
+          return t === '商品编码' || t === 'itemcode';
+        });
+        const qtyIdx = headers.findIndex(th => {
+          const t = normText(th.textContent).toLowerCase();
+          return t === '发货数' || t === 'deliveryqty';
+        });
         if (eanIdx === -1 || qtyIdx === -1) return;
 
         rows.forEach(tr => {
@@ -893,15 +962,21 @@
 
     tables.forEach(table => {
       const headers = [...table.querySelectorAll('.ui-table-scrollable-header-table thead th')];
-      const headerTexts = headers.map(th => normText(th.textContent));
-      const isAccessory = headerTexts.some(t => t.includes('配件编码'));
+      const headerTexts = headers.map(th => normText(th.textContent).toLowerCase());
+      const isAccessory = headerTexts.some(t => t.includes('配件编码') || t.includes('accessorycode'));
 
       const rows = [...table.querySelectorAll('.ui-table-scrollable-body-table tbody tr')]
         .filter(tr => tr.querySelectorAll('td').length > 0);
 
       if (isAccessory) {
-        const eanIdx = headers.findIndex(th => normText(th.textContent) === '配件编码');
-        const qtyInputIdx = headers.findIndex(th => normText(th.textContent) === '发货数');
+        const eanIdx = headers.findIndex(th => {
+          const t = normText(th.textContent).toLowerCase();
+          return t === '配件编码' || t === 'accessorycode';
+        });
+        const qtyInputIdx = headers.findIndex(th => {
+          const t = normText(th.textContent).toLowerCase();
+          return t === '发货数' || t === 'deliveryqty';
+        });
         if (eanIdx === -1 || qtyInputIdx === -1) return;
 
         rows.forEach(tr => {
@@ -935,8 +1010,14 @@
         });
         accessoryErrorMap = visibleAccessoryErrors;
       } else {
-        const eanIdx = headers.findIndex(th => normText(th.textContent) === '商品编码');
-        const serialCountIdx = headers.findIndex(th => normText(th.textContent) === '串号数');
+        const eanIdx = headers.findIndex(th => {
+          const t = normText(th.textContent).toLowerCase();
+          return t === '商品编码' || t === 'itemcode';
+        });
+        const serialCountIdx = headers.findIndex(th => {
+          const t = normText(th.textContent).toLowerCase();
+          return t === '串号数' || t === 'imeiqty';
+        });
         if (eanIdx === -1 || serialCountIdx === -1) return;
 
         rows.forEach(tr => {
