@@ -10,7 +10,7 @@
 // @connect      docs.google.com
 // @connect      googleusercontent.com
 // @connect      docs.googleusercontent.com
-// @require      https://raw.githubusercontent.com/pandansu/eanloc/refs/heads/main/tm-scripts/quantity-checker-core.js?v=2.5
-// @updateURL    https://raw.githubusercontent.com/pandansu/eanloc/refs/heads/main/tm-scripts/quantity-checker-loader.user.js
-// @downloadURL  https://raw.githubusercontent.com/pandansu/eanloc/refs/heads/main/tm-scripts/quantity-checker-loader.user.js
+// @require      https://raw.githubusercontent.com/pandansu/eanloc/refs/heads/main/tm-scripts/price-fill-tool-core.js?v=3.3
+// @updateURL    https://raw.githubusercontent.com/pandansu/eanloc/refs/heads/main/tm-scripts/price-fill-tool-loader.user.js
+// @downloadURL  https://raw.githubusercontent.com/pandansu/eanloc/refs/heads/main/tm-scripts/price-fill-tool-loader.user.js
 // ==/UserScript==
