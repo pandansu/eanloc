@@ -1,4 +1,3 @@
-
 (function () {
     'use strict';
 
@@ -55,7 +54,7 @@
         btn.style.border = "none";
         btn.style.borderRadius = "8px";
         btn.style.fontSize = "12px";
-        btn.style.cursor = "default";
+        btn.style.cursor = "move";
 
         document.body.appendChild(btn);
 
@@ -203,6 +202,12 @@
 
             btn.style.left = (e.clientX - offsetX) + "px";
             btn.style.top = (e.clientY - offsetY) + "px";
+
+            const panel = document.getElementById("priceToolsPanel");
+            if (panel && panel.style.display !== "none") {
+                panel.style.left = (btn.offsetLeft - panel.offsetWidth + btn.offsetWidth) + "px";
+                panel.style.top = (btn.offsetTop - panel.offsetHeight - 10) + "px";
+            }
         });
 
         document.addEventListener("mouseup", () => {
