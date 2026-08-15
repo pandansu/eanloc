@@ -55,7 +55,7 @@
         btn.style.border = "none";
         btn.style.borderRadius = "8px";
         btn.style.fontSize = "12px";
-        btn.style.cursor = "move";
+        btn.style.cursor = "cursor";
 
         document.body.appendChild(btn);
 
