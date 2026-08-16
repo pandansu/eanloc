@@ -1,3 +1,13 @@
+// ==UserScript==
+// @name         Stock Import Tool
+// @namespace    stock-import-tool
+// @version      3.10
+// @description  Stock import tool
+// @match        https://scsm-djifx.lingyingdms.com/manage/receipt/purchasewarehouseorders*
+// @require      https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js
+// @grant        none
+// ==/UserScript==
+
 (function () {
     "use strict";
 
@@ -27,9 +37,9 @@
         #wsiBadge {
             width: 44px;
             height: 44px;
-            border-radius: 50%;
-            background: #1976d2;
-            color: white;
+            border-radius: 30%;
+            background: #e6cf00;
+            color: darkslategrey;
             font-weight: bold;
             font-size: 13px;
             display: flex;
@@ -43,12 +53,12 @@
             left: 0;
             z-index: 2;
         }
-        #wsiBadge:hover { background: #1259a3; transform: scale(1.05); }
+        #wsiBadge:hover { background: #fce303; transform: scale(1.05); }
 
         #wsiPanel {
             position: absolute;
             background: #fff;
-            border: 1px solid #ccc;
+            border: 1px solid #fce303;
             border-radius: 8px;
             padding: 12px;
             box-shadow: 0 4px 16px rgba(0,0,0,.2);
@@ -246,7 +256,7 @@
             <div id="wsiEanList" style="margin-top:8px;"></div>
             <div id="wsiStatus">Waiting for file...</div>
         </div>
-        <div id="wsiBadge" title="Click to toggle Stock Import Tool (drag to move)">SI</div>
+        <div id="wsiBadge" title="Click to toggle Stock Import Tool (drag to move)">IMP</div>
     `;
     document.body.appendChild(container);
 
