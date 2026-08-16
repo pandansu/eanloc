@@ -1,13 +1,3 @@
-// ==UserScript==
-// @name         Stock Import Tool
-// @namespace    stock-import-tool
-// @version      3.10
-// @description  Stock import tool
-// @match        https://scsm-djifx.lingyingdms.com/manage/receipt/purchasewarehouseorders*
-// @require      https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js
-// @grant        none
-// ==/UserScript==
-
 (function () {
     "use strict";
 
