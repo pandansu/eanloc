@@ -34,6 +34,13 @@
     // Auto-close timer handle for the panel.
     let autoCloseTimer = null;
 
+    // Skip initialization entirely inside the small serial-number scan iframe —
+    // otherwise a second copy of the $ button renders inside that tiny iframe
+    // and visually sits on top of its input field.
+    if (/(\/assets\/imei\.html|\/imeiprint\/)/.test(location.pathname + location.search + location.hash)) {
+        return;
+    }
+
     setTimeout(addUI, 1500);
 
     function addUI() {
