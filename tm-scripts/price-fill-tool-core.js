@@ -6,6 +6,9 @@
     const TABLE_EAN_COL_INDEX = 5;
     const TABLE_PRICE_COL_INDEX = 8;
 
+    // Auto-close delay (ms) after the mouse leaves both the button and the panel.
+    const AUTO_CLOSE_DELAY_MS = 10000;
+
     // Options applied to every real (per-sheet) parse. Strips styles/formulas/
     // dates/VBA etc that we never use — this is what was costing ~9s on a
     // heavily formatted 9MB export.
@@ -27,6 +30,9 @@
     // on demand without re-reading the file from disk.
     let currentFileData = null;
     let currentFileIsCSV = false;
+
+    // Auto-close timer handle for the panel.
+    let autoCloseTimer = null;
 
     setTimeout(addUI, 1500);
 
@@ -112,11 +118,9 @@
 
         btn.onclick = () => {
             if (panel.style.display === "none") {
-                panel.style.display = "block";
-                panel.style.left = (btn.offsetLeft - panel.offsetWidth + btn.offsetWidth) + "px";
-                panel.style.top = (btn.offsetTop - panel.offsetHeight - 10) + "px";
+                openPanel();
             } else {
-                panel.style.display = "none";
+                closePanel();
             }
         };
 
@@ -126,6 +130,101 @@
         document.getElementById("sheetSelect").addEventListener("change", loadSelectedSheet);
         document.getElementById("excelFillBtn").addEventListener("click", fillFromExcel);
         setupDropZone();
+        setupAutoClose(btn, panel);
+        setupDialogVisibility(btn, panel);
+    }
+
+    // ---------------------------------------------------------------------
+    // Panel open/close + auto-close-after-mouseleave
+    // ---------------------------------------------------------------------
+
+    function openPanel() {
+        const btn = document.getElementById("priceToolsBtn");
+        const panel = document.getElementById("priceToolsPanel");
+
+        panel.style.display = "block";
+        panel.style.left = (btn.offsetLeft - panel.offsetWidth + btn.offsetWidth) + "px";
+        panel.style.top = (btn.offsetTop - panel.offsetHeight - 10) + "px";
+
+        cancelAutoClose();
+    }
+
+    function closePanel() {
+        const panel = document.getElementById("priceToolsPanel");
+        panel.style.display = "none";
+        cancelAutoClose();
+    }
+
+    function scheduleAutoClose() {
+        cancelAutoClose();
+        autoCloseTimer = setTimeout(() => {
+            closePanel();
+        }, AUTO_CLOSE_DELAY_MS);
+    }
+
+    function cancelAutoClose() {
+        if (autoCloseTimer) {
+            clearTimeout(autoCloseTimer);
+            autoCloseTimer = null;
+        }
+    }
+
+    // Starts the 10s countdown once the mouse leaves BOTH the button and the
+    // panel, and cancels it if the mouse re-enters either before it fires.
+    function setupAutoClose(btn, panel) {
+        [btn, panel].forEach(el => {
+            el.addEventListener("mouseenter", cancelAutoClose);
+            el.addEventListener("mouseleave", () => {
+                if (panel.style.display !== "none") {
+                    scheduleAutoClose();
+                }
+            });
+        });
+    }
+
+    // ---------------------------------------------------------------------
+    // Hide button/panel while a foreign modal/dialog is open on the page
+    // ---------------------------------------------------------------------
+
+    function getForeignDialogs() {
+        const dialogs = [...document.querySelectorAll('div.ui-dialog, .ui-dialog, .p-dialog')];
+        return dialogs.filter(d => {
+            const computed = window.getComputedStyle(d);
+            if (computed.display === 'none' || computed.visibility === 'hidden') return false;
+            return true;
+        });
+    }
+
+    function setupDialogVisibility(btn, panel) {
+        function updateVisibilityForDialogs() {
+            const hasForeignDialog = getForeignDialogs().length > 0;
+
+            if (hasForeignDialog) {
+                btn.style.display = "none";
+                if (panel.style.display !== "none") {
+                    closePanel();
+                } else {
+                    panel.style.display = "none";
+                }
+            } else {
+                btn.style.display = "";
+            }
+        }
+
+        updateVisibilityForDialogs();
+
+        const dialogObserver = new MutationObserver(updateVisibilityForDialogs);
+        dialogObserver.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['style', 'class']
+        });
+
+        setInterval(updateVisibilityForDialogs, 400);
+
+        window.addEventListener('beforeprint', () => { btn.style.display = 'none'; });
+        window.addEventListener('afterprint', updateVisibilityForDialogs);
     }
 
     function setupDropZone() {
