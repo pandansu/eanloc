@@ -56,30 +56,38 @@
         `;
         document.head.appendChild(style);
 
+        const container = document.createElement("div");
+        container.id = "priceToolsContainer";
+        container.style.position = "fixed";
+        container.style.zIndex = "999999";
+        container.style.right = "20px";
+        container.style.bottom = "20px";
+        document.body.appendChild(container);
+
         const btn = document.createElement("button");
         btn.id = "priceToolsBtn";
         btn.textContent = "$";
-        btn.style.position = "fixed";
-        btn.style.zIndex = "999999";
+        btn.style.position = "relative";
+        btn.style.display = "block";
+        btn.style.marginLeft = "auto";
         btn.style.padding = "8px 14px";
         btn.style.background = "#1976d2";
         btn.style.color = "white";
         btn.style.border = "none";
         btn.style.borderRadius = "8px";
         btn.style.fontSize = "12px";
-        btn.style.cursor = "auto";
+        btn.style.cursor = "move";
 
-        document.body.appendChild(btn);
+        container.appendChild(btn);
 
-        btn.style.left = (window.innerWidth - btn.offsetWidth - 20) + "px";
-        btn.style.top = (window.innerHeight - btn.offsetHeight - 20) + "px";
-
-        makeDraggable(btn);
+        makeContainerDraggable(container, btn);
 
         const panel = document.createElement("div");
         panel.id = "priceToolsPanel";
-        panel.style.position = "fixed";
-        panel.style.zIndex = "999998";
+        panel.style.position = "absolute";
+        panel.style.right = "0";
+        panel.style.bottom = "100%";
+        panel.style.marginBottom = "10px";
         panel.style.width = "300px";
         panel.style.padding = "12px";
         panel.style.background = "white";
@@ -90,9 +98,8 @@
         panel.style.display = "none";
 
         panel.innerHTML = `
-            <div id="panelDragHandle" style="cursor:move; font-weight:bold; padding-bottom:8px; margin-bottom:8px; border-bottom:1px solid #eee; display:flex; align-items:center; justify-content:space-between;">
-                <span>Price Tools</span>
-                <span style="font-size:10px; color:#999;">⠿ drag</span>
+            <div id="panelDragHandle" style="cursor:move; font-weight:bold; padding-bottom:8px; margin-bottom:8px; border-bottom:1px solid #eee;">
+                Price Tools
             </div>
             <label>Mode</label>
             <select id="modeSelect" style="width:100%; margin-bottom:10px;">
@@ -125,7 +132,7 @@
             </div>
         `;
 
-        document.body.appendChild(panel);
+        container.appendChild(panel);
 
         btn.onclick = () => {
             if (panel.style.display === "none") {
@@ -143,63 +150,80 @@
         setupDropZone();
         setupAutoClose(btn, panel);
         setupDialogVisibility(btn, panel);
-        makePanelDraggable(panel);
+        makePanelHeaderDraggable(container);
     }
 
     // ---------------------------------------------------------------------
-    // Panel dragging via its header
+    // Dragging — button and panel are both children of one fixed container,
+    // so moving the container (via the button OR the panel header) moves
+    // both together, Scan-Checker style.
     // ---------------------------------------------------------------------
 
-    // Once the user manually drags the panel, stop re-anchoring it relative
-    // to the button on open/mode-switch so it stays where they put it.
-    let panelManuallyPositioned = false;
-
-    function makePanelDraggable(panel) {
-        const handle = document.getElementById("panelDragHandle");
-        if (!handle) return;
-
+    function makeContainerDraggable(container, dragTrigger) {
         let isDragging = false;
-        let offsetX = 0;
-        let offsetY = 0;
+        let hasDragged = false;
+        let startX = 0, startY = 0;
+        let initialLeft = 0, initialTop = 0;
 
-        handle.addEventListener("mousedown", e => {
+        function startDrag(e) {
             isDragging = true;
-            panelManuallyPositioned = true;
+            hasDragged = false;
+            startX = e.clientX;
+            startY = e.clientY;
 
-            const rect = panel.getBoundingClientRect();
-            offsetX = e.clientX - rect.left;
-            offsetY = e.clientY - rect.top;
+            const rect = container.getBoundingClientRect();
+            initialLeft = rect.left;
+            initialTop = rect.top;
 
-            // Cancel auto-close while actively dragging.
+            container.style.right = "auto";
+            container.style.bottom = "auto";
+            container.style.left = initialLeft + "px";
+            container.style.top = initialTop + "px";
+
             cancelAutoClose();
+        }
 
-            e.preventDefault();
-        });
-
-        document.addEventListener("mousemove", e => {
+        function onDrag(e) {
             if (!isDragging) return;
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            if (Math.abs(dx) > 3 || Math.abs(dy) > 3) hasDragged = true;
 
-            let newLeft = e.clientX - offsetX;
-            let newTop = e.clientY - offsetY;
+            container.style.left = (initialLeft + dx) + "px";
+            container.style.top = (initialTop + dy) + "px";
+        }
 
-            const maxLeft = window.innerWidth - panel.offsetWidth;
-            const maxTop = window.innerHeight - panel.offsetHeight;
-            newLeft = Math.max(0, Math.min(newLeft, maxLeft));
-            newTop = Math.max(0, Math.min(newTop, maxTop));
-
-            panel.style.left = newLeft + "px";
-            panel.style.top = newTop + "px";
-        });
-
-        document.addEventListener("mouseup", () => {
+        function stopDrag() {
             if (!isDragging) return;
             isDragging = false;
 
-            // Resume the normal mouseleave-based auto-close countdown.
-            if (!panel.matches(":hover") && !document.getElementById("priceToolsBtn").matches(":hover")) {
-                scheduleAutoClose();
+            const panel = document.getElementById("priceToolsPanel");
+            if (!container.matches(":hover")) {
+                if (panel.style.display !== "none") scheduleAutoClose();
             }
+        }
+
+        dragTrigger.addEventListener("mousedown", e => {
+            startDrag(e);
+            e.preventDefault();
         });
+        document.addEventListener("mousemove", onDrag);
+        document.addEventListener("mouseup", stopDrag);
+
+        // Expose whether the last mousedown->mouseup on the trigger was a
+        // real drag (vs a click), so the button's onclick can ignore drags.
+        dragTrigger.addEventListener("click", e => {
+            if (hasDragged) {
+                e.stopPropagation();
+                e.preventDefault();
+            }
+        }, true);
+    }
+
+    function makePanelHeaderDraggable(container) {
+        const handle = document.getElementById("panelDragHandle");
+        if (!handle) return;
+        makeContainerDraggable(container, handle);
     }
 
     // ---------------------------------------------------------------------
@@ -207,16 +231,8 @@
     // ---------------------------------------------------------------------
 
     function openPanel() {
-        const btn = document.getElementById("priceToolsBtn");
         const panel = document.getElementById("priceToolsPanel");
-
         panel.style.display = "block";
-
-        if (!panelManuallyPositioned) {
-            panel.style.left = (btn.offsetLeft - panel.offsetWidth + btn.offsetWidth) + "px";
-            panel.style.top = (btn.offsetTop - panel.offsetHeight - 10) + "px";
-        }
-
         cancelAutoClose();
     }
 
@@ -267,18 +283,18 @@
     }
 
     function setupDialogVisibility(btn, panel) {
+        const container = document.getElementById("priceToolsContainer");
+
         function updateVisibilityForDialogs() {
             const hasForeignDialog = getForeignDialogs().length > 0;
 
             if (hasForeignDialog) {
-                btn.style.display = "none";
                 if (panel.style.display !== "none") {
                     closePanel();
-                } else {
-                    panel.style.display = "none";
                 }
+                container.style.display = "none";
             } else {
-                btn.style.display = "";
+                container.style.display = "";
             }
         }
 
@@ -294,7 +310,7 @@
 
         setInterval(updateVisibilityForDialogs, 400);
 
-        window.addEventListener('beforeprint', () => { btn.style.display = 'none'; });
+        window.addEventListener('beforeprint', () => { container.style.display = 'none'; });
         window.addEventListener('afterprint', updateVisibilityForDialogs);
     }
 
@@ -349,42 +365,6 @@
 
         document.getElementById("excelSection").style.display =
             mode === "excel" ? "block" : "none";
-
-        const btn = document.getElementById("priceToolsBtn");
-        const panel = document.getElementById("priceToolsPanel");
-
-        if (!panelManuallyPositioned) {
-            panel.style.top = (btn.offsetTop - panel.offsetHeight - 10) + "px";
-        }
-    }
-
-    function makeDraggable(btn) {
-        let isDragging = false;
-        let offsetX = 0;
-        let offsetY = 0;
-
-        btn.addEventListener("mousedown", e => {
-            isDragging = true;
-            offsetX = e.clientX - btn.offsetLeft;
-            offsetY = e.clientY - btn.offsetTop;
-        });
-
-        document.addEventListener("mousemove", e => {
-            if (!isDragging) return;
-
-            btn.style.left = (e.clientX - offsetX) + "px";
-            btn.style.top = (e.clientY - offsetY) + "px";
-
-            const panel = document.getElementById("priceToolsPanel");
-            if (panel && panel.style.display !== "none" && !panelManuallyPositioned) {
-                panel.style.left = (btn.offsetLeft - panel.offsetWidth + btn.offsetWidth) + "px";
-                panel.style.top = (btn.offsetTop - panel.offsetHeight - 10) + "px";
-            }
-        });
-
-        document.addEventListener("mouseup", () => {
-            isDragging = false;
-        });
     }
 
     function fetchCSV(url) {
