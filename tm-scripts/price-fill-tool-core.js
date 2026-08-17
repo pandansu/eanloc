@@ -90,6 +90,10 @@
         panel.style.display = "none";
 
         panel.innerHTML = `
+            <div id="panelDragHandle" style="cursor:move; font-weight:bold; padding-bottom:8px; margin-bottom:8px; border-bottom:1px solid #eee; display:flex; align-items:center; justify-content:space-between;">
+                <span>Price Tools</span>
+                <span style="font-size:10px; color:#999;">⠿ drag</span>
+            </div>
             <label>Mode</label>
             <select id="modeSelect" style="width:100%; margin-bottom:10px;">
                 <option value="google">Channel Price</option>
@@ -139,6 +143,63 @@
         setupDropZone();
         setupAutoClose(btn, panel);
         setupDialogVisibility(btn, panel);
+        makePanelDraggable(panel);
+    }
+
+    // ---------------------------------------------------------------------
+    // Panel dragging via its header
+    // ---------------------------------------------------------------------
+
+    // Once the user manually drags the panel, stop re-anchoring it relative
+    // to the button on open/mode-switch so it stays where they put it.
+    let panelManuallyPositioned = false;
+
+    function makePanelDraggable(panel) {
+        const handle = document.getElementById("panelDragHandle");
+        if (!handle) return;
+
+        let isDragging = false;
+        let offsetX = 0;
+        let offsetY = 0;
+
+        handle.addEventListener("mousedown", e => {
+            isDragging = true;
+            panelManuallyPositioned = true;
+
+            const rect = panel.getBoundingClientRect();
+            offsetX = e.clientX - rect.left;
+            offsetY = e.clientY - rect.top;
+
+            // Cancel auto-close while actively dragging.
+            cancelAutoClose();
+
+            e.preventDefault();
+        });
+
+        document.addEventListener("mousemove", e => {
+            if (!isDragging) return;
+
+            let newLeft = e.clientX - offsetX;
+            let newTop = e.clientY - offsetY;
+
+            const maxLeft = window.innerWidth - panel.offsetWidth;
+            const maxTop = window.innerHeight - panel.offsetHeight;
+            newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+            newTop = Math.max(0, Math.min(newTop, maxTop));
+
+            panel.style.left = newLeft + "px";
+            panel.style.top = newTop + "px";
+        });
+
+        document.addEventListener("mouseup", () => {
+            if (!isDragging) return;
+            isDragging = false;
+
+            // Resume the normal mouseleave-based auto-close countdown.
+            if (!panel.matches(":hover") && !document.getElementById("priceToolsBtn").matches(":hover")) {
+                scheduleAutoClose();
+            }
+        });
     }
 
     // ---------------------------------------------------------------------
@@ -150,8 +211,11 @@
         const panel = document.getElementById("priceToolsPanel");
 
         panel.style.display = "block";
-        panel.style.left = (btn.offsetLeft - panel.offsetWidth + btn.offsetWidth) + "px";
-        panel.style.top = (btn.offsetTop - panel.offsetHeight - 10) + "px";
+
+        if (!panelManuallyPositioned) {
+            panel.style.left = (btn.offsetLeft - panel.offsetWidth + btn.offsetWidth) + "px";
+            panel.style.top = (btn.offsetTop - panel.offsetHeight - 10) + "px";
+        }
 
         cancelAutoClose();
     }
@@ -289,7 +353,9 @@
         const btn = document.getElementById("priceToolsBtn");
         const panel = document.getElementById("priceToolsPanel");
 
-        panel.style.top = (btn.offsetTop - panel.offsetHeight - 10) + "px";
+        if (!panelManuallyPositioned) {
+            panel.style.top = (btn.offsetTop - panel.offsetHeight - 10) + "px";
+        }
     }
 
     function makeDraggable(btn) {
@@ -310,7 +376,7 @@
             btn.style.top = (e.clientY - offsetY) + "px";
 
             const panel = document.getElementById("priceToolsPanel");
-            if (panel && panel.style.display !== "none") {
+            if (panel && panel.style.display !== "none" && !panelManuallyPositioned) {
                 panel.style.left = (btn.offsetLeft - panel.offsetWidth + btn.offsetWidth) + "px";
                 panel.style.top = (btn.offsetTop - panel.offsetHeight - 10) + "px";
             }
