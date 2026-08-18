@@ -7,7 +7,7 @@
     const TABLE_PRICE_COL_INDEX = 8;
 
     // Auto-close delay (ms) after the mouse leaves both the button and the panel.
-    const AUTO_CLOSE_DELAY_MS = 10000;
+    const AUTO_CLOSE_DELAY_MS = 5000;
 
     // Options applied to every real (per-sheet) parse. Strips styles/formulas/
     // dates/VBA etc that we never use — this is what was costing ~9s on a
