@@ -76,7 +76,7 @@
         btn.style.border = "none";
         btn.style.borderRadius = "8px";
         btn.style.fontSize = "12px";
-        btn.style.cursor = "move";
+        btn.style.cursor = "pointer";
 
         container.appendChild(btn);
 
@@ -130,6 +130,8 @@
                     Fill From Excel
                 </button>
             </div>
+
+            <div id="fillResultStatus" style="margin-top:8px; font-size:11px; color:#333; min-height:14px;"></div>
         `;
 
         container.appendChild(panel);
@@ -626,7 +628,12 @@
 
         document.activeElement?.blur();
 
-        alert(`Filled ${matched} prices.\nMissing ${missing.length} EANs.`);
+        const statusEl = document.getElementById("fillResultStatus");
+        if (statusEl) {
+            statusEl.textContent = `Filled ${matched} price${matched === 1 ? "" : "s"}. Missing ${missing.length} EAN${missing.length === 1 ? "" : "s"}.`;
+            statusEl.style.color = missing.length > 0 ? "#c62828" : "#2e7d32";
+        }
+
         console.log("Missing EANs:", missing);
     }
 
