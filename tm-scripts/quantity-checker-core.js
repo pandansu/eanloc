@@ -733,6 +733,19 @@
   async function processFile(file) {
     if (!file) return;
 
+    // --- RESET PANEL & STATE ON NEW FILE UPLOAD ---
+    expectedMap = null;
+    extractedItems = [];
+    matchedEanSet.clear();
+    if (observer) {
+      observer.disconnect();
+      observer = null;
+    }
+    tsvArea.value = '';
+    missingContainer.innerHTML = '';
+    runBtn.style.display = 'none';
+    // ---------------------------------------------
+
     const fileName = file.name.toLowerCase();
 
     try {
@@ -762,7 +775,6 @@
 
       updateTsvView();
       runBtn.style.display = 'block';
-      missingContainer.innerHTML = '';
     } catch (err) {
       console.error(err);
       statusEl.textContent = 'Error: ' + (err && err.message ? err.message : err);
@@ -877,7 +889,6 @@
     const root = getTableRoot();
     if (!root) return false;
 
-    // Support both Chinese and English table headers
     const eanIdx = headerIndex(root, ['商品编码', '配件编码', 'Item Code', 'Accessory Code']);
     const qtyIdx = headerIndex(root, ['发货数', 'Delivery Qty']);
     const unitPriceIdx = headerIndex(root, ['单价', 'Unit Price']);
@@ -978,7 +989,6 @@
     statusEl.textContent = 'Scanning tabs...';
 
     let successCount = 0;
-    // Support both Chinese and English tab labels
     const tabsToScan = ['商品', '配件', 'Item', 'Accessory'];
 
     for (const tabName of tabsToScan) {
