@@ -1,3 +1,4 @@
+
 (function () {
     'use strict';
 
@@ -6,12 +7,8 @@
     const TABLE_EAN_COL_INDEX = 5;
     const TABLE_PRICE_COL_INDEX = 8;
 
-    // Auto-close delay (ms) after the mouse leaves both the button and the panel.
     const AUTO_CLOSE_DELAY_MS = 5000;
 
-    // Options applied to every real (per-sheet) parse. Strips styles/formulas/
-    // dates/VBA etc that we never use — this is what was costing ~9s on a
-    // heavily formatted 9MB export.
     const FAST_PARSE_OPTS = {
         cellStyles: false,
         cellHTML: false,
@@ -19,24 +16,17 @@
         cellDates: false,
         sheetStubs: false,
         bookVBA: false,
-        raw: false // keep values as formatted strings so EAN leading zeros survive
+        raw: false
     };
 
     let workbook = null;
     let excelRows = [];
     let priceMap = {};
 
-    // Raw file bytes/text kept around so we can re-parse a single sheet
-    // on demand without re-reading the file from disk.
     let currentFileData = null;
     let currentFileIsCSV = false;
-
-    // Auto-close timer handle for the panel.
     let autoCloseTimer = null;
 
-    // Skip initialization entirely inside the small serial-number scan iframe —
-    // otherwise a second copy of the $ button renders inside that tiny iframe
-    // and visually sits on top of its input field.
     if (/(\/assets\/imei\.html|\/imeiprint\/)/.test(location.pathname + location.search + location.hash)) {
         return;
     }
@@ -120,18 +110,30 @@
                     <input id="priceExcelFile" type="file" accept=".xlsx,.xls,.csv" style="display:none;">
                 </div>
 
-                <label>Sheet</label>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                    <label style="margin-bottom:0;">Sheet</label>
+                    <span id="sheetCountLabel" style="font-size:11px; color:#666;"></span>
+                </div>
                 <select id="sheetSelect" style="width:100%; margin-bottom:8px;"></select>
 
-                <label>Platform</label>
-                <select id="filterValueSelect" style="width:100%; margin-bottom:8px;"></select>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                    <label style="margin-bottom:0;">Platform</label>
+                    <span id="platformCountLabel" style="font-size:11px; color:#666;"></span>
+                </div>
+                <select id="filterValueSelect" style="width:100%; margin-bottom:6px;"></select>
 
-                <button id="excelFillBtn" style="width:100%; padding:8px; background:#673ab7; color:white; border:none; border-radius:6px; cursor:pointer;">
-                    Fill From Excel
+                <div id="redChipsContainer" style="display:flex; flex-wrap:wrap; gap:4px; margin-bottom:8px; max-height:90px; overflow-y:auto; font-size:11px;"></div>
+
+                <button id="enterItemsBtn" style="width:100%; padding:8px; background:#00897b; color:white; border:none; border-radius:6px; cursor:pointer; margin-bottom:6px;">
+                    Populate table
+                </button>
+
+                <button id="fillPricesBtn" style="width:100%; padding:8px; background:#673ab7; color:white; border:none; border-radius:6px; cursor:pointer; margin-bottom:6px; display:none;">
+                    Fill prices
                 </button>
             </div>
 
-            <div id="fillResultStatus" style="margin-top:8px; font-size:11px; color:#333; min-height:14px;"></div>
+            <div id="fillResultStatus" style="margin-top:8px; font-size:11px; color:#333; line-height: 1.4; min-height:14px;"></div>
         `;
 
         container.appendChild(panel);
@@ -148,18 +150,72 @@
         document.getElementById("googleFillBtn").addEventListener("click", fillFromGoogle);
         document.getElementById("priceExcelFile").addEventListener("change", handleExcelFile);
         document.getElementById("sheetSelect").addEventListener("change", loadSelectedSheet);
-        document.getElementById("excelFillBtn").addEventListener("click", fillFromExcel);
+        document.getElementById("filterValueSelect").addEventListener("change", onPlatformChange);
+        document.getElementById("enterItemsBtn").addEventListener("click", enterItems);
+        document.getElementById("fillPricesBtn").addEventListener("click", fillPricesAccordingly);
+
         setupDropZone();
         setupAutoClose(btn, panel);
         setupDialogVisibility(btn, panel);
         makePanelHeaderDraggable(container);
     }
 
-    // ---------------------------------------------------------------------
-    // Dragging — button and panel are both children of one fixed container,
-    // so moving the container (via the button OR the panel header) moves
-    // both together, Scan-Checker style.
-    // ---------------------------------------------------------------------
+    function hideFillPricesButton() {
+        const fillBtn = document.getElementById("fillPricesBtn");
+        if (fillBtn) fillBtn.style.display = "none";
+    }
+
+    function revealFillPricesButton() {
+        const fillBtn = document.getElementById("fillPricesBtn");
+        if (fillBtn) fillBtn.style.display = "block";
+    }
+
+    function onPlatformChange() {
+        clearStatusDisplay();
+        hideFillPricesButton();
+        updateCounts();
+        updateRedChips();
+    }
+
+    function clearStatusDisplay() {
+        const statusEl = document.getElementById("fillResultStatus");
+        if (statusEl) {
+            statusEl.innerHTML = "";
+        }
+    }
+
+    function updateCounts() {
+        const sheetCountEl = document.getElementById("sheetCountLabel");
+        const platformCountEl = document.getElementById("platformCountLabel");
+        if (!sheetCountEl || !platformCountEl) return;
+
+        if (!excelRows.length) {
+            sheetCountEl.textContent = "";
+            platformCountEl.textContent = "";
+            return;
+        }
+
+        const totalRows = excelRows.slice(1).filter(row => {
+            const category = String(row[1] || "").trim();
+            const ean = String(row[4] || "").trim();
+            const itemCode = String(row[5] || "").trim();
+            return category !== "" || ean !== "" || itemCode !== "";
+        }).length;
+
+        sheetCountEl.textContent = totalRows + " items";
+
+        const selectedPlatform = document.getElementById("filterValueSelect").value;
+        const platformRows = excelRows.slice(1).filter(row => {
+            const rowCategory = normalizeCategory(String(row[1] || "").trim());
+            const category = String(row[1] || "").trim();
+            const ean = String(row[4] || "").trim();
+            const itemCode = String(row[5] || "").trim();
+            const isValid = category !== "" || ean !== "" || itemCode !== "";
+            return isValid && rowCategory === selectedPlatform;
+        }).length;
+
+        platformCountEl.textContent = platformRows + " items";
+    }
 
     function makeContainerDraggable(container, dragTrigger) {
         let isDragging = false;
@@ -212,8 +268,6 @@
         document.addEventListener("mousemove", onDrag);
         document.addEventListener("mouseup", stopDrag);
 
-        // Expose whether the last mousedown->mouseup on the trigger was a
-        // real drag (vs a click), so the button's onclick can ignore drags.
         dragTrigger.addEventListener("click", e => {
             if (hasDragged) {
                 e.stopPropagation();
@@ -227,10 +281,6 @@
         if (!handle) return;
         makeContainerDraggable(container, handle);
     }
-
-    // ---------------------------------------------------------------------
-    // Panel open/close + auto-close-after-mouseleave
-    // ---------------------------------------------------------------------
 
     function openPanel() {
         const panel = document.getElementById("priceToolsPanel");
@@ -258,8 +308,6 @@
         }
     }
 
-    // Starts the 10s countdown once the mouse leaves BOTH the button and the
-    // panel, and cancels it if the mouse re-enters either before it fires.
     function setupAutoClose(btn, panel) {
         [btn, panel].forEach(el => {
             el.addEventListener("mouseenter", cancelAutoClose);
@@ -270,10 +318,6 @@
             });
         });
     }
-
-    // ---------------------------------------------------------------------
-    // Hide button/panel while a foreign modal/dialog is open on the page
-    // ---------------------------------------------------------------------
 
     function getForeignDialogs() {
         const dialogs = [...document.querySelectorAll('div.ui-dialog, .ui-dialog, .p-dialog')];
@@ -349,8 +393,6 @@
             const file = e.dataTransfer?.files?.[0];
             if (!file) return;
 
-            // Keep the native input in sync so handleExcelFile can read
-            // from e.target.files the same way it does for click-to-browse.
             const dt = new DataTransfer();
             dt.items.add(file);
             fileInput.files = dt.files;
@@ -367,6 +409,8 @@
 
         document.getElementById("excelSection").style.display =
             mode === "excel" ? "block" : "none";
+
+        hideFillPricesButton();
     }
 
     function fetchCSV(url) {
@@ -402,15 +446,16 @@
 
                 const cols = parseCSVLine(line);
 
-                const ean = clean(cols[1]); // Google Sheet Col B
-                const price = clean(cols[6]).replace(/[^\d.]/g, ""); // Google Sheet Col G
+                const ean = clean(cols[1]);
+                const price = clean(cols[6]).replace(/[^\d.]/g, "");
 
                 if (/^\d{8,14}$/.test(ean) && price) {
                     priceMap[ean] = price;
                 }
             });
 
-            fillTablePrices();
+            const res = fillTablePrices();
+            updateStatusDisplay(res.matched, res.missingCount);
 
         } catch (err) {
             alert("Error loading Google Sheet price list.");
@@ -434,6 +479,7 @@
         dropZoneLabel.textContent = file.name;
         statusEl.textContent = "Reading " + file.name + "...";
         fileInput.disabled = true;
+        hideFillPricesButton();
 
         const reader = new FileReader();
 
@@ -441,9 +487,6 @@
             currentFileData = evt.target.result;
 
             try {
-                // PHASE 1: cheap peek — sheet names only, no cell parsing at all.
-                // This is what makes a multi-sheet 9MB file instant instead of 9s:
-                // we no longer parse every sheet just to populate the dropdown.
                 const peek = XLSX.read(currentFileData, {
                     type: currentFileIsCSV ? "string" : "array",
                     bookSheets: true
@@ -452,7 +495,6 @@
                 buildSheetDropdown(peek.SheetNames);
                 statusEl.textContent = "Loaded " + file.name;
 
-                // PHASE 2: real parse, but only for the sheet that's selected.
                 loadSelectedSheet();
             } catch (err) {
                 statusEl.textContent = "Failed to parse file.";
@@ -483,7 +525,6 @@
             sheetSelect.add(new Option(name, name));
         });
 
-        // Default to the second sheet when one exists, otherwise fall back to the first.
         sheetSelect.selectedIndex = sheetNames.length > 1 ? 1 : 0;
     }
 
@@ -495,9 +536,8 @@
 
         const statusEl = document.getElementById("excelStatus");
         statusEl.textContent = "Parsing sheet \"" + sheetName + "\"...";
+        hideFillPricesButton();
 
-        // Only this one sheet gets fully parsed (cells, values) — every other
-        // sheet in the workbook is left untouched.
         workbook = XLSX.read(currentFileData, {
             type: currentFileIsCSV ? "string" : "array",
             sheets: [sheetName],
@@ -513,7 +553,30 @@
         });
 
         buildFilterValues();
-        statusEl.textContent = "Ready (" + (excelRows.length - 1) + " rows)";
+        updateCounts();
+
+        const actualRowsCount = excelRows.slice(1).filter(row => {
+            const category = String(row[1] || "").trim();
+            const ean = String(row[4] || "").trim();
+            const itemCode = String(row[5] || "").trim();
+            return category !== "" || ean !== "" || itemCode !== "";
+        }).length;
+
+        statusEl.textContent = "Ready (" + actualRowsCount + " rows)";
+    }
+
+    function normalizeCategory(raw) {
+        if (!raw) return null;
+        let v = raw.toLowerCase().trim();
+        v = v.replace(/[- ]?(ninja van|j&t|jt|singpost|singapore post|dhl|fedex|pos laju)/g, '');
+        if (v.includes('shopee')) return 'Shopee';
+        if (v.includes('lazada')) return 'Lazada';
+        if (v.includes('amazon')) return 'Amazon';
+        if (v.includes('tiktok')) return 'TikTok';
+        return v.split(' ')
+            .filter(Boolean)
+            .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(' ');
     }
 
     function buildFilterValues() {
@@ -525,52 +588,266 @@
         const values = new Set();
 
         excelRows.slice(1).forEach(row => {
-            const value = clean(row[filterCol]);
+            const value = normalizeCategory(String(row[filterCol] || "").trim());
             if (value) values.add(value);
         });
 
-        const priorityOrder = ["shopee", "lazada", "tiktok", "amazon"];
+        const priorityOrder = ["Shopee", "Lazada", "TikTok", "Amazon"];
 
         const sortedValues = [...values].sort((a, b) => {
-            const aIndex = priorityOrder.indexOf(a.toLowerCase());
-            const bIndex = priorityOrder.indexOf(b.toLowerCase());
+            const aIndex = priorityOrder.indexOf(a);
+            const bIndex = priorityOrder.indexOf(b);
 
             const aRank = aIndex === -1 ? priorityOrder.length : aIndex;
             const bRank = bIndex === -1 ? priorityOrder.length : bIndex;
 
             if (aRank !== bRank) return aRank - bRank;
-
-            // Both unmatched (or same priority tier) — fall back to alphabetical
             return a.localeCompare(b);
         });
 
         sortedValues.forEach(value => {
             filterValueSelect.add(new Option(value, value));
         });
+
+        updateCounts();
+        updateRedChips();
     }
 
-    function fillFromExcel() {
+    function updateRedChips() {
+        const container = document.getElementById("redChipsContainer");
+        if (!container) return;
+        container.innerHTML = "";
+
+        if (!excelRows.length) return;
+
+        const filterValue = document.getElementById("filterValueSelect").value;
+        const redItemsCount = {};
+
+        excelRows.slice(1).forEach(row => {
+            const rowCategory = normalizeCategory(String(row[1] || "").trim());
+            if (rowCategory !== filterValue) return;
+
+            const val = String(row[5] || "").trim(); // Excel Col F (index 5)
+            if (/^\d+$/.test(val)) {
+                redItemsCount[val] = (redItemsCount[val] || 0) + 1;
+            }
+        });
+
+        const entries = Object.entries(redItemsCount).sort((a, b) => b[1] - a[1]);
+
+        if (entries.length === 0) {
+            container.innerHTML = `<span style="color:#888; font-style:italic;">No accessories</span>`;
+            return;
+        }
+
+        entries.forEach(([k, v]) => {
+            const chip = document.createElement("span");
+            chip.style.background = "#ffebee";
+            chip.style.border = "1px solid #ef9a9a";
+            chip.style.color = "#c62828";
+            chip.style.padding = "2px 6px";
+            chip.style.borderRadius = "4px";
+            chip.style.fontWeight = "bold";
+            chip.textContent = `${k} (${v})`;
+            container.appendChild(chip);
+        });
+    }
+
+    // STEP 1: Enter Items (Serials and Accessories population)
+    // NOTE: accessories are now aggregated by code -> qty, so duplicate codes
+    // produce a single table row with a summed quantity instead of one row per occurrence.
+    function enterItems() {
         if (!excelRows.length) {
             alert("Upload Excel first.");
             return;
         }
 
-        const filterCol = 1; // Excel Col B
-        const eanCol = 4;    // Excel Col E
+        const filterValue = document.getElementById("filterValueSelect").value;
+        const serials = [];
+        const accessoryCounts = new Map(); // code -> qty
+
+        excelRows.slice(1).forEach(row => {
+            const rowCategory = normalizeCategory(String(row[1] || "").trim());
+            if (rowCategory !== filterValue) return;
+
+            const val = String(row[5] || "").trim();
+
+            if (/[A-Za-z]/.test(val) && /\d/.test(val)) {
+                serials.push(val);
+            }
+
+            if (/^\d+$/.test(val)) {
+                accessoryCounts.set(val, (accessoryCounts.get(val) || 0) + 1);
+            }
+        });
+
+        const accessoriesList = [...accessoryCounts.entries()].map(([code, qty]) => ({ code, qty }));
+
+        if (serials.length === 0 && accessoriesList.length === 0) {
+            alert(`No items or serial numbers found for ${filterValue}.`);
+            return;
+        }
+
+        if (serials.length > 0) {
+            let serialBtn = null;
+            document.querySelectorAll("button span.ui-button-text").forEach(span => {
+                if (span.textContent.trim() === "串号") {
+                    serialBtn = span.closest("button");
+                }
+            });
+
+            if (serialBtn) {
+                serialBtn.click();
+                setTimeout(() => {
+                    const iframe = document.querySelector("iframe[src*='imei.html']");
+                    if (iframe) {
+                        try {
+                            const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
+                            const inputField = iframeDoc.querySelector("input");
+                            if (inputField) {
+                                const combinedSerials = serials.join(',');
+                                setNativeInputValue(inputField, combinedSerials);
+                                inputField.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+                                inputField.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+                                inputField.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+
+                                setTimeout(() => {
+                                    let confirmBtn = null;
+                                    document.querySelectorAll(".ui-dialog-buttonpane button").forEach(b => {
+                                        if (b.textContent.includes("确定")) confirmBtn = b;
+                                    });
+                                    if (confirmBtn) confirmBtn.click();
+
+                                    setTimeout(() => {
+                                        processAccessoriesTableOnly(accessoriesList);
+                                    }, 600);
+                                }, 800);
+                            }
+                        } catch (e) {
+                            console.error("Error accessing iframe content:", e);
+                        }
+                    }
+                }, 700);
+            } else {
+                processAccessoriesTableOnly(accessoriesList);
+            }
+        } else {
+            processAccessoriesTableOnly(accessoriesList);
+        }
+    }
+
+    function processAccessoriesTableOnly(items) {
+        let peijianTab = null;
+        document.querySelectorAll("ul.table-tap li a").forEach(a => {
+            if (a.textContent.trim() === "配件") {
+                peijianTab = a;
+            }
+        });
+
+        if (!peijianTab) {
+            revealFillPricesButton();
+            return;
+        }
+        peijianTab.click();
+
+        setTimeout(() => {
+            if (items.length === 0) {
+                revealFillPricesButton();
+                return;
+            }
+            let index = 0;
+
+            function populateNextCode() {
+                if (index >= items.length) {
+                    setTimeout(() => {
+                        fillAccessoryQuantitiesOnly(items);
+                    }, 800);
+                    return;
+                }
+
+                let rows = document.querySelectorAll("div.receipt-table tbody tr, .ui-table-scrollable-body-table tbody tr");
+                let row = rows[index];
+
+                if (!row) {
+                    let addBtn = null;
+                    document.querySelectorAll("button, a").forEach(el => {
+                        if (el.textContent.includes("增行") || el.textContent.includes("添加") || el.textContent.includes("Add")) {
+                            addBtn = el;
+                        }
+                    });
+                    if (addBtn) {
+                        addBtn.click();
+                        setTimeout(() => {
+                            rows = document.querySelectorAll("div.receipt-table tbody tr, .ui-table-scrollable-body-table tbody tr");
+                            row = rows[index];
+                            writeCodeToRow(row, items[index]);
+                        }, 400);
+                        return;
+                    }
+                }
+
+                writeCodeToRow(row, items[index]);
+            }
+
+            function writeCodeToRow(row, item) {
+                if (row) {
+                    const cells = row.querySelectorAll("td");
+                    if (cells.length > 1) {
+                        const codeInput = cells[1].querySelector("input");
+                        if (codeInput) {
+                            setNativeInputValue(codeInput, item.code);
+                            codeInput.focus();
+                            codeInput.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+                            codeInput.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+                            codeInput.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, bubbles: true }));
+                            codeInput.blur();
+                        }
+                    }
+                }
+                index++;
+                setTimeout(populateNextCode, 400);
+            }
+
+            populateNextCode();
+        }, 500);
+    }
+
+    function fillAccessoryQuantitiesOnly(items) {
+        setTimeout(() => {
+            const rows = document.querySelectorAll("div.receipt-table tbody tr, .ui-table-scrollable-body-table tbody tr");
+            items.forEach((item, index) => {
+                const row = rows[index];
+                if (!row) return;
+                const cells = row.querySelectorAll("td");
+                const qtyInput = cells[6]?.querySelector("input") || row.querySelector("input[prop='pInt']");
+                if (qtyInput && item.qty) {
+                    setNativeInputValue(qtyInput, String(item.qty));
+                }
+            });
+            console.log("Accessory items and quantities entered.");
+            revealFillPricesButton();
+        }, 400);
+    }
+
+    // STEP 2: Fill Prices Accordingly
+    function fillPricesAccordingly() {
+        if (!excelRows.length) {
+            alert("Upload Excel first.");
+            return;
+        }
+
+        const eanCol = 4; // Excel Col E
         const filterValue = document.getElementById("filterValueSelect").value;
 
         priceMap = {};
+        const accessoriesList = [];
 
         excelRows.slice(1).forEach(row => {
-            const rowFilterValue = clean(row[filterCol]);
-
-            if (rowFilterValue !== filterValue) {
-                return;
-            }
+            const rowCategory = normalizeCategory(String(row[1] || "").trim());
+            if (rowCategory !== filterValue) return;
 
             const ean = clean(row[eanCol]);
             let price = clean(row[8]).replace(/[^\d.]/g, ""); // Col I
-
             if (!price) {
                 price = clean(row[7]).replace(/[^\d.]/g, ""); // Col H
             }
@@ -578,18 +855,82 @@
             if (/^\d{8,14}$/.test(ean) && price) {
                 priceMap[ean] = price;
             }
+
+            const accCode = String(row[5] || "").trim();
+            if (/^\d+$/.test(accCode)) {
+                priceMap[accCode] = price || "";
+                accessoriesList.push({
+                    code: accCode,
+                    price: price || ""
+                });
+            }
         });
 
-        if (Object.keys(priceMap).length === 0) {
-            alert("No matching rows found for that filter — check the Platform selection.");
-            return;
-        }
+        let shangpinTab = null;
+        document.querySelectorAll("ul.table-tap li a").forEach(a => {
+            if (a.textContent.trim() === "商品") {
+                shangpinTab = a;
+            }
+        });
 
-        fillTablePrices();
+        if (shangpinTab) shangpinTab.click();
+
+        setTimeout(() => {
+            const prodRes = fillTablePrices();
+
+            setTimeout(() => {
+                let peijianTab = null;
+                document.querySelectorAll("ul.table-tap li a").forEach(a => {
+                    if (a.textContent.trim() === "配件") {
+                        peijianTab = a;
+                    }
+                });
+
+                if (peijianTab) {
+                    peijianTab.click();
+                    setTimeout(() => {
+                        fillPeijianPricesFromTable(prodRes.matched, prodRes.missingCount);
+                    }, 500);
+                } else {
+                    updateStatusDisplay(prodRes.matched, prodRes.missingCount, 0, 0);
+                }
+            }, 500);
+        }, 300);
     }
 
-    // Sets a value on a native input in a way React (and other frameworks that
-    // override the native value setter to track state) will actually notice.
+    function fillPeijianPricesFromTable(prodMatched, prodMissing) {
+        let accMatched = 0;
+        let accMissing = 0;
+
+        document.querySelectorAll("div.receipt-table tbody tr, .ui-table-scrollable-body-table tbody tr").forEach(row => {
+            const cells = row.querySelectorAll("td");
+            if (cells.length < 8) return;
+
+            const codeCell = cells[1];
+            const priceInput = cells[7]?.querySelector("input[name='unitprice']") || row.querySelector("input[name='unitprice']");
+
+            if (codeCell && priceInput) {
+                const codeSpan = codeCell.querySelector("span");
+                const code = codeSpan ? codeSpan.innerText.trim() : codeCell.innerText.trim();
+
+                if (code) {
+                    const price = priceMap[code];
+                    if (price) {
+                        priceInput.focus();
+                        setNativeInputValue(priceInput, price);
+                        priceInput.blur();
+                        accMatched++;
+                    } else {
+                        accMissing++;
+                    }
+                }
+            }
+        });
+
+        document.activeElement?.blur();
+        updateStatusDisplay(prodMatched, prodMissing, accMatched, accMissing);
+    }
+
     function setNativeInputValue(input, value) {
         const nativeSetter = Object.getOwnPropertyDescriptor(
             window.HTMLInputElement.prototype, "value"
@@ -604,41 +945,47 @@
         let matched = 0;
         const missing = [];
 
-        document.querySelectorAll("tbody tr").forEach(row => {
+        document.querySelectorAll("div.receipt-table tbody tr, .ui-table-scrollable-body-table tbody tr").forEach(row => {
             const cells = row.querySelectorAll("td");
+            if (cells.length < 9) return;
 
-            const ean = cells[TABLE_EAN_COL_INDEX]?.innerText.trim();
-            const priceInput =
-                cells[TABLE_PRICE_COL_INDEX]?.querySelector("input[name='unitprice']");
+            const eanCell = cells[TABLE_EAN_COL_INDEX];
+            const priceInput = cells[TABLE_PRICE_COL_INDEX]?.querySelector("input[name='unitprice']");
 
-            if (!ean || !priceInput) return;
-
-            const price = priceMap[ean];
-
-            if (price) {
-                priceInput.focus();
-                setNativeInputValue(priceInput, price);
-                priceInput.blur();
-                matched++;
-            } else {
-                cells[TABLE_EAN_COL_INDEX].style.background = "#ffccc7";
-                missing.push(ean);
+            if (eanCell && priceInput) {
+                const ean = eanCell.innerText.trim();
+                if (ean) {
+                    const price = priceMap[ean];
+                    if (price) {
+                        priceInput.focus();
+                        setNativeInputValue(priceInput, price);
+                        priceInput.blur();
+                        matched++;
+                    } else {
+                        eanCell.style.background = "#ffccc7";
+                        missing.push(ean);
+                    }
+                }
             }
         });
 
         document.activeElement?.blur();
-
-        const statusEl = document.getElementById("fillResultStatus");
-        if (statusEl) {
-            statusEl.textContent = `Filled ${matched} price${matched === 1 ? "" : "s"}. Missing ${missing.length} EAN${missing.length === 1 ? "" : "s"}.`;
-            statusEl.style.color = missing.length > 0 ? "#c62828" : "#2e7d32";
-        }
-
-        console.log("Missing EANs:", missing);
+        return { matched, missingCount: missing.length };
     }
 
-    // RFC4180-aware CSV line parser: handles quoted fields containing commas
-    // and escaped double quotes ("" inside a quoted field = literal ").
+    function updateStatusDisplay(prodMatched, prodMissing, accMatched = 0, accMissing = 0) {
+        const statusEl = document.getElementById("fillResultStatus");
+        if (!statusEl) return;
+
+        let html = `<div>Product price: Filled ${prodMatched}, missing ${prodMissing}</div>`;
+        if (accMatched > 0 || accMissing > 0) {
+            html += `<div>Accessory price: Filled ${accMatched}, missing ${accMissing}</div>`;
+        }
+
+        statusEl.innerHTML = html;
+        statusEl.style.color = (prodMissing > 0 || accMissing > 0) ? "#c62828" : "#2e7d32";
+    }
+
     function parseCSVLine(line) {
         const result = [];
         let current = "";
@@ -651,7 +998,7 @@
                 if (char === '"') {
                     if (line[i + 1] === '"') {
                         current += '"';
-                        i++; // skip the escaped quote's pair
+                        i++;
                     } else {
                         insideQuotes = false;
                     }
