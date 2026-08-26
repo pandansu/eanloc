@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Frequency Tabulator TSV</title>
+    <title>EAN Counter</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -58,21 +58,21 @@
 </head>
 <body>
 
-    <h2>Frequency Tabulator (TSV)</h2>
+    <h2>EAN Counter</h2>
     <p>Paste EAN list below to count occurrences.</p>
 
-    <label for="inputData">Input Data (One item per line):</label>
+    <label for="inputData">Paste EAN list (One item per line):</label>
     <textarea id="inputData" placeholder="Paste your values here..."></textarea>
 
     <div class="controls">
-        <button id="convertBtn">Count & Convert to TSV</button>
+        <button id="convertBtn">Count</button>
     </div>
 
     <div class="output-section">
         <label for="outputData">TSV Output:</label>
         <textarea id="outputData" readonly></textarea>
         <div style="margin-top: 10px;">
-            <button id="copyBtn">Copy to Clipboard</button>
+            <button id="copyBtn">Copy</button>
             <span id="copyStatus" class="success-msg"></span>
         </div>
     </div>
