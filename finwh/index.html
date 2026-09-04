@@ -1,0 +1,658 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Picking vs Delivery Reconciliation Dashboard</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .dropzone {
+            border: 2px dashed #6366f1;
+            background-color: #f8fafc;
+            padding: 24px;
+            text-align: center;
+            border-radius: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .dropzone.dragover {
+            background-color: #e0e7ff;
+            border-color: #4f46e5;
+        }
+        .file-info {
+            margin-top: 8px;
+            font-style: italic;
+            color: #059669;
+            font-size: 13px;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-indigo-700 text-white shadow-md py-6 px-8">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold tracking-wide"><i class="fa-solid fa-boxes-packing mr-2"></i> Finance & Warehouse Reconciliation</h1>
+            </div>
+            <div id="statsBadge" class="hidden mt-4 md:mt-0 flex flex-wrap gap-2">
+                <span class="bg-indigo-800 px-3 py-1 rounded-full text-xs font-semibold">Total Groups: <span id="statTotal">0</span></span>
+                <span class="bg-emerald-600 px-3 py-1 rounded-full text-xs font-semibold">Matched: <span id="statMatch">0</span></span>
+                <span class="bg-rose-600 px-3 py-1 rounded-full text-xs font-semibold">Discrepancies: <span id="statMismatch">0</span></span>
+                <span class="bg-amber-600 px-3 py-1 rounded-full text-xs font-semibold">Unmatched Delivery: <span id="statUnmatched">0</span></span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-4 py-8 flex-grow w-full">
+        
+        <!-- Upload Section -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8">
+            <h2 class="text-lg font-semibold text-slate-700 mb-4"><i class="fa-solid fa-file-excel text-emerald-600 mr-2"></i>Step 1: Upload Excel Files</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                <!-- Picking File Box -->
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2"><i class="fa-solid fa-clipboard-list text-indigo-600 mr-1"></i> Finance Invoice Excel</label>
+                    <div id="dropzonePicking" class="dropzone">
+                        <p><i class="fa-solid fa-cloud-arrow-up text-3xl text-indigo-500 mb-2"></i><br>📁 Drop Excel file here or click to browse</p>
+                        <input type="file" id="filePicking" accept=".xlsx, .xls, .csv" style="display: none;">
+                    </div>
+                    <div id="infoPicking" class="file-info"></div>
+                </div>
+
+                <!-- Delivery File Box -->
+                <div>
+                    <label class="block text-sm font-semibold text-slate-700 mb-2"><i class="fa-solid fa-truck-fast text-indigo-600 mr-1"></i> Warehouse Delivery Excel</label>
+                    <div id="dropzoneDelv" class="dropzone">
+                        <p><i class="fa-solid fa-cloud-arrow-up text-3xl text-indigo-500 mb-2"></i><br>📁 Drop Excel file here or click to browse</p>
+                        <input type="file" id="fileDelv" accept=".xlsx, .xls, .csv" style="display: none;">
+                    </div>
+                    <div id="infoDelv" class="file-info"></div>
+                </div>
+
+            </div>
+
+            <div class="mt-8 text-center">
+                <button id="processBtn" onclick="handleProcess()" disabled class="bg-indigo-600 text-white font-semibold px-8 py-3 rounded-lg shadow hover:bg-indigo-700 transition disabled:opacity-40 disabled:cursor-not-allowed">
+                    <i class="fa-solid fa-play mr-2"></i>Run Reconciliation
+                </button>
+            </div>
+        </div>
+
+        <!-- Error Notice Box -->
+        <div id="errorBox" class="hidden bg-rose-50 border-l-4 border-rose-500 p-4 mb-6 rounded-r-lg text-rose-700 text-sm">
+            <p class="font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i> Processing Error:</p>
+            <p id="errorText" class="mt-1 font-mono text-xs"></p>
+        </div>
+
+        <!-- UNMATCHED / EXTRA DELIVERIES SECTION (TOP) -->
+        <div id="unmatchedSection" class="hidden mb-10">
+            <div class="flex items-center gap-2 mb-4">
+                <h2 class="text-xl font-bold text-amber-800"><i class="fa-solid fa-triangle-exclamation mr-2"></i> Not in Finance Invoice (Click Reassign to Fix Typos)</h2>
+                <span class="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-0.5 rounded-full" id="unmatchedCountBadge">0</span>
+            </div>
+            <div id="unmatchedCardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+
+        <!-- Filter Controls for Main Reconciliation -->
+        <div id="filterSection" class="hidden flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pt-4 border-t border-slate-200">
+            <h2 class="text-xl font-bold text-slate-800">Reconciliation Audit Cards</h2>
+            <div class="flex gap-2">
+                <button onclick="filterCards('all')" class="filter-btn px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg shadow-sm">All Records</button>
+                <button onclick="filterCards('match')" class="filter-btn px-4 py-2 text-sm font-medium bg-white text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Green (Match)</button>
+                <button onclick="filterCards('mismatch')" class="filter-btn px-4 py-2 text-sm font-medium bg-white text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Red (Discrepancy)</button>
+            </div>
+        </div>
+
+        <!-- Main Cards Container -->
+        <div id="cardsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="col-span-full text-center py-16 text-slate-400 bg-white rounded-xl border border-slate-200 shadow-sm">
+                <i class="fa-solid fa-folder-open text-4xl mb-3"></i>
+                <p>Please upload both Excel files above to generate reconciliation cards.</p>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-400 mt-12">
+        Delivery Reconciliation Tool &bull; Daniel
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        let pickingRows = [];
+        let delvRows = [];
+        let globalResultsCache = [];
+        let unmatchedMapCache = {};
+        let pickingMapCache = {};
+        let delvMapCache = {};
+        let delvRemarksMapCache = {};
+        let blockCountersCache = {};
+
+        function checkEnableProcess() {
+            const processBtn = document.getElementById('processBtn');
+            if (pickingRows.length > 0 && delvRows.length > 0) {
+                processBtn.removeAttribute('disabled');
+            } else {
+                processBtn.setAttribute('disabled', 'true');
+            }
+        }
+
+        function setupDropzone(dropzoneId, fileInputId, infoId, onDataParsed) {
+            const dropzone = document.getElementById(dropzoneId);
+            const fileInput = document.getElementById(fileInputId);
+            const infoDiv = document.getElementById(infoId);
+
+            dropzone.addEventListener('click', () => fileInput.click());
+            dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+            dropzone.addEventListener('dragleave', () => { dropzone.classList.remove('dragover'); });
+            dropzone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('dragover');
+                if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0], infoDiv, onDataParsed);
+            });
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) handleFile(e.target.files[0], infoDiv, onDataParsed);
+            });
+        }
+
+        function handleFile(file, infoDiv, onDataParsed) {
+            infoDiv.textContent = `Loaded file: ${file.name}`;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const rows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                    onDataParsed(rows);
+                    checkEnableProcess();
+                } catch (err) {
+                    showError("Failed to parse Excel file: " + err.message);
+                }
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        setupDropzone('dropzonePicking', 'filePicking', 'infoPicking', (rows) => { pickingRows = rows; });
+        setupDropzone('dropzoneDelv', 'fileDelv', 'infoDelv', (rows) => { delvRows = rows; });
+
+        function showError(msg) {
+            const box = document.getElementById('errorBox');
+            const text = document.getElementById('errorText');
+            text.textContent = msg;
+            box.classList.remove('hidden');
+            console.error(msg);
+        }
+
+        function sanitizeSku(val) {
+            let s = String(val || '').trim();
+            if (!s) return '';
+            if (/e\+/i.test(s)) {
+                let parts = s.split(/e\+/i);
+                let base = parts[0].replace('.', '');
+                let exp = parseInt(parts[1], 10);
+                let decimals = (parts[0].split('.')[1] || '').length;
+                let zerosNeeded = exp - decimals;
+                if (zerosNeeded >= 0) s = base + '0'.repeat(zerosNeeded);
+            }
+            if (s.endsWith('.0')) s = s.slice(0, -2);
+            return s;
+        }
+
+        function normalizeText(str) {
+            return String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        }
+
+        function getCanonicalKeyAndTitle(rowText = '', company = '', docNo = '', remark = '', receiver = '') {
+            let combined = (rowText + ' ' + company + ' ' + docNo + ' ' + remark + ' ' + receiver).toLowerCase();
+
+            let jewelRegex = /dji[\s\-]?001|jewel/i;
+            let vivoRegex = /dji[\s\-]?002|vivocity/i;
+            let funanRegex = /dji[\s\-]?003|funan/i;
+            let heerenRegex = /dji[\s\-]?005|heeren|hasselblad/i;
+            let nexRegex = /dji[\s\-]?006|nex/i;
+            
+            let shopeeRegex = /shopee|shoope|shp/i;
+            let lazadaRegex = /lazada|lzd/i;
+            let tiktokRegex = /tiktok|tik[\s\-]?tok|tk|抖音/i;
+
+            if (jewelRegex.test(combined)) {
+                return { key: 'RETAIL_JEWEL', title: 'DJI Jewel 专卖店', companyLabel: company || receiver || 'Jewel Store' };
+            } else if (vivoRegex.test(combined)) {
+                return { key: 'RETAIL_VIVOCITY', title: 'DJI vivocity专卖店', companyLabel: company || receiver || 'VivoCity Store' };
+            } else if (funanRegex.test(combined)) {
+                return { key: 'RETAIL_FUNAN', title: 'DJI Funan专卖店', companyLabel: company || receiver || 'Funan Store' };
+            } else if (heerenRegex.test(combined)) {
+                return { key: 'RETAIL_HEEREN', title: 'DJI | HASSELBLAD The Heeren 专卖店', companyLabel: company || receiver || 'The Heeren Store' };
+            } else if (nexRegex.test(combined)) {
+                return { key: 'RETAIL_NEX', title: 'DJI NEX 专卖店', companyLabel: company || receiver || 'NEX Store' };
+            } else if (shopeeRegex.test(combined)) {
+                return { key: 'ECOM_SHOPEE', title: 'E-Commerce Platform (Shopee)', companyLabel: company || receiver || 'Shopee' };
+            } else if (lazadaRegex.test(combined)) {
+                return { key: 'ECOM_LAZADA', title: 'E-Commerce Platform (Lazada)', companyLabel: company || receiver || 'Lazada' };
+            } else if (tiktokRegex.test(combined)) {
+                return { key: 'ECOM_TIKTOK', title: 'E-Commerce Platform (TikTok)', companyLabel: company || receiver || 'TikTok' };
+            } else if (docNo && docNo.toUpperCase().startsWith('INV-') && 
+                       !shopeeRegex.test(combined) && !lazadaRegex.test(combined) && !tiktokRegex.test(combined)) {
+                let cleanDoc = docNo.trim().toUpperCase();
+                let cleanComp = company.trim() || receiver.trim() || 'Invoice Order';
+                return { key: `INV_${cleanDoc.replace(/[^a-zA-Z0-9]/g, '_')}`, title: cleanDoc, companyLabel: company || cleanComp };
+            } else {
+                let cleanComp = company.trim() || receiver.trim() || remark.trim() || 'Unknown Company';
+                let key = `COMP_${cleanComp.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}`;
+                return { key: key, title: cleanComp, companyLabel: cleanComp };
+            }
+        }
+
+        function handleProcess() {
+            document.getElementById('errorBox').classList.add('hidden');
+            
+            if (pickingRows.length === 0 || delvRows.length === 0) {
+                showError("Please make sure both Excel files are loaded.");
+                return;
+            }
+
+            try {
+                pickingMapCache = {}; 
+                blockCountersCache = {};
+                let docNoToGroupKey = {}; 
+                let normalizedDocNos = {};
+                let currentActiveGroup = null;
+                
+                pickingRows.forEach(row => {
+                    let rowText = Object.values(row).map(v => String(v || '')).join(' ');
+                    let docNo = String(row['Doc No'] || '').trim();
+                    let company = String(row['Company Name'] || '').trim();
+                    let itemCode = sanitizeSku(row['Item Code']);
+                    let qty = parseFloat(row['Qty']) || 0;
+
+                    if (!itemCode) return;
+
+                    let mapping = getCanonicalKeyAndTitle(rowText, company, docNo, '', '');
+                    let groupKey = mapping.key;
+
+                    // Track contiguous blocks (segments) for DJI-xxx / retail store orders
+                    if (groupKey !== currentActiveGroup) {
+                        currentActiveGroup = groupKey;
+                        blockCountersCache[groupKey] = (blockCountersCache[groupKey] || 0) + 1;
+                    }
+
+                    if (!pickingMapCache[groupKey]) {
+                        pickingMapCache[groupKey] = { 
+                            key: groupKey, 
+                            displayTitle: mapping.title, 
+                            company: mapping.companyLabel, 
+                            items: {} 
+                        };
+                    }
+                    pickingMapCache[groupKey].items[itemCode] = (pickingMapCache[groupKey].items[itemCode] || 0) + qty;
+
+                    if (docNo) {
+                        let cleanDocKey = docNo.toLowerCase();
+                        docNoToGroupKey[cleanDocKey] = groupKey;
+                        normalizedDocNos[normalizeText(docNo)] = groupKey;
+                    }
+                });
+
+                delvMapCache = {}; 
+                delvRemarksMapCache = {};
+                unmatchedMapCache = {};
+
+                delvRows.forEach(row => {
+                    let rowText = Object.values(row).map(v => String(v || '')).join(' ');
+                    let remark = String(row['备注'] || '').trim();
+                    let receiver = String(row['收货单位'] || '').trim();
+                    let ean = sanitizeSku(row['商品编码']);
+                    let qty = parseFloat(row['数量']) || 0;
+
+                    if (!ean) return;
+
+                    let delvTextNorm = normalizeText(rowText + ' ' + remark + ' ' + receiver);
+                    let matchedKey = null;
+
+                    // Layer 1: Fuzzy Normalized Lookup
+                    for (let normDoc in normalizedDocNos) {
+                        if (delvTextNorm.includes(normDoc)) {
+                            matchedKey = normalizedDocNos[normDoc];
+                            break;
+                        }
+                    }
+
+                    if (!matchedKey) {
+                        let mapping = getCanonicalKeyAndTitle(rowText, '', '', remark, receiver);
+                        matchedKey = mapping.key;
+                    }
+
+                    if (pickingMapCache[matchedKey]) {
+                        if (!delvMapCache[matchedKey]) {
+                            delvMapCache[matchedKey] = { items: {} };
+                            delvRemarksMapCache[matchedKey] = new Set();
+                        }
+                        delvMapCache[matchedKey].items[ean] = (delvMapCache[matchedKey].items[ean] || 0) + qty;
+                        if (remark) delvRemarksMapCache[matchedKey].add(remark);
+                    } else {
+                        // Layer 2 Check: Can we match via SKU-Signature if qty/SKU matches a discrepancy?
+                        let autoMatched = false;
+                        for (let pKey in pickingMapCache) {
+                            let pItems = pickingMapCache[pKey].items;
+                            let currentDelvItems = delvMapCache[pKey] ? delvMapCache[pKey].items : {};
+                            let pQty = pItems[ean] || 0;
+                            let dQty = (currentDelvItems[ean] || 0) + qty;
+                            if (pQty > 0 && pQty === dQty) {
+                                matchedKey = pKey;
+                                autoMatched = true;
+                                break;
+                            }
+                        }
+
+                        if (autoMatched) {
+                            if (!delvMapCache[matchedKey]) {
+                                delvMapCache[matchedKey] = { items: {} };
+                                delvRemarksMapCache[matchedKey] = new Set();
+                            }
+                            delvMapCache[matchedKey].items[ean] = (delvMapCache[matchedKey].items[ean] || 0) + qty;
+                            if (remark) delvRemarksMapCache[matchedKey].add(remark);
+                        } else {
+                            let unmatchKey = remark || receiver || 'Unassigned Delivery Note';
+                            if (!unmatchedMapCache[unmatchKey]) {
+                                unmatchedMapCache[unmatchKey] = {
+                                    title: unmatchKey,
+                                    receiver: receiver || 'Unknown Receiver',
+                                    remark: remark || 'No Remark',
+                                    items: {}
+                                };
+                            }
+                            unmatchedMapCache[unmatchKey].items[ean] = (unmatchedMapCache[unmatchKey].items[ean] || 0) + qty;
+                        }
+                    }
+                });
+
+                rebuildAuditResults();
+                document.getElementById('filterSection').classList.remove('hidden');
+
+            } catch (err) {
+                showError("Processing failed: " + err.message);
+                console.error(err);
+            }
+        }
+
+        function rebuildAuditResults() {
+            globalResultsCache = [];
+
+            Object.keys(pickingMapCache).forEach(groupKey => {
+                let pObj = pickingMapCache[groupKey];
+                let dObj = delvMapCache[groupKey] || { items: {} };
+                let remarksSet = delvRemarksMapCache[groupKey] || new Set();
+
+                let allEans = new Set([...Object.keys(pObj.items), ...Object.keys(dObj.items)]);
+                let itemComparisons = [];
+                let isMatch = true;
+
+                if (!delvMapCache[groupKey]) isMatch = false;
+
+                allEans.forEach(ean => {
+                    let pQty = pObj.items[ean] || 0;
+                    let dQty = dObj.items[ean] || 0;
+                    let lineMatch = (pQty === dQty);
+                    if (!lineMatch) isMatch = false;
+                    itemComparisons.push({ ean, pQty, dQty, match: lineMatch });
+                });
+
+                let compLower = pObj.company.toLowerCase();
+                let displayTitleLower = pObj.displayTitle.toLowerCase();
+                let isOnlinePlatform = groupKey.startsWith('ECOM_') || 
+                                       compLower.includes('shopee') || 
+                                       compLower.includes('lazada') || 
+                                       compLower.includes('tiktok');
+
+                let blockCount = blockCountersCache[groupKey] || 1;
+                let isDjiStore = groupKey.startsWith('RETAIL_') || displayTitleLower.includes('dji') || compLower.includes('dji');
+                let remarksText = Array.from(remarksSet).join('; ');
+
+                let noteString = 'NA';
+                if (isDjiStore && blockCount > 1) {
+                    if (remarksText) {
+                        noteString = `<strong>(${blockCount} invoices)</strong> :- ${remarksText}`;
+                    } else {
+                        noteString = `<strong>(${blockCount} invoices)</strong>`;
+                    }
+                } else if (!isOnlinePlatform) {
+                    noteString = remarksText ? remarksText : 'NA';
+                }
+
+                globalResultsCache.push({
+                    key: groupKey,
+                    displayTitle: pObj.displayTitle,
+                    company: pObj.company,
+                    isMatch: isMatch,
+                    items: itemComparisons,
+                    note: noteString
+                });
+            });
+
+            renderCards(globalResultsCache);
+            renderUnmatchedCards(unmatchedMapCache);
+            updateStats(globalResultsCache, unmatchedMapCache);
+        }
+
+        function reassignUnmatchedDelivery(unmatchKeyId, targetGroupKey) {
+            if (!targetGroupKey || !unmatchedMapCache[unmatchKeyId]) return;
+
+            let record = unmatchedMapCache[unmatchKeyId];
+
+            if (!delvMapCache[targetGroupKey]) {
+                delvMapCache[targetGroupKey] = { items: {} };
+                delvRemarksMapCache[targetGroupKey] = new Set();
+            }
+
+            Object.entries(record.items).forEach(([ean, qty]) => {
+                delvMapCache[targetGroupKey].items[ean] = (delvMapCache[targetGroupKey].items[ean] || 0) + qty;
+            });
+            if (record.remark) {
+                delvRemarksMapCache[targetGroupKey].add(record.remark);
+            }
+
+            delete unmatchedMapCache[unmatchKeyId];
+            rebuildAuditResults();
+        }
+
+        function renderCards(data) {
+            const container = document.getElementById('cardsContainer');
+            container.innerHTML = '';
+
+            if (data.length === 0) {
+                container.innerHTML = `<div class="col-span-full text-center py-16 text-slate-400 bg-white rounded-xl border border-slate-200">No records found.</div>`;
+                return;
+            }
+
+            data.forEach(item => {
+                let statusColor = item.isMatch ? 'border-emerald-500 bg-emerald-50/40' : 'border-rose-500 bg-rose-50/40';
+                let badgeColor = item.isMatch ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800';
+                let statusText = item.isMatch ? 'Quantities Match' : 'Discrepancy Found';
+                let icon = item.isMatch ? '<i class="fa-solid fa-circle-check text-emerald-600"></i>' : '<i class="fa-solid fa-triangle-exclamation text-rose-600"></i>';
+
+                let itemsHtml = item.items.map(i => `
+                    <tr class="text-xs border-b border-slate-100">
+                        <td class="py-1.5 font-mono">${i.ean}</td>
+                        <td class="py-1.5 text-right font-medium">${i.pQty}</td>
+                        <td class="py-1.5 text-right font-medium">${i.dQty}</td>
+                        <td class="py-1.5 text-center">${i.match ? '<span class="text-emerald-600 font-bold">✔</span>' : '<span class="text-rose-600 font-bold">✖</span>'}</td>
+                    </tr>
+                `).join('');
+
+                let card = document.createElement('div');
+                card.className = `border-2 ${statusColor} rounded-xl p-5 shadow-sm bg-white flex flex-col justify-between transition hover:shadow-md`;
+                card.setAttribute('data-status', item.isMatch ? 'match' : 'mismatch');
+                
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <span class="text-xs font-bold text-indigo-600 uppercase tracking-wider">${item.displayTitle}</span>
+                                <h3 class="font-bold text-slate-800 text-base mt-0.5">${item.company}</h3>
+                            </div>
+                            <span class="px-2.5 py-1 rounded-full text-xs font-semibold ${badgeColor} flex items-center gap-1.5 shrink-0">
+                                ${icon} ${statusText}
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-500 mb-3"><strong class="text-slate-700">Note / Details:</strong> ${item.note}</p>
+                        <div class="mt-2 overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead>
+                                    <tr class="text-slate-400 text-xs border-b border-slate-200">
+                                        <th class="pb-1 font-semibold">EAN / SKU</th>
+                                        <th class="pb-1 text-right font-semibold">Finance</th>
+                                        <th class="pb-1 text-right font-semibold">Warehouse</th>
+                                        <th class="pb-1 text-center font-semibold">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${itemsHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs text-slate-400">
+                        <span>SKUs tracked: ${item.items.length}</span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function renderUnmatchedCards(unmatchedMap) {
+            const container = document.getElementById('unmatchedCardsContainer');
+            const section = document.getElementById('unmatchedSection');
+            container.innerHTML = '';
+
+            const keys = Object.keys(unmatchedMap);
+            if (keys.length === 0) {
+                section.classList.add('hidden');
+                return;
+            }
+
+            section.classList.remove('hidden');
+            document.getElementById('unmatchedCountBadge').textContent = keys.length;
+
+            let auditOptionsHtml = Object.keys(pickingMapCache).map(k => {
+                let p = pickingMapCache[k];
+                return `<option value="${k}">${p.displayTitle} - ${p.company}</option>`;
+            }).join('');
+
+            keys.forEach(key => {
+                let record = unmatchedMap[key];
+                let itemsHtml = Object.entries(record.items).map(([ean, qty]) => `
+                    <tr class="text-xs border-b border-amber-100">
+                        <td class="py-1.5 font-mono">${ean}</td>
+                        <td class="py-1.5 text-right font-medium text-amber-900">${qty}</td>
+                    </tr>
+                `).join('');
+
+                let card = document.createElement('div');
+                card.className = `border-2 border-amber-400 bg-amber-50/60 rounded-xl p-5 shadow-sm flex flex-col justify-between`;
+                
+                let safeKeyId = key.replace(/"/g, '&quot;');
+
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <span class="text-xs font-bold text-amber-700 uppercase tracking-wider">Unmatched Delivery</span>
+                                <h3 class="font-bold text-slate-800 text-base mt-0.5">${record.receiver}</h3>
+                            </div>
+                            <span class="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-200 text-amber-900">
+                                Extra Record
+                            </span>
+                        </div>
+                        <p class="text-xs text-slate-500 mb-3"><strong class="text-slate-700">Note:</strong> ${record.remark}</p>
+                        <div class="mt-2 overflow-x-auto mb-4">
+                            <table class="w-full text-left">
+                                <thead>
+                                    <tr class="text-amber-700 text-xs border-b border-amber-200">
+                                        <th class="pb-1 font-semibold">EAN / SKU</th>
+                                        <th class="pb-1 text-right font-semibold">Delivered Qty</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${itemsHtml}
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="bg-amber-100/70 p-3 rounded-lg border border-amber-200">
+                            <label class="block text-xs font-bold text-amber-900 mb-1"><i class="fa-solid fa-right-left mr-1"></i> Fix Typo / Reassign To:</label>
+                            <div class="flex gap-2">
+                                <select id="target_${safeKeyId}" class="text-xs bg-white border border-amber-300 rounded px-2 py-1.5 flex-grow focus:outline-none focus:ring-1 focus:ring-amber-500">
+                                    <option value="">-- Choose Audit Card --</option>
+                                    ${auditOptionsHtml}
+                                </select>
+                                <button onclick="handleReassignClick('${safeKeyId}')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-1.5 rounded transition shrink-0">
+                                    Merge
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function handleReassignClick(keyId) {
+            let selectElem = document.getElementById(`target_${keyId}`);
+            let targetGroupKey = selectElem ? selectElem.value : '';
+            if (!targetGroupKey) {
+                alert("Please select a target audit card first.");
+                return;
+            }
+            reassignUnmatchedDelivery(keyId, targetGroupKey);
+        }
+
+        function updateStats(data, unmatchedMap) {
+            const total = data.length;
+            const match = data.filter(d => d.isMatch).length;
+            const mismatch = total - match;
+            const unmatchedCount = Object.keys(unmatchedMap).length;
+
+            document.getElementById('statTotal').textContent = total;
+            document.getElementById('statMatch').textContent = match;
+            document.getElementById('statMismatch').textContent = mismatch;
+            document.getElementById('statUnmatched').textContent = unmatchedCount;
+            document.getElementById('statsBadge').classList.remove('hidden');
+        }
+
+        function filterCards(type) {
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                btn.className = "filter-btn px-4 py-2 text-sm font-medium bg-white text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50";
+            });
+            event.target.className = "filter-btn px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg shadow-sm";
+
+            const cards = document.querySelectorAll('#cardsContainer > div');
+            cards.forEach(card => {
+                if (type === 'all') {
+                    card.style.display = 'flex';
+                } else {
+                    const status = card.getAttribute('data-status');
+                    if (status === type) {
+                        card.style.display = 'flex';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
