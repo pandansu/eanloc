@@ -1,3 +1,4 @@
+
 (function () {
   'use strict';
 
@@ -130,6 +131,7 @@
 
     /* Drag and Drop Zone Styles */
     #eanDropZone {
+      position: relative;
       border: 2px dashed #0d6efd;
       border-radius: 6px;
       background: #f8f9fa;
@@ -138,6 +140,28 @@
       cursor: pointer;
       transition: all 0.2s ease-in-out;
       margin-top: 6px;
+    }
+    #eanResetBtn {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      width: 22px;
+      height: 22px;
+      font-size: 11px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 3;
+      padding: 0;
+      color: #333;
+    }
+    #eanResetBtn:hover { background: #e0e0e0; border-color: #adadad; }
+    #eanDropZone.has-file #eanResetBtn {
+      display: flex;
     }
     #eanDropZone:hover {
       background: #e9ecef;
@@ -228,6 +252,7 @@
 
           <!-- Drop Zone Area -->
           <div id="eanDropZone">
+            <button id="eanResetBtn" class="ean-small-btn" title="Reset">↩️</button>
             <div class="ean-drop-icon" id="eanDropIcon">📁</div>
             <div class="ean-drop-text" id="eanDropText"><strong>Click to upload</strong> or drag & drop</div>
             <div class="ean-drop-subtext" id="eanDropSubtext">Excel (.xlsx, .xls) or PDF (.pdf)</div>
@@ -280,6 +305,7 @@
   const tsvArea = document.getElementById('eanTsvArea');
 
   const dropZone = document.getElementById('eanDropZone');
+  const resetBtn = document.getElementById('eanResetBtn');
   const dropIcon = document.getElementById('eanDropIcon');
   const dropText = document.getElementById('eanDropText');
   const dropSubtext = document.getElementById('eanDropSubtext');
@@ -729,11 +755,8 @@
     });
   }
 
-  /* ------------------- UNIFIED FILE PROCESSOR ------------------- */
-  async function processFile(file) {
-    if (!file) return;
-
-    // --- RESET PANEL & STATE ON NEW FILE UPLOAD ---
+  /* ------------------- UNIFIED FILE PROCESSOR & RESET ------------------- */
+  function resetAllState() {
     expectedMap = null;
     extractedItems = [];
     matchedEanSet.clear();
@@ -744,7 +767,19 @@
     tsvArea.value = '';
     missingContainer.innerHTML = '';
     runBtn.style.display = 'none';
-    // ---------------------------------------------
+    fileInput.value = '';
+
+    dropZone.classList.remove('has-file');
+    dropIcon.textContent = '📁';
+    dropText.innerHTML = '<strong>Click to upload</strong> or drag & drop';
+    dropSubtext.textContent = 'Excel (.xlsx, .xls) or PDF (.pdf)';
+    statusEl.textContent = 'Waiting for file...';
+  }
+
+  async function processFile(file) {
+    if (!file) return;
+
+    resetAllState();
 
     const fileName = file.name.toLowerCase();
 
@@ -1045,6 +1080,11 @@
 
   /* ------------------- EVENT LISTENERS ------------------- */
   dropZone.addEventListener('click', () => fileInput.click());
+
+  resetBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    resetAllState();
+  });
 
   fileInput.addEventListener('change', () => {
     const file = fileInput.files && fileInput.files[0];
