@@ -155,6 +155,7 @@
     .sc-small-btn:hover { background: #e0e0e0; }
 
     #scDropZone {
+      position: relative;
       border: 2px dashed #198754;
       border-radius: 6px;
       background: #f8f9fa;
@@ -176,24 +177,32 @@
       border-color: #198754;
       background: #f1f9f5;
     }
+
+    #scResetBtn {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #fff;
+      border: 1px solid #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+      z-index: 3;
+    }
+    #scResetBtn:hover {
+      background: #f1f3f5;
+      border-color: #adb5bd;
+    }
+
     .sc-drop-icon { font-size: 22px; margin-bottom: 4px; line-height: 1; }
     .sc-drop-text { font-size: 12px; color: #495057; font-weight: 500; }
     .sc-drop-subtext { font-size: 10px; color: #6c757d; margin-top: 2px; }
-
-    #scAutoSelectBtn {
-      width: 100%;
-      padding: 8px 12px;
-      border-radius: 4px;
-      font-weight: bold;
-      margin-top: 8px;
-      box-sizing: border-box;
-      border: none;
-      color: white;
-      background: #198754;
-      cursor: pointer;
-    }
-    #scAutoSelectBtn:hover { background: #157347; }
-    #scAutoSelectBtn:disabled { background: #adb5bd; cursor: not-allowed; }
 
     #scTsvArea {
       width: 100%;
@@ -255,14 +264,14 @@
             </div>
           </div>
 
-          <div id="scDropZone">
+          <div id="scDropZone" title="Click to upload or change file">
+            <div id="scResetBtn" style="display:none;" title="Reset">↩️</div>
             <div class="sc-drop-icon" id="scDropIcon">📁</div>
             <div class="sc-drop-text" id="scDropText"><strong>Click to upload</strong> or drag & drop</div>
             <div class="sc-drop-subtext" id="scDropSubtext">Excel (.xlsx, .xls) or PDF (.pdf) manifest</div>
           </div>
           <input id="scFileInput" type="file" accept=".xlsx,.xls,.pdf" style="display:none" />
 
-          <button id="scAutoSelectBtn" style="display:none;">🎯 Auto-Select &amp; Monitor Scans</button>
           <div id="scStatus" style="margin-top:6px;word-break:break-word;white-space:pre-wrap;user-select:text;">Waiting for file...</div>
           <div id="scProgressContainer"></div>
         </div>
@@ -280,8 +289,7 @@
   `;
   document.body.appendChild(container);
 
-  // Watch the whole page for other dialogs opening/closing, and hide the SC badge/panel
-  // while they're open so it doesn't visually collide with their input fields.
+  // Watch foreign dialogs
   function getForeignDialogs() {
     const dialogs = [...document.querySelectorAll('div.ui-dialog, .ui-dialog, .p-dialog')];
     return dialogs.filter(d => {
@@ -314,14 +322,12 @@
   window.addEventListener('beforeprint', () => { container.style.display = 'none'; });
   window.addEventListener('afterprint', () => { updateContainerVisibilityForDialogs(); });
 
-
   const badge = document.getElementById('scanCheckerBadge');
   const panel = document.getElementById('scanCheckerPanel');
   const cardInner = document.getElementById('scCardInner');
   const dragHandle = document.getElementById('scDragHandle');
   const dragHandleBack = document.getElementById('scDragHandleBack');
   const flipBtn = document.getElementById('scFlipBtn');
-
   const listBtn = document.getElementById('scListBtn');
 
   listBtn.addEventListener('click', () => {
@@ -330,10 +336,8 @@
       return;
     }
 
-    // Format into EAN \t Qty TSV lines
     const tsvLines = extractedItems.map(item => `${item.ean}\t${item.qty}`).join('\n');
     GM_setValue('pending_pick_list_tsv', tsvLines);
-
     window.open('https://pandansu.github.io/eanloc/list/', '_blank');
   });
 
@@ -341,25 +345,49 @@
   const tsvArea = document.getElementById('scTsvArea');
 
   const dropZone = document.getElementById('scDropZone');
+  const resetBtn = document.getElementById('scResetBtn');
   const dropIcon = document.getElementById('scDropIcon');
   const dropText = document.getElementById('scDropText');
   const dropSubtext = document.getElementById('scDropSubtext');
   const fileInput = document.getElementById('scFileInput');
-  const autoSelectBtn = document.getElementById('scAutoSelectBtn');
   const statusEl = document.getElementById('scStatus');
   const progressContainer = document.getElementById('scProgressContainer');
 
   let expectedMap = null;
   let extractedItems = [];
   let fileType = 'excel';
+  let scanMonitorInterval = null;
 
-  // Global persistent seen sets so switching tabs never un-registers already seen items
   let persistentMainSeen = new Set();
   let persistentAccessorySeen = new Set();
 
-  // Persistent error maps for each table type so errors stay remembered across tab switches
   let mainErrorMap = new Map();
   let accessoryErrorMap = new Map();
+
+  function resetPanelToInitialState() {
+    if (scanMonitorInterval) {
+      clearInterval(scanMonitorInterval);
+      scanMonitorInterval = null;
+    }
+
+    expectedMap = null;
+    extractedItems = [];
+    persistentMainSeen.clear();
+    persistentAccessorySeen.clear();
+    mainErrorMap.clear();
+    accessoryErrorMap.clear();
+
+    fileInput.value = '';
+    dropZone.classList.remove('has-file');
+    resetBtn.style.display = 'none';
+    dropIcon.textContent = '📁';
+    dropText.innerHTML = '<strong>Click to upload</strong> or drag & drop';
+    dropSubtext.textContent = 'Excel (.xlsx, .xls) or PDF (.pdf) manifest';
+
+    tsvArea.value = "No data extracted yet.";
+    progressContainer.innerHTML = '';
+    statusEl.textContent = 'Waiting for file...';
+  }
 
   function getGcpApiKey() {
     let apiKey = GM_getValue("gcp_vision_key", "");
@@ -418,8 +446,6 @@
     const n = Number(s);
     return Number.isFinite(n) ? n : 0;
   }
-
-  function delay(ms) { return new Promise(res => setTimeout(res, ms)); }
 
   function updateTsvView() {
     if (!extractedItems || extractedItems.length === 0) {
@@ -747,6 +773,12 @@
     if (!file) return;
     const fileName = file.name.toLowerCase();
 
+    // Clear active monitoring interval if a previous file was running
+    if (scanMonitorInterval) {
+      clearInterval(scanMonitorInterval);
+      scanMonitorInterval = null;
+    }
+
     try {
       persistentMainSeen.clear();
       persistentAccessorySeen.clear();
@@ -759,129 +791,38 @@
         const res = await readPdf(file);
         expectedMap = res.map;
         extractedItems = res.list;
-        statusEl.textContent = `PDF loaded (${extractedItems.length} items).\nClick "Auto-Select & Monitor Scans".`;
       } else if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
         fileType = 'excel';
         statusEl.textContent = 'Reading Excel...';
         const res = await readExcel(file);
         expectedMap = res.map;
         extractedItems = res.list;
-        statusEl.textContent = `Excel loaded (${extractedItems.length} items).\nClick "Auto-Select & Monitor Scans".`;
       } else {
         statusEl.textContent = '❌ Unsupported file format.\nPlease select an Excel (.xlsx, .xls) or PDF (.pdf) file.';
         return;
       }
 
       dropZone.classList.add('has-file');
-      dropIcon.textContent = fileType === 'pdf' ? '📄' : '📊';
+      resetBtn.style.display = 'flex';
+      dropIcon.textContent = '📄';
       dropText.innerHTML = `<strong>${file.name}</strong>`;
-      dropSubtext.textContent = 'Click or drag new file to replace';
+      dropSubtext.textContent = 'Click to replace file';
 
       updateTsvView();
-      autoSelectBtn.style.display = 'block';
       progressContainer.innerHTML = '';
+
+      // Immediately set status and launch scan monitoring
+      statusEl.textContent = `🟢 Monitoring scans (${extractedItems.length} items loaded)...`;
+      injectExpectedQtyLabels();
+      startScanMonitor();
+
     } catch (err) {
       console.error(err);
       statusEl.textContent = 'Error: ' + (err && err.message ? err.message : err);
     }
   }
 
-  let scanMonitorInterval = null;
-
-  function getProductPickerDialog() {
-    const dialogs = [...document.querySelectorAll('div.ui-dialog, .ui-dialog, .p-dialog')];
-    return dialogs.find(d => {
-      const computed = window.getComputedStyle(d);
-      if (computed.display === 'none' || computed.visibility === 'hidden') return false;
-      const title = d.querySelector('.ui-dialog-title, .p-dialog-title');
-      if (!title) return false;
-      const txt = title.textContent.trim();
-      return txt === '选择商品' || txt === 'Select products';
-    }) || null;
-  }
-
-  async function autoSelectAndMonitor() {
-    if (!expectedMap) {
-      statusEl.textContent = 'Please upload an Excel or PDF file first.';
-      return;
-    }
-
-    autoSelectBtn.disabled = true;
-    statusEl.textContent = 'Opening product picker...';
-
-    const pickerBtn = [...document.querySelectorAll('button .ui-button-text, .ui-button-text')]
-      .find(el => {
-        const txt = el.textContent.trim();
-        return txt === '选择商品' || txt === 'Select products';
-      });
-    if (!pickerBtn) {
-      statusEl.textContent = '❌ Could not find "选择商品" / "Select products" button on this page.';
-      autoSelectBtn.disabled = false;
-      return;
-    }
-    pickerBtn.closest('button').click();
-
-    let dialog = null;
-    for (let i = 0; i < 20; i++) {
-      dialog = getProductPickerDialog();
-      if (dialog) break;
-      await delay(200);
-    }
-    if (!dialog) {
-      statusEl.textContent = '❌ Product picker dialog did not open.';
-      autoSelectBtn.disabled = false;
-      return;
-    }
-
-    statusEl.textContent = 'Matching EANs in picker...';
-    await delay(300);
-
-    const rows = [...dialog.querySelectorAll('.ui-table-scrollable-body-table tbody tr')]
-      .filter(tr => tr.querySelectorAll('td').length > 0);
-
-    let matchedCount = 0;
-    rows.forEach(tr => {
-      const tds = tr.querySelectorAll('td');
-      if (tds.length < 2) return;
-      const ean = normalizeEAN(tds[1].textContent.trim());
-      if (!ean || !expectedMap.has(ean)) return;
-
-      const checkboxBox = tr.querySelector('td.table-chkbox .ui-chkbox-box');
-      if (checkboxBox) {
-        checkboxBox.click();
-        matchedCount++;
-      }
-    });
-
-    if (matchedCount === 0) {
-      statusEl.textContent = '⚠️ No matching EANs found in the picker (check the product list/search filters).';
-      autoSelectBtn.disabled = false;
-      return;
-    }
-
-    statusEl.textContent = `Selected ${matchedCount} matching product(s). Confirming...`;
-    await delay(200);
-
-    const confirmBtn = [...dialog.querySelectorAll('.ui-dialog-buttonpane button .ui-button-text, .ui-dialog-buttonpane .ui-button-text')]
-      .find(el => {
-        const txt = el.textContent.trim();
-        return txt === '选择' || txt === 'Select';
-      });
-    if (confirmBtn) {
-      confirmBtn.closest('button').click();
-    } else {
-      statusEl.textContent = '⚠️ Selected rows, but could not find the "选择" / "Select" confirm button — please click it manually.';
-    }
-
-    await delay(500);
-    statusEl.textContent = `Total ${extractedItems.length} product(s) in invoice. Monitoring scans...`;
-
-    injectExpectedQtyLabels();
-    startScanMonitor();
-    autoSelectBtn.disabled = false;
-  }
-
-  function injectExpectedQtyLabels() {
+function injectExpectedQtyLabels() {
     if (!expectedMap) return;
     const tables = document.querySelectorAll('.receipt-table');
     tables.forEach(table => {
@@ -892,59 +833,49 @@
       const rows = [...table.querySelectorAll('.ui-table-scrollable-body-table tbody tr')]
         .filter(tr => tr.querySelectorAll('td').length > 0);
 
-      if (isAccessory) {
-        const eanIdx = headers.findIndex(th => {
-          const t = normText(th.textContent).toLowerCase();
-          return t === '配件编码' || t === 'accessorycode';
-        });
-        const qtyIdx = headers.findIndex(th => {
-          const t = normText(th.textContent).toLowerCase();
-          return t === '发货数' || t === 'deliveryqty';
-        });
-        if (eanIdx === -1 || qtyIdx === -1) return;
+      const eanHeaderName = isAccessory ? '配件编码' : '商品编码';
+      const eanHeaderAlt = isAccessory ? 'accessorycode' : 'itemcode';
 
-        rows.forEach(tr => {
-          const tds = tr.querySelectorAll('td');
-          if (tds.length <= Math.max(eanIdx, qtyIdx)) return;
-          const eanCellSpan = tds[eanIdx].querySelector('span') || tds[eanIdx];
-          const ean = normalizeEAN(eanCellSpan.textContent.trim());
-          if (!ean || !expectedMap.has(ean)) return;
+      const eanIdx = headers.findIndex(th => {
+        const t = normText(th.textContent).toLowerCase();
+        return t === eanHeaderName || t === eanHeaderAlt;
+      });
+      const qtyIdx = headers.findIndex(th => {
+        const t = normText(th.textContent).toLowerCase();
+        return t === '发货数' || t === 'deliveryqty';
+      });
 
-          const qtyCell = tds[qtyIdx];
-          if (qtyCell.querySelector('.sc-qty-expected-label')) return;
+      if (eanIdx === -1 || qtyIdx === -1) return;
 
-          const label = document.createElement('span');
+      rows.forEach(tr => {
+        const tds = tr.querySelectorAll('td');
+        if (tds.length <= Math.max(eanIdx, qtyIdx)) return;
+
+        const eanCellSpan = tds[eanIdx].querySelector('span') || tds[eanIdx];
+        const ean = normalizeEAN(eanCellSpan.textContent.trim());
+        if (!ean) return;
+
+        const qtyCell = tds[qtyIdx];
+        let label = qtyCell.querySelector('.sc-qty-expected-label');
+
+        // Create label if it doesn't exist yet
+        if (!label) {
+          label = document.createElement('span');
           label.className = 'sc-qty-expected-label';
-          label.textContent = `Expected: ${expectedMap.get(ean)}`;
           qtyCell.appendChild(label);
-        });
-      } else {
-        const eanIdx = headers.findIndex(th => {
-          const t = normText(th.textContent).toLowerCase();
-          return t === '商品编码' || t === 'itemcode';
-        });
-        const qtyIdx = headers.findIndex(th => {
-          const t = normText(th.textContent).toLowerCase();
-          return t === '发货数' || t === 'deliveryqty';
-        });
-        if (eanIdx === -1 || qtyIdx === -1) return;
+        }
 
-        rows.forEach(tr => {
-          const tds = tr.querySelectorAll('td');
-          if (tds.length <= Math.max(eanIdx, qtyIdx)) return;
-
-          const ean = normalizeEAN(tds[eanIdx].textContent.trim());
-          if (!ean || !expectedMap.has(ean)) return;
-
-          const qtyCell = tds[qtyIdx];
-          if (qtyCell.querySelector('.sc-qty-expected-label')) return;
-
-          const label = document.createElement('span');
-          label.className = 'sc-qty-expected-label';
+        // Apply text and color depending on whether the EAN exists in manifest
+        if (expectedMap.has(ean)) {
           label.textContent = `Expected: ${expectedMap.get(ean)}`;
-          qtyCell.appendChild(label);
-        });
-      }
+          label.style.color = '#6c757d';
+          label.style.fontWeight = 'normal';
+        } else {
+          label.textContent = `Wrong Item`;
+          label.style.color = '#842029';
+          label.style.fontWeight = 'bold';
+        }
+      });
     });
   }
 
@@ -955,7 +886,6 @@
     }
 
     const tables = document.querySelectorAll('.receipt-table');
-    if (tables.length === 0) return;
 
     let visibleMainErrors = new Map();
     let visibleAccessoryErrors = new Map();
@@ -1051,7 +981,6 @@
       }
     });
 
-    // Compute missing items union across globally persistent seen sets
     const globalSeenUnion = new Set([...persistentMainSeen, ...persistentAccessorySeen]);
     const missingItems = [];
     expectedMap.forEach((expectedQty, ean) => {
@@ -1060,7 +989,6 @@
       }
     });
 
-    // Combine error maps from both tables globally
     const combinedErrorMap = new Map([...mainErrorMap, ...accessoryErrorMap]);
     const errorItems = [...combinedErrorMap.values()];
 
@@ -1108,7 +1036,14 @@
     }, 1000);
   }
 
-  dropZone.addEventListener('click', () => fileInput.click());
+  dropZone.addEventListener('click', () => {
+    fileInput.click();
+  });
+
+  resetBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    resetPanelToInitialState();
+  });
 
   fileInput.addEventListener('change', () => {
     const file = fileInput.files && fileInput.files[0];
@@ -1141,6 +1076,4 @@
       processFile(files[0]);
     }
   }, false);
-
-  autoSelectBtn.addEventListener('click', () => autoSelectAndMonitor());
 })();
