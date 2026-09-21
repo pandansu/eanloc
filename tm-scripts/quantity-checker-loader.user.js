@@ -16,8 +16,22 @@
 // @downloadURL  https://raw.githubusercontent.com/pandansu/eanloc/refs/heads/main/tm-scripts/quantity-checker-loader.user.js
 // ==/UserScript==
 
-// This file intentionally contains no logic — everything lives in
-// quanty-checker-x-core.js, fetched via @require above. Edit and push
-// the core file to update behavior; bump @version here (and the ?v=
-// query string on the @require line) to make Tampermonkey pick up
-// changes on the next update check.
+
+const CORE_URL = "https://raw.githubusercontent.com/pandansu/eanloc/refs/heads/main/tm-scripts/quantity-checker-core.js";
+
+// Fetch the raw script from GitHub and run it
+GM_xmlhttpRequest({
+    method: "GET",
+    // Adding ?t= prevents GitHub CDN from caching old versions
+    url: CORE_URL + "?t=" + Date.now(),
+    onload: function(response) {
+        if (response.status === 200) {
+            eval(response.responseText);
+        } else {
+            console.error("Failed to load script core:", response.status);
+        }
+    },
+    onerror: function(err) {
+        console.error("Error fetching remote script:", err);
+    }
+});
