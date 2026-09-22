@@ -496,8 +496,8 @@
 
             const deliveryCode = cleanText(row[0]);       // Col A
             const ean = normalizeEAN(row[5]);             // Col F
-            const serial = cleanText(row[8]);             // Col I
-            const qty = Number(cleanText(row[9]) || 0);   // Col J
+            const serial = cleanText(row[9]);             // Col J (Changed from 8/I)
+            const qty = Number(cleanText(row[10]) || 0);   // Col K (Changed from 9/J)
 
             if (!ean) continue;
 
