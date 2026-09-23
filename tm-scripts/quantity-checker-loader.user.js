@@ -4,6 +4,8 @@
 // @version      2.5
 // @description  Loader for Quantity Checker — fetches the actual logic from GitHub via @require.
 // @match        https://scsm-djifx.lingyingdms.com/*
+// @exclude      https://scsm-djifx.lingyingdms.com/imeiprint*
+// @exclude      https://scsm-djifx.lingyingdms.com/print*
 // @grant        GM_addStyle
 // @grant        GM_getValue
 // @grant        GM_setValue
