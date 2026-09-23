@@ -5,6 +5,7 @@
 // @description  Google Sheet or Excel price fill using EAN 商品编码
 // @match        https://scsm-djifx.lingyingdms.com/*
 // @exclude      https://scsm-djifx.lingyingdms.com/imeiprint*
+// @exclude      https://scsm-djifx.lingyingdms.com/print*
 // @require      https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js
 // @grant        GM_xmlhttpRequest
 // @connect      docs.google.com
