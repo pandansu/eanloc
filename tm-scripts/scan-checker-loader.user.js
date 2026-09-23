@@ -5,6 +5,8 @@
 // @description  Loader for Scan Checker — auto-selects products from a PDF/Excel manifest and monitors live serial scan progress. Fetches the actual logic from GitHub via @require.
 // @match        https://scsm-djifx.lingyingdms.com/*
 // @match        https://pandansu.github.io/eanloc/list/*
+// @exclude      https://scsm-djifx.lingyingdms.com/imeiprint*
+// @exclude      https://scsm-djifx.lingyingdms.com/print*
 // @grant        GM_addStyle
 // @grant        GM_getValue
 // @grant        GM_setValue
