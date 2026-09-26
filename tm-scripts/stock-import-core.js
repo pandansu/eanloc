@@ -218,10 +218,6 @@
             grid-template-columns: repeat(3, 1fr);
             gap: 4px;
         }
-
-        @media print {
-            #wsiContainer { display: none !important; }
-        }
     `;
     document.head.appendChild(style);
 
@@ -254,56 +250,6 @@
     `;
     document.body.appendChild(container);
 
-    /* =========================================================
-       DIALOG VISIBILITY MONITOR
-    ========================================================= */
-    function getForeignDialogs() {
-        const dialogs = [...document.querySelectorAll('div.ui-dialog, .ui-dialog, .p-dialog')];
-        return dialogs.filter(d => {
-            const computed = window.getComputedStyle(d);
-            if (computed.display === 'none' || computed.visibility === 'hidden' || computed.opacity === '0') {
-                return false;
-            }
-
-            const text = (d.textContent || '').trim();
-            const hasIframe = !!d.querySelector('iframe[src*="imei"]');
-            const isImeiDialog = d.classList.contains('imei-dialog');
-
-            // Ignore script workflow dialogs
-            if (isImeiDialog || hasIframe || text.includes('扫描串号') || text.includes('选择商品') || text.includes('串号数')) {
-                return false;
-            }
-
-            return true;
-        });
-    }
-
-    function updateContainerVisibilityForDialogs() {
-        const hasForeignDialog = getForeignDialogs().length > 0;
-        container.style.display = hasForeignDialog ? 'none' : '';
-    }
-
-    updateContainerVisibilityForDialogs();
-
-    const globalDialogObserver = new MutationObserver(() => {
-        updateContainerVisibilityForDialogs();
-    });
-
-    globalDialogObserver.observe(document.body, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['style', 'class']
-    });
-
-    setInterval(updateContainerVisibilityForDialogs, 400);
-
-    window.addEventListener('beforeprint', () => { container.style.display = 'none'; });
-    window.addEventListener('afterprint', () => { updateContainerVisibilityForDialogs(); });
-
-    /* =========================================================
-       DOM ELEMENTS
-    ========================================================= */
     const badge = document.getElementById("wsiBadge");
     const panel = document.getElementById("wsiPanel");
     const dragHandle = document.getElementById("wsiDragHandle");
@@ -515,7 +461,7 @@
             });
 
             await parseExcel(rows);
-            fileInput.value = "";
+            fileInput.value = ""; // Reset file input so re-uploading the same file triggers change
         };
 
         reader.readAsArrayBuffer(file);
@@ -548,10 +494,10 @@
         for (let r = 1; r < rows.length; r++) {
             const row = rows[r];
 
-            const deliveryCode = cleanText(row[0]);
-            const ean = normalizeEAN(row[5]);
-            const serial = cleanText(row[9]);
-            const qty = Number(cleanText(row[10]) || 0);
+            const deliveryCode = cleanText(row[0]);       // Col A
+            const ean = normalizeEAN(row[5]);             // Col F
+            const serial = cleanText(row[9]);             // Col J (Changed from 8/I)
+            const qty = Number(cleanText(row[10]) || 0);   // Col K (Changed from 9/J)
 
             if (!ean) continue;
 
@@ -876,15 +822,14 @@
 
     function setInputValue(input, val) {
         if (!input) return;
-        const win = input.ownerDocument.defaultView || window;
         const nativeSetter = Object.getOwnPropertyDescriptor(
-            win.HTMLInputElement.prototype,
+            window.HTMLInputElement.prototype,
             "value"
         ).set;
         nativeSetter.call(input, val);
-        input.dispatchEvent(new win.Event("input", { bubbles: true }));
-        input.dispatchEvent(new win.Event("change", { bubbles: true }));
-        input.dispatchEvent(new win.Event("blur", { bubbles: true }));
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+        input.dispatchEvent(new Event("blur", { bubbles: true }));
     }
 
     /* =========================================================
@@ -1115,7 +1060,7 @@
 
         await sleep(300);
 
-        const addBtn = [...document.querySelectorAll("span.ui-button-text.ui-clickable, button span")]
+        const addBtn = [...document.querySelectorAll("span.ui-button-text.ui-clickable")]
             .find(x => x.textContent.trim() === "添加");
 
         if (!addBtn) return false;
@@ -1124,7 +1069,7 @@
 
         await sleep(500);
 
-        const okBtn = [...document.querySelectorAll("span.ui-button-text.ui-clickable, button span")]
+        const okBtn = [...document.querySelectorAll("span.ui-button-text.ui-clickable")]
             .find(x => x.textContent.trim() === "确定");
 
         if (!okBtn) return false;
@@ -1138,25 +1083,9 @@
 
     async function waitForSerialInput() {
         for (let i = 0; i < 25; i++) {
-            // 1. Check main document
-            let input = document.querySelector('input[name="imeicode"]');
-            if (input) return input;
+            const input = document.querySelector('input[name="imeicode"]');
 
-            // 2. Check inside iframe (assets/imei.html)
-            const iframes = document.querySelectorAll('iframe');
-            for (const iframe of iframes) {
-                try {
-                    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-                    if (iframeDoc) {
-                        input = iframeDoc.querySelector('input[name="imeicode"]') ||
-                                iframeDoc.querySelector('input[type="text"]') ||
-                                iframeDoc.querySelector('input');
-                        if (input) return input;
-                    }
-                } catch (e) {
-                    // Cross-origin iframe fallback
-                }
-            }
+            if (input) return input;
 
             await sleep(300);
         }
