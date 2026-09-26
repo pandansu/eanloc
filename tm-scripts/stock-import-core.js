@@ -218,6 +218,10 @@
             grid-template-columns: repeat(3, 1fr);
             gap: 4px;
         }
+
+        @media print {
+            #wsiContainer { display: none !important; }
+        }
     `;
     document.head.appendChild(style);
 
@@ -250,6 +254,43 @@
     `;
     document.body.appendChild(container);
 
+    /* =========================================================
+       DIALOG VISIBILITY MONITOR
+    ========================================================= */
+    function getForeignDialogs() {
+        const dialogs = [...document.querySelectorAll('div.ui-dialog, .ui-dialog, .p-dialog')];
+        return dialogs.filter(d => {
+            const computed = window.getComputedStyle(d);
+            return computed.display !== 'none' && computed.visibility !== 'hidden';
+        });
+    }
+
+    function updateContainerVisibilityForDialogs() {
+        const hasForeignDialog = getForeignDialogs().length > 0;
+        container.style.display = hasForeignDialog ? 'none' : '';
+    }
+
+    updateContainerVisibilityForDialogs();
+
+    const globalDialogObserver = new MutationObserver(() => {
+        updateContainerVisibilityForDialogs();
+    });
+
+    globalDialogObserver.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class']
+    });
+
+    setInterval(updateContainerVisibilityForDialogs, 400);
+
+    window.addEventListener('beforeprint', () => { container.style.display = 'none'; });
+    window.addEventListener('afterprint', () => { updateContainerVisibilityForDialogs(); });
+
+    /* =========================================================
+       DOM ELEMENTS
+    ========================================================= */
     const badge = document.getElementById("wsiBadge");
     const panel = document.getElementById("wsiPanel");
     const dragHandle = document.getElementById("wsiDragHandle");
@@ -496,8 +537,8 @@
 
             const deliveryCode = cleanText(row[0]);       // Col A
             const ean = normalizeEAN(row[5]);             // Col F
-            const serial = cleanText(row[9]);             // Col J (Changed from 8/I)
-            const qty = Number(cleanText(row[10]) || 0);   // Col K (Changed from 9/J)
+            const serial = cleanText(row[9]);             // Col J
+            const qty = Number(cleanText(row[10]) || 0);   // Col K
 
             if (!ean) continue;
 
