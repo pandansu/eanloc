@@ -265,10 +265,12 @@
                 return false;
             }
 
-            const titleEl = d.querySelector('.ui-dialog-title, .p-dialog-title, [id*="label"]');
-            const titleText = titleEl ? titleEl.textContent.trim() : '';
+            const text = (d.textContent || '').trim();
+            const hasIframe = !!d.querySelector('iframe[src*="imei"]');
+            const isImeiDialog = d.classList.contains('imei-dialog');
 
-            if (titleText.includes('扫描串号') || titleText.includes('选择商品')) {
+            // Ignore script workflow dialogs
+            if (isImeiDialog || hasIframe || text.includes('扫描串号') || text.includes('选择商品') || text.includes('串号数')) {
                 return false;
             }
 
@@ -874,14 +876,15 @@
 
     function setInputValue(input, val) {
         if (!input) return;
+        const win = input.ownerDocument.defaultView || window;
         const nativeSetter = Object.getOwnPropertyDescriptor(
-            window.HTMLInputElement.prototype,
+            win.HTMLInputElement.prototype,
             "value"
         ).set;
         nativeSetter.call(input, val);
-        input.dispatchEvent(new Event("input", { bubbles: true }));
-        input.dispatchEvent(new Event("change", { bubbles: true }));
-        input.dispatchEvent(new Event("blur", { bubbles: true }));
+        input.dispatchEvent(new win.Event("input", { bubbles: true }));
+        input.dispatchEvent(new win.Event("change", { bubbles: true }));
+        input.dispatchEvent(new win.Event("blur", { bubbles: true }));
     }
 
     /* =========================================================
@@ -1112,7 +1115,7 @@
 
         await sleep(300);
 
-        const addBtn = [...document.querySelectorAll("span.ui-button-text.ui-clickable")]
+        const addBtn = [...document.querySelectorAll("span.ui-button-text.ui-clickable, button span")]
             .find(x => x.textContent.trim() === "添加");
 
         if (!addBtn) return false;
@@ -1121,7 +1124,7 @@
 
         await sleep(500);
 
-        const okBtn = [...document.querySelectorAll("span.ui-button-text.ui-clickable")]
+        const okBtn = [...document.querySelectorAll("span.ui-button-text.ui-clickable, button span")]
             .find(x => x.textContent.trim() === "确定");
 
         if (!okBtn) return false;
@@ -1135,9 +1138,25 @@
 
     async function waitForSerialInput() {
         for (let i = 0; i < 25; i++) {
-            const input = document.querySelector('input[name="imeicode"]');
-
+            // 1. Check main document
+            let input = document.querySelector('input[name="imeicode"]');
             if (input) return input;
+
+            // 2. Check inside iframe (assets/imei.html)
+            const iframes = document.querySelectorAll('iframe');
+            for (const iframe of iframes) {
+                try {
+                    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+                    if (iframeDoc) {
+                        input = iframeDoc.querySelector('input[name="imeicode"]') ||
+                                iframeDoc.querySelector('input[type="text"]') ||
+                                iframeDoc.querySelector('input');
+                        if (input) return input;
+                    }
+                } catch (e) {
+                    // Cross-origin iframe fallback
+                }
+            }
 
             await sleep(300);
         }
