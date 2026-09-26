@@ -261,7 +261,18 @@
         const dialogs = [...document.querySelectorAll('div.ui-dialog, .ui-dialog, .p-dialog')];
         return dialogs.filter(d => {
             const computed = window.getComputedStyle(d);
-            return computed.display !== 'none' && computed.visibility !== 'hidden';
+            if (computed.display === 'none' || computed.visibility === 'hidden' || computed.opacity === '0') {
+                return false;
+            }
+
+            const titleEl = d.querySelector('.ui-dialog-title, .p-dialog-title, [id*="label"]');
+            const titleText = titleEl ? titleEl.textContent.trim() : '';
+
+            if (titleText.includes('扫描串号') || titleText.includes('选择商品')) {
+                return false;
+            }
+
+            return true;
         });
     }
 
@@ -502,7 +513,7 @@
             });
 
             await parseExcel(rows);
-            fileInput.value = ""; // Reset file input so re-uploading the same file triggers change
+            fileInput.value = "";
         };
 
         reader.readAsArrayBuffer(file);
@@ -535,10 +546,10 @@
         for (let r = 1; r < rows.length; r++) {
             const row = rows[r];
 
-            const deliveryCode = cleanText(row[0]);       // Col A
-            const ean = normalizeEAN(row[5]);             // Col F
-            const serial = cleanText(row[9]);             // Col J
-            const qty = Number(cleanText(row[10]) || 0);   // Col K
+            const deliveryCode = cleanText(row[0]);
+            const ean = normalizeEAN(row[5]);
+            const serial = cleanText(row[9]);
+            const qty = Number(cleanText(row[10]) || 0);
 
             if (!ean) continue;
 
