@@ -184,6 +184,17 @@
         }
     }
 
+    function isExcludedRow(row) {
+        if (!row) return false;
+        for (let i = 0; i < row.length; i++) {
+            const val = String(row[i] || "").trim().toUpperCase();
+            if (["OOS", "CANCEL", "CANCELLED"].includes(val)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     function updateCounts() {
         const sheetCountEl = document.getElementById("sheetCountLabel");
         const platformCountEl = document.getElementById("platformCountLabel");
@@ -196,6 +207,7 @@
         }
 
         const totalRows = excelRows.slice(1).filter(row => {
+            if (isExcludedRow(row)) return false;
             const category = String(row[1] || "").trim();
             const ean = String(row[4] || "").trim();
             const itemCode = String(row[5] || "").trim();
@@ -206,6 +218,7 @@
 
         const selectedPlatform = document.getElementById("filterValueSelect").value;
         const platformRows = excelRows.slice(1).filter(row => {
+            if (isExcludedRow(row)) return false;
             const rowCategory = normalizeCategory(String(row[1] || "").trim());
             const category = String(row[1] || "").trim();
             const ean = String(row[4] || "").trim();
@@ -552,10 +565,22 @@
             raw: false
         });
 
+        // DONE in Column F (index 5) substitution rule with Column E (index 4)
+        for (let i = 1; i < excelRows.length; i++) {
+            const row = excelRows[i];
+            if (row && row.length > 5) {
+                const colF = String(row[5] || "").trim();
+                if (colF.toUpperCase() === "DONE") {
+                    row[5] = row[4];
+                }
+            }
+        }
+
         buildFilterValues();
         updateCounts();
 
         const actualRowsCount = excelRows.slice(1).filter(row => {
+            if (isExcludedRow(row)) return false;
             const category = String(row[1] || "").trim();
             const ean = String(row[4] || "").trim();
             const itemCode = String(row[5] || "").trim();
@@ -588,6 +613,7 @@
         const values = new Set();
 
         excelRows.slice(1).forEach(row => {
+            if (isExcludedRow(row)) return;
             const value = normalizeCategory(String(row[filterCol] || "").trim());
             if (value) values.add(value);
         });
@@ -624,6 +650,7 @@
         const redItemsCount = {};
 
         excelRows.slice(1).forEach(row => {
+            if (isExcludedRow(row)) return;
             const rowCategory = normalizeCategory(String(row[1] || "").trim());
             if (rowCategory !== filterValue) return;
 
@@ -654,8 +681,6 @@
     }
 
     // STEP 1: Enter Items (Serials and Accessories population)
-    // NOTE: accessories are now aggregated by code -> qty, so duplicate codes
-    // produce a single table row with a summed quantity instead of one row per occurrence.
     function enterItems() {
         if (!excelRows.length) {
             alert("Upload Excel first.");
@@ -664,9 +689,10 @@
 
         const filterValue = document.getElementById("filterValueSelect").value;
         const serials = [];
-        const accessoryCounts = new Map(); // code -> qty
+        const accessoriesList = [];
 
         excelRows.slice(1).forEach(row => {
+            if (isExcludedRow(row)) return;
             const rowCategory = normalizeCategory(String(row[1] || "").trim());
             if (rowCategory !== filterValue) return;
 
@@ -677,11 +703,12 @@
             }
 
             if (/^\d+$/.test(val)) {
-                accessoryCounts.set(val, (accessoryCounts.get(val) || 0) + 1);
+                accessoriesList.push({
+                    code: val,
+                    qty: 1
+                });
             }
         });
-
-        const accessoriesList = [...accessoryCounts.entries()].map(([code, qty]) => ({ code, qty }));
 
         if (serials.length === 0 && accessoriesList.length === 0) {
             alert(`No items or serial numbers found for ${filterValue}.`);
@@ -843,6 +870,7 @@
         const accessoriesList = [];
 
         excelRows.slice(1).forEach(row => {
+            if (isExcludedRow(row)) return;
             const rowCategory = normalizeCategory(String(row[1] || "").trim());
             if (rowCategory !== filterValue) return;
 
@@ -962,7 +990,16 @@
                         priceInput.blur();
                         matched++;
                     } else {
-                        eanCell.style.background = "#ffccc7";
+                        // Highlight EAN text with bold red and left border, and highlight price input box
+                        eanCell.style.color = "#c62828";
+                        eanCell.style.fontWeight = "bold";
+                        // eanCell.style.borderLeft = "4px solid #c62828";
+
+                        if (priceInput) {
+                            priceInput.style.background = "#ffebee";
+                            priceInput.style.border = "1px solid #c62828";
+                            priceInput.style.borderLeft = "5px solid #c62828";
+                        }
                         missing.push(ean);
                     }
                 }
