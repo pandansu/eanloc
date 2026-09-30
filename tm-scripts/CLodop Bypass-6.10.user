@@ -1,0 +1,183 @@
+// ==UserScript==
+// @name         CLodop Bypass
+// @namespace    http://tampermonkey.net/
+// @version      6.10
+// @match        https://*.lingyingdms.com/*
+// @run-at       document-start
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // 1. Intercept and suppress the native alert popups just in case
+    const originalAlert = window.alert;
+    window.alert = function(msg) {
+        if (msg && (msg.includes('网页还没下载完毕') || msg.includes('CLodop') || msg.includes('getLodop'))) {
+            return; // Silently block the warning
+        }
+        return originalAlert.apply(this, arguments);
+    };
+
+    // 2. Fully mock CLodop including SET_LICENSES to satisfy the app's internal initialization calls
+    window.CLodop = {
+        CVERSION: "6.5.0.0",
+        PRINT: function() { window.print(); return true; },
+        PREVIEW: function() { window.print(); return true; },
+        PRINT_INIT: function() {},
+        SET_PRINT_PAGESIZE: function() {},
+        ADD_PRINT_TEXT: function() {},
+        ADD_PRINT_HTM: function() {},
+        SET_PRINT_MODE: function() {},
+        SET_LICENSES: function() {},
+        SET_LICENSE: function() {},
+        AsynPrint: function() { window.print(); return true; },
+        IsLodopOpened: function() { return true; }
+    };
+    window.getCLodop = function() { return window.CLodop; };
+    window.CLODOP = window.CLodop;
+    window.LODOP = window.CLodop;
+
+    // 3. Purge any lingering CLodop error text elements on the page
+    function purgeClodop() {
+        document.querySelectorAll('font[color="#FF00FF"]').forEach(font => {
+            if (font.textContent.includes('CLodop') || font.textContent.includes('Web打印服务')) {
+                let prev = font.previousSibling;
+                while (prev && (prev.nodeName === 'BR' || (prev.nodeType === Node.TEXT_NODE && prev.nodeValue.trim() === ''))) {
+                    let toRemove = prev;
+                    prev = prev.previousSibling;
+                    toRemove.remove();
+                }
+                font.remove();
+            }
+        });
+    }
+
+    const interval = setInterval(purgeClodop, 5);
+    window.addEventListener('DOMContentLoaded', () => {
+        clearInterval(interval);
+        purgeClodop();
+    });
+
+    const observer = new MutationObserver(() => purgeClodop());
+    window.addEventListener('DOMContentLoaded', () => {
+        observer.observe(document.body, { childList: true, subtree: true });
+    });
+
+    // 4. Inject Print Stylesheet (Hides only the old broken button, keeps our new button visible)
+    const printStyle = document.createElement('style');
+    printStyle.innerHTML = `
+        /* Hide original broken print button, but keep our replacement button visible */
+        .no-print-contanier button:not(#nativeSystemPrintBtn) {
+            display: none !important;
+        }
+
+        @media print {
+            /* Hide everything on the page by default */
+            body * {
+                visibility: hidden !important;
+            }
+
+            /* Expose only the app-print containers and target document elements */
+            app-print, app-print *, [id^="printBodyAll"], [id^="printBodyAll"] * {
+                visibility: visible !important;
+            }
+
+            /* Hide system UI elements, control bars, dropdowns, and buttons */
+            .no-print, .no-print-contanier, app-custom-loading, nz-select, button {
+                display: none !important;
+            }
+
+            /* Base style for document blocks */
+            [id^="printBodyAll"] {
+                position: relative !important;
+                display: block !important;
+                height: auto !important;
+                max-height: none !important;
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+                margin-bottom: 10mm !important;
+                padding: 5mm !important;
+                box-sizing: border-box;
+            }
+        }
+    `;
+
+    if (document.documentElement) {
+        document.documentElement.appendChild(printStyle);
+    } else {
+        window.addEventListener('DOMContentLoaded', () => {
+            document.documentElement.appendChild(printStyle);
+        });
+    }
+
+    // 5. Replace the broken print button with a cleanly aligned button matching Ant Design specs
+    window.addEventListener('DOMContentLoaded', () => {
+        const toolbarObserver = new MutationObserver(() => {
+            const container = document.querySelector('.no-print-contanier');
+            if (container && !document.getElementById('nativeSystemPrintBtn')) {
+                const btnWrapper = document.createElement('div');
+                btnWrapper.style.cssText = 'display: inline-block; vertical-align: middle; margin-left: 10px;';
+
+                const btn = document.createElement('button');
+                btn.id = 'nativeSystemPrintBtn';
+                btn.type = 'button';
+                btn.textContent = '🖨️ 打印 | Print';
+                btn.style.cssText = `
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    height: 32px;
+                    padding: 0 15px;
+                    background: #52c41a;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-family: inherit;
+                    font-weight: 500;
+                    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.04);
+                    vertical-align: middle;
+                    transition: background 0.3s;
+                `;
+
+                btn.addEventListener('mouseenter', () => {
+                    btn.style.background = '#73d13d';
+                });
+                btn.addEventListener('mouseleave', () => {
+                    btn.style.background = '#52c41a';
+                });
+
+                btn.addEventListener('click', () => {
+                    window.print();
+                });
+
+                btnWrapper.appendChild(btn);
+                container.appendChild(btnWrapper);
+            }
+        });
+
+        toolbarObserver.observe(document.body, { childList: true, subtree: true });
+    });
+
+    // 6. Automatically apply smart page breaks between separate documents right before printing
+    window.addEventListener('beforeprint', () => {
+        const blocks = document.querySelectorAll('[id^="printBodyAll"]');
+        let documentCount = 0;
+
+        blocks.forEach((block) => {
+            const text = block.textContent || '';
+            if (/Page[.\s]*1\s*\/\s*\d+/i.test(text)) {
+                documentCount++;
+                if (documentCount > 1) {
+                    block.style.setProperty('page-break-before', 'always', 'important');
+                    block.style.setProperty('break-before', 'page', 'important');
+                } else {
+                    block.style.setProperty('page-break-before', 'auto', 'important');
+                    block.style.setProperty('break-before', 'auto', 'important');
+                }
+            }
+        });
+    });
+})();
