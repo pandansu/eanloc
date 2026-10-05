@@ -145,7 +145,8 @@
         async function detectCourier(pdf, fileName) {
             const fname = fileName.toUpperCase();
             
-            if (fname.includes('SINGPOST') || fname.includes('TIKTOK')) return 'SingPost';
+            // Matches "SINGPOST", "TIKTOK", or "TIK TOK" in the file name
+            if (fname.includes('SINGPOST') || fname.includes('TIKTOK') || fname.includes('TIK TOK')) return 'SingPost';
             if (fname.includes('LAZADA') || fname.includes('J&T') || fname.includes('JNT')) return 'J&T Express';
             if (fname.includes('SHOPEE') || fname.includes('SPX')) return 'SPX Express';
 
@@ -155,7 +156,7 @@
                 const textContent = await page.getTextContent();
                 const text = textContent.items.map(item => item.str).join(' ').toUpperCase();
 
-                if (text.includes('SINGPOST') || text.includes('TIKTOK')) return 'SingPost';
+                if (text.includes('SINGPOST') || text.includes('TIKTOK') || text.includes('TIK TOK')) return 'SingPost';
                 if (text.includes('LAZADA') || text.includes('J&T') || text.includes('JNT') || /JT\d+/.test(text)) return 'J&T Express';
                 if (text.includes('SHOPEE') || text.includes('SPX') || /SPXSG\d+/.test(text)) return 'SPX Express';
             } catch (err) {
