@@ -145,9 +145,9 @@
         async function detectCourier(pdf, fileName) {
             const fname = fileName.toUpperCase();
             
-            // Matches "SINGPOST", "TIKTOK", or "TIK TOK" in the file name
+            // File name detection logic
             if (fname.includes('SINGPOST') || fname.includes('TIKTOK') || fname.includes('TIK TOK')) return 'SingPost';
-            if (fname.includes('LAZADA') || fname.includes('J&T') || fname.includes('JNT')) return 'J&T Express';
+            if (fname.includes('LAZADA') || fname.includes('J&T') || fname.includes('JNT') || fname.includes('J AND T')) return 'J&T Express';
             if (fname.includes('SHOPEE') || fname.includes('SPX')) return 'SPX Express';
 
             // Embedded PDF text check fallback
@@ -157,7 +157,7 @@
                 const text = textContent.items.map(item => item.str).join(' ').toUpperCase();
 
                 if (text.includes('SINGPOST') || text.includes('TIKTOK') || text.includes('TIK TOK')) return 'SingPost';
-                if (text.includes('LAZADA') || text.includes('J&T') || text.includes('JNT') || /JT\d+/.test(text)) return 'J&T Express';
+                if (text.includes('LAZADA') || text.includes('J&T') || text.includes('JNT') || text.includes('J AND T') || /JT\d+/.test(text)) return 'J&T Express';
                 if (text.includes('SHOPEE') || text.includes('SPX') || /SPXSG\d+/.test(text)) return 'SPX Express';
             } catch (err) {
                 console.warn("PDF embedded text read failed:", err);
