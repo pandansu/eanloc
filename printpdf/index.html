@@ -153,7 +153,7 @@
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
                     <div>
                         <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider">3. Document Queue & Sequence</h2>
-                        <p class="text-xs text-slate-400 mt-0.5">Sorted A-Z by default, or reorder manually</p>
+                        <p class="text-xs text-slate-400 mt-0.5">Sort alphabetically or reorder manually</p>
                     </div>
                     <div class="flex items-center space-x-2">
                         <button onclick="sortQueue('asc')" class="text-xs bg-slate-700/60 hover:bg-slate-700 text-slate-300 px-2.5 py-1.5 rounded-lg border border-slate-600/50 transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Sort A to Z">
@@ -213,4 +213,416 @@
 
     <script>
         // State Management
-        let pdfQueue
+        let pdfQueue = [];
+
+        // DOM Elements
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('file-input');
+        const folderInput = document.getElementById('folder-input');
+        const queueList = document.getElementById('queue-list');
+        const emptyState = document.getElementById('empty-state');
+        const queueCountBadge = document.getElementById('queue-count-badge');
+        const totalPagesBadge = document.getElementById('total-pages-badge');
+        const copiesRange = document.getElementById('copies-range');
+        const copiesInput = document.getElementById('copies-input');
+        const collateToggle = document.getElementById('collate-toggle');
+        const collateDesc = document.getElementById('collate-desc');
+        const btnPrint = document.getElementById('btn-print');
+        const btnDownload = document.getElementById('btn-download');
+        const clearAllTop = document.getElementById('clear-all-top');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const loadingTitle = document.getElementById('loading-title');
+        const loadingSubtitle = document.getElementById('loading-subtitle');
+        const loadingBar = document.getElementById('loading-bar');
+        const toastContainer = document.getElementById('toast-container');
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            const bgColors = {
+                info: 'bg-slate-800 border-slate-700 text-slate-200',
+                success: 'bg-emerald-900/90 border-emerald-700 text-emerald-100',
+                error: 'bg-rose-900/90 border-rose-700 text-rose-100'
+            };
+            const icons = {
+                info: '<svg class="w-4 h-4 text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>',
+                success: '<svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>',
+                error: '<svg class="w-4 h-4 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>'
+            };
+
+            toast.className = `pointer-events-auto flex items-center space-x-2.5 px-4 py-3 rounded-xl border shadow-xl backdrop-blur-md text-xs font-medium transition-all duration-300 transform translate-y-2 opacity-0 ${bgColors[type]}`;
+            toast.innerHTML = `${icons[type]}<span>${message}</span>`;
+            
+            toastContainer.appendChild(toast);
+            setTimeout(() => toast.classList.remove('translate-y-2', 'opacity-0'), 10);
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // Drag and drop prevent defaults
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, () => dropzone.classList.add('drag-active'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, () => dropzone.classList.remove('drag-active'), false);
+        });
+
+        // Drop event handler with recursive folder scanning
+        dropzone.addEventListener('drop', async (e) => {
+            const items = e.dataTransfer.items;
+            const files = [];
+            
+            if (items && items.length > 0) {
+                const entryPromises = [];
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i].webkitGetAsEntry ? items[i].webkitGetAsEntry() : null;
+                    if (item) {
+                        entryPromises.push(traverseFileTree(item, files));
+                    }
+                }
+                await Promise.all(entryPromises);
+            }
+
+            if (files.length === 0 && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                for (let i = 0; i < e.dataTransfer.files.length; i++) {
+                    files.push(e.dataTransfer.files[i]);
+                }
+            }
+
+            await processAndAddFiles(files);
+        });
+
+        fileInput.addEventListener('change', async (e) => {
+            await processAndAddFiles(Array.from(e.target.files));
+            fileInput.value = '';
+        });
+
+        folderInput.addEventListener('change', async (e) => {
+            await processAndAddFiles(Array.from(e.target.files));
+            folderInput.value = '';
+        });
+
+        async function traverseFileTree(item, fileList) {
+            if (item.isFile) {
+                return new Promise((resolve) => {
+                    item.file(file => {
+                        if (file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf') {
+                            fileList.push(file);
+                        }
+                        resolve();
+                    }, (err) => {
+                        console.error("Error reading file entry:", err);
+                        resolve();
+                    });
+                });
+            } else if (item.isDirectory) {
+                const dirReader = item.createReader();
+                return new Promise((resolve) => {
+                    const readAllEntries = () => {
+                        dirReader.readEntries(async (entries) => {
+                            if (entries.length === 0) {
+                                resolve();
+                            } else {
+                                for (let entry of entries) {
+                                    await traverseFileTree(entry, fileList);
+                                }
+                                readAllEntries();
+                            }
+                        }, (err) => {
+                            console.error("Error reading directory entries:", err);
+                            resolve();
+                        });
+                    };
+                    readAllEntries();
+                });
+            }
+        }
+
+        async function processAndAddFiles(files) {
+            const pdfFiles = files.filter(f => {
+                const name = f.name ? f.name.toLowerCase() : '';
+                const type = f.type ? f.type.toLowerCase() : '';
+                return name.endsWith('.pdf') || type.includes('pdf');
+            });
+            
+            if (pdfFiles.length === 0) {
+                showToast('No valid PDF files found in selection.', 'error');
+                return;
+            }
+
+            showLoading(true, 'Reading & Analyzing PDFs', `Processing 0 of ${pdfFiles.length} files...`, 0);
+
+            let addedCount = 0;
+            for (let i = 0; i < pdfFiles.length; i++) {
+                const file = pdfFiles[i];
+                const progress = ((i / pdfFiles.length) * 100);
+                updateLoadingProgress(progress, `Processing (${i + 1}/${pdfFiles.length}): ${file.name}`);
+
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdfDoc = await window.PDFLib.PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+                    const pageCount = pdfDoc.getPageCount();
+
+                    pdfQueue.push({
+                        id: Math.random().toString(36).substring(2, 9),
+                        file: file,
+                        name: file.name,
+                        size: formatFileSize(file.size),
+                        pageCount: pageCount,
+                        arrayBuffer: arrayBuffer,
+                        pdfDoc: pdfDoc
+                    });
+                    addedCount++;
+                } catch (err) {
+                    console.error(`Error loading PDF ${file.name}:`, err);
+                    showToast(`Failed to parse: ${file.name} (Corrupted or password protected)`, 'error');
+                }
+            }
+
+            showLoading(false);
+            renderQueue();
+            if (addedCount > 0) {
+                showToast(`Successfully added ${addedCount} PDF file(s)`, 'success');
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024, dm = 2, sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        window.sortQueue = function(direction) {
+            if (pdfQueue.length <= 1) return;
+            pdfQueue.sort((a, b) => {
+                if (direction === 'asc') {
+                    return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+                } else {
+                    return b.name.localeCompare(a.name, undefined, { numeric: true, sensitivity: 'base' });
+                }
+            });
+            renderQueue();
+            showToast(`Queue sorted ${direction === 'asc' ? 'A to Z' : 'Z to A'}`, 'info');
+        };
+
+        function renderQueue() {
+            if (pdfQueue.length === 0) {
+                emptyState.classList.remove('hidden');
+                queueList.classList.add('hidden');
+                queueList.innerHTML = '';
+                queueCountBadge.textContent = '0';
+                totalPagesBadge.textContent = '0 total pages';
+                btnPrint.disabled = true;
+                btnDownload.disabled = true;
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            queueList.classList.remove('hidden');
+            queueCountBadge.textContent = pdfQueue.length;
+
+            let totalPages = pdfQueue.reduce((acc, item) => acc + item.pageCount, 0);
+            const copies = parseInt(copiesInput.value) || 1;
+            totalPagesBadge.textContent = `${totalPages * copies} total pages (${totalPages} x ${copies} copies)`;
+
+            btnPrint.disabled = false;
+            btnDownload.disabled = false;
+
+            queueList.innerHTML = pdfQueue.map((item, index) => `
+                <div class="group bg-slate-900/60 hover:bg-slate-900 border border-slate-700/75 rounded-xl p-3.5 flex items-center justify-between transition shadow-sm">
+                    <div class="flex items-center space-x-3 overflow-hidden">
+                        <div class="bg-blue-600/20 text-blue-400 font-bold text-xs w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border border-blue-500/30">
+                            ${index + 1}
+                        </div>
+                        <div class="overflow-hidden">
+                            <h4 class="text-xs font-semibold text-white truncate max-w-[180px] sm:max-w-xs md:max-w-md" title="${item.name}">${item.name}</h4>
+                            <div class="flex items-center space-x-2 mt-0.5">
+                                <span class="text-[11px] text-slate-400">${item.size}</span>
+                                <span class="text-[10px] text-slate-600">•</span>
+                                <span class="text-[11px] font-medium text-blue-400 bg-blue-500/10 px-1.5 py-0.2 rounded">${item.pageCount} pages</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-1 shrink-0">
+                        <button onclick="moveQueueItem(${index}, -1)" ${index === 0 ? 'disabled' : ''} class="p-1.5 text-slate-400 hover:text-white disabled:text-slate-600 hover:bg-slate-800 rounded-lg transition disabled:cursor-not-allowed cursor-pointer" title="Move Up">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+                        </button>
+                        <button onclick="moveQueueItem(${index}, 1)" ${index === pdfQueue.length - 1 ? 'disabled' : ''} class="p-1.5 text-slate-400 hover:text-white disabled:text-slate-600 hover:bg-slate-800 rounded-lg transition disabled:cursor-not-allowed cursor-pointer" title="Move Down">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <button onclick="removeQueueItem(${index})" class="p-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition ml-1 cursor-pointer" title="Remove">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.moveQueueItem = function(index, direction) {
+            const newIndex = index + direction;
+            if (newIndex < 0 || newIndex >= pdfQueue.length) return;
+            const temp = pdfQueue[index];
+            pdfQueue[index] = pdfQueue[newIndex];
+            pdfQueue[newIndex] = temp;
+            renderQueue();
+        };
+
+        window.removeQueueItem = function(index) {
+            pdfQueue.splice(index, 1);
+            renderQueue();
+            showToast('Document removed from queue', 'info');
+        };
+
+        clearAllTop.addEventListener('click', () => {
+            if (pdfQueue.length === 0) return;
+            pdfQueue = [];
+            renderQueue();
+            showToast('Queue cleared', 'info');
+        });
+
+        copiesRange.addEventListener('input', (e) => {
+            copiesInput.value = e.target.value;
+            renderQueue();
+        });
+
+        copiesInput.addEventListener('input', (e) => {
+            let val = parseInt(e.target.value) || 1;
+            if (val < 1) val = 1;
+            if (val > 99) val = 99;
+            copiesInput.value = val;
+            copiesRange.value = Math.min(val, 20);
+            renderQueue();
+        });
+
+        collateToggle.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                collateDesc.textContent = "Doc A, Doc B, Doc A, Doc B";
+                showToast('Collation enabled (Complete set per copy)', 'info');
+            } else {
+                collateDesc.textContent = "Doc A, Doc A, Doc B, Doc B";
+                showToast('Collation disabled (All copies of Doc A, then Doc B)', 'info');
+            }
+        });
+
+        function showLoading(show, title = 'Processing...', subtitle = '', percent = 0) {
+            if (show) {
+                loadingTitle.textContent = title;
+                loadingSubtitle.textContent = subtitle;
+                loadingBar.style.width = `${percent}%`;
+                loadingOverlay.classList.remove('hidden');
+            } else {
+                loadingOverlay.classList.add('hidden');
+            }
+        }
+
+        function updateLoadingProgress(percent, subtitle) {
+            loadingBar.style.width = `${percent}%`;
+            if (subtitle) loadingSubtitle.textContent = subtitle;
+        }
+
+        async function generateMasterPDF() {
+            const copies = parseInt(copiesInput.value) || 1;
+            const isCollated = collateToggle.checked;
+
+            showLoading(true, 'Merging Master PDF', 'Initializing master document...', 10);
+            const masterPdfDoc = await window.PDFLib.PDFDocument.create();
+
+            const totalSteps = isCollated ? copies * pdfQueue.length : pdfQueue.length * copies;
+            let currentStep = 0;
+
+            if (isCollated) {
+                for (let c = 0; c < copies; c++) {
+                    for (let i = 0; i < pdfQueue.length; i++) {
+                        currentStep++;
+                        updateLoadingProgress((currentStep / totalSteps) * 90, `Copy ${c + 1}/${copies}: Merging ${pdfQueue[i].name}`);
+                        
+                        const sourceDoc = pdfQueue[i].pdfDoc;
+                        const pageIndices = sourceDoc.getPageIndices();
+                        const copiedPages = await masterPdfDoc.copyPages(sourceDoc, pageIndices);
+                        copiedPages.forEach(page => masterPdfDoc.addPage(page));
+                    }
+                }
+            } else {
+                for (let i = 0; i < pdfQueue.length; i++) {
+                    const sourceDoc = pdfQueue[i].pdfDoc;
+                    const pageIndices = sourceDoc.getPageIndices();
+                    
+                    for (let c = 0; c < copies; c++) {
+                        currentStep++;
+                        updateLoadingProgress((currentStep / totalSteps) * 90, `Doc ${i + 1}/${pdfQueue.length}: Copy ${c + 1}/${copies}`);
+                        
+                        const copiedPages = await masterPdfDoc.copyPages(sourceDoc, pageIndices);
+                        copiedPages.forEach(page => masterPdfDoc.addPage(page));
+                    }
+                }
+            }
+
+            updateLoadingProgress(95, 'Finalizing master PDF bytes...');
+            const pdfBytes = await masterPdfDoc.save();
+            showLoading(false);
+            return pdfBytes;
+        }
+
+        btnPrint.addEventListener('click', async () => {
+            if (pdfQueue.length === 0) return;
+            try {
+                const pdfBytes = await generateMasterPDF();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const blobUrl = URL.createObjectURL(blob);
+
+                showToast('Opening print dialog...', 'info');
+
+                const iframe = document.getElementById('print-iframe');
+                iframe.src = blobUrl;
+                iframe.onload = () => {
+                    setTimeout(() => {
+                        try {
+                            iframe.contentWindow.focus();
+                            iframe.contentWindow.print();
+                        } catch (e) {
+                            console.error('Iframe print error:', e);
+                            window.open(blobUrl, '_blank');
+                        }
+                    }, 500);
+                };
+            } catch (err) {
+                console.error('Print generation error:', err);
+                showLoading(false);
+                showToast('Failed to generate master PDF for printing', 'error');
+            }
+        });
+
+        btnDownload.addEventListener('click', async () => {
+            if (pdfQueue.length === 0) return;
+            try {
+                const pdfBytes = await generateMasterPDF();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Batch_Print_${new Date().toISOString().slice(0, 10)}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                showToast('Master PDF downloaded successfully', 'success');
+            } catch (err) {
+                console.error('Download error:', err);
+                showLoading(false);
+                showToast('Failed to generate master PDF for download', 'error');
+            }
+        });
+    </script>
+</body>
+</html>
