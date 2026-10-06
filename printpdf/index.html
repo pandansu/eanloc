@@ -153,7 +153,7 @@
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
                     <div>
                         <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider">3. Document Queue & Sequence</h2>
-                        <p class="text-xs text-slate-400 mt-0.5">Sort alphabetically or reorder manually</p>
+                        <p class="text-xs text-slate-400 mt-0.5">Sorted A-Z by default, or reorder manually</p>
                     </div>
                     <div class="flex items-center space-x-2">
                         <button onclick="sortQueue('asc')" class="text-xs bg-slate-700/60 hover:bg-slate-700 text-slate-300 px-2.5 py-1.5 rounded-lg border border-slate-600/50 transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Sort A to Z">
@@ -386,10 +386,13 @@
                 }
             }
 
+            // Automatically sort queue ASC (A to Z) by default upon adding files
+            pdfQueue.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+
             showLoading(false);
             renderQueue();
             if (addedCount > 0) {
-                showToast(`Successfully added ${addedCount} PDF file(s)`, 'success');
+                showToast(`Successfully added & sorted ${addedCount} PDF file(s) (A-Z)`, 'success');
             }
         }
 
