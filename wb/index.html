@@ -14,7 +14,7 @@
         <!-- Header -->
         <div class="mb-8">
             <h1 class="text-3xl font-bold text-slate-900 tracking-tight">Waybill Page Counter</h1>
-            <p class="text-slate-500 mt-1">Counts waybill pages automatically for SPX (Shopee), J&T Express (Lazada), and SingPost (including TikTok).</p>
+            <p class="text-slate-500 mt-1">Counts waybill pages automatically for SPX (Shopee), J&T Express (Lazada), and SingPost (TikTok).</p>
         </div>
 
         <!-- Drop Zone -->
@@ -52,9 +52,8 @@
 
         <!-- Extracted Data Table -->
         <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+            <div class="px-6 py-4 border-b border-slate-100 bg-slate-50">
                 <h2 class="font-bold text-slate-800">File Processing Results</h2>
-                <button id="exportBtn" disabled class="px-3 py-1.5 text-xs font-semibold bg-white border border-slate-300 hover:border-slate-400 rounded-md text-slate-700 shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">Export CSV</button>
             </div>
             <div class="overflow-x-auto max-h-96">
                 <table class="w-full text-left border-collapse">
@@ -87,7 +86,6 @@
         
         const resultsTableBody = document.getElementById('resultsTableBody');
         const emptyRow = document.getElementById('emptyRow');
-        const exportBtn = document.getElementById('exportBtn');
 
         let extractedRecords = [];
 
@@ -241,24 +239,7 @@
             statSpx.innerText = spxPages;
             statJt.innerText = jtPages;
             statSingpost.innerText = singpostPages;
-
-            exportBtn.disabled = extractedRecords.length === 0;
         }
-
-        exportBtn.addEventListener('click', () => {
-            if (extractedRecords.length === 0) return;
-            let csvContent = "data:text/csv;charset=utf-8,File Name,Pages Counted,Courier,Status\n";
-            extractedRecords.forEach(r => {
-                csvContent += `"${r.fileName}","${r.pageCount}","${r.courier}","${r.status}"\n`;
-            });
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "waybill_page_counts.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        });
     </script>
 </body>
 </html>
