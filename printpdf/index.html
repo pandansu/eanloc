@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batch PDF Merger & Printer Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .drag-active { border-color: #3b82f6 !important; background-color: rgba(59, 130, 246, 0.08) !important; }
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .animate-pulse-subtle { animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-full flex flex-col selection:bg-blue-500 selection:text-white">
+
+    <header class="bg-slate-800/85 backdrop-blur-md border-b border-slate-700/60 sticky top-0 z-30 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-tr from-blue-600 to-indigo-500 p-2.5 rounded-xl shadow-lg shadow-blue-500/20">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
+                        PDF BatchFlow <span class="text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full font-medium">Pro</span>
+                    </h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">Merge, sort, collate & batch print PDFs instantly</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3">
+                <button id="clear-all-top" class="hidden sm:inline-flex items-center px-3 py-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-700/50 hover:bg-slate-700 rounded-lg transition border border-slate-600/50 cursor-pointer">
+                    <svg class="w-4 h-4 mr-1.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                    Clear Queue
+                </button>
+                <div class="text-xs bg-slate-700/50 px-3 py-1.5 rounded-lg border border-slate-600/50 text-slate-300 font-medium">
+                    Queue: <span id="queue-count-badge" class="text-blue-400 font-bold">0</span> files
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- Left Panel: Dropzone & Print Settings (5 cols) -->
+        <div class="lg:col-span-5 flex flex-col space-y-6">
+            
+            <!-- Drag & Drop & Folder Upload Card -->
+            <div class="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-6 shadow-xl backdrop-blur-sm">
+                <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider mb-4">
+                    1. Add PDFs or Folders
+                </h2>
+                
+                <div id="dropzone" class="border-2 border-dashed border-slate-600 hover:border-blue-500 rounded-xl p-8 text-center cursor-pointer transition-all duration-200 bg-slate-900/40 hover:bg-slate-900/70 group relative overflow-hidden">
+                    <div class="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition pointer-events-none"></div>
+                    <div class="flex flex-col items-center justify-center space-y-3 relative z-10">
+                        <div class="p-4 bg-slate-800 text-blue-400 rounded-2xl group-hover:scale-110 transition shadow-md border border-slate-700">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-slate-200">Drag & drop PDFs or folders here</p>
+                            <p class="text-xs text-slate-400 mt-1">Supports multi-file selection & recursive folder trees</p>
+                        </div>
+                        <div class="flex flex-wrap gap-2 justify-center pt-2">
+                            <label class="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg cursor-pointer transition shadow-sm inline-flex items-center gap-1.5">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                Browse Files
+                                <input type="file" id="file-input" multiple accept=".pdf,application/pdf" class="hidden">
+                            </label>
+                            <label class="px-3.5 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold rounded-lg cursor-pointer transition shadow-sm inline-flex items-center gap-1.5 border border-slate-600">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+                                Browse Folder
+                                <input type="file" id="folder-input" webkitdirectory directory multiple class="hidden">
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Print Settings Card -->
+            <div class="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-6 shadow-xl backdrop-blur-sm space-y-5">
+                <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider">2. Print Settings & Options</h2>
+                
+                <!-- Copies input -->
+                <div>
+                    <label for="copies-input" class="text-xs font-medium text-slate-300 block mb-2">Number of Copies</label>
+                    <div class="flex items-center space-x-3">
+                        <input type="range" id="copies-range" min="1" max="20" value="1" class="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500">
+                        <input type="number" id="copies-input" min="1" max="99" value="1" class="w-16 bg-slate-900 border border-slate-700 rounded-lg text-center text-sm py-1.5 text-white font-semibold focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+
+                <!-- Collate Toggle (Default unchecked: Doc A, Doc A, Doc B, Doc B) -->
+                <div class="pt-2 border-t border-slate-700/60">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="text-xs font-medium text-slate-200 block">Collation Order</span>
+                            <span id="collate-desc" class="text-[11px] text-slate-400 block mt-0.5">Doc A, Doc A, Doc B, Doc B</span>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="collate-toggle" class="sr-only peer">
+                            <div class="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="pt-3 space-y-3">
+                    <button id="btn-print" disabled class="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:from-slate-700 disabled:to-slate-700 disabled:text-slate-500 text-white font-semibold rounded-xl shadow-lg shadow-blue-600/20 disabled:shadow-none transition duration-200 flex items-center justify-center space-x-2 text-sm cursor-pointer disabled:cursor-not-allowed">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                        </svg>
+                        <span>Merge & Print Batch</span>
+                    </button>
+                    
+                    <button id="btn-download" disabled class="w-full py-2.5 px-4 bg-slate-700/60 hover:bg-slate-700 disabled:bg-slate-800 disabled:text-slate-600 text-slate-200 font-medium rounded-xl transition duration-200 flex items-center justify-center space-x-2 text-xs border border-slate-600/50 disabled:border-slate-800 cursor-pointer disabled:cursor-not-allowed">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        <span>Download Merged Master PDF</span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Right Panel: Document Queue & Order (7 cols) -->
+        <div class="lg:col-span-7 flex flex-col">
+            <div class="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-6 shadow-xl backdrop-blur-sm flex-1 flex flex-col">
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                    <div>
+                        <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider">3. Document Queue & Sequence</h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Sort alphabetically or reorder manually</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button onclick="sortQueue('asc')" class="text-xs bg-slate-700/60 hover:bg-slate-700 text-slate-300 px-2.5 py-1.5 rounded-lg border border-slate-600/50 transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Sort A to Z">
+                            <svg class="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12"></path></svg>
+                            A-Z
+                        </button>
+                        <button onclick="sortQueue('desc')" class="text-xs bg-slate-700/60 hover:bg-slate-700 text-slate-300 px-2.5 py-1.5 rounded-lg border border-slate-600/50 transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Sort Z to A">
+                            <svg class="w-3.5 h-3.5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4"></path></svg>
+                            Z-A
+                        </button>
+                        <span id="total-pages-badge" class="text-xs bg-slate-700/60 text-slate-300 px-2.5 py-1.5 rounded-lg border border-slate-600/50 font-medium">0 total pages</span>
+                    </div>
+                </div>
+
+                <!-- Queue Container -->
+                <div id="queue-container" class="flex-1 min-h-[350px] max-h-[550px] overflow-y-auto pr-1 space-y-3 custom-scrollbar">
+                    <!-- Empty State -->
+                    <div id="empty-state" class="h-full flex flex-col items-center justify-center py-16 text-center">
+                        <div class="w-16 h-16 bg-slate-900/60 rounded-2xl flex items-center justify-center text-slate-600 mb-3 border border-slate-700/50">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                        </div>
+                        <p class="text-sm font-medium text-slate-300">No PDFs in the queue yet</p>
+                        <p class="text-xs text-slate-500 max-w-xs mt-1">Upload files or folders using the left panel to begin batch processing.</p>
+                    </div>
+
+                    <!-- Queue List (populated dynamically) -->
+                    <div id="queue-list" class="space-y-2.5 hidden"></div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <div id="loading-overlay" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex flex-col items-center justify-center hidden">
+        <div class="bg-slate-800 border border-slate-700 p-8 rounded-2xl shadow-2xl max-w-sm w-full text-center space-y-4">
+            <div class="relative w-16 h-16 mx-auto">
+                <div class="absolute inset-0 rounded-full border-4 border-slate-700"></div>
+                <div class="absolute inset-0 rounded-full border-4 border-blue-500 border-t-transparent animate-spin"></div>
+            </div>
+            <div>
+                <h3 id="loading-title" class="text-base font-bold text-white">Processing PDFs...</h3>
+                <p id="loading-subtitle" class="text-xs text-slate-400 mt-1">Analyzing pages and preparing master document</p>
+            </div>
+            <div class="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+                <div id="loading-bar" class="bg-blue-500 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <!-- Hidden Print Iframe -->
+    <iframe id="print-iframe" class="hidden"></iframe>
+
+    <script>
+        // State Management
+        let pdfQueue = [];
+
+        // DOM Elements
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('file-input');
+        const folderInput = document.getElementById('folder-input');
+        const queueList = document.getElementById('queue-list');
+        const emptyState = document.getElementById('empty-state');
+        const queueCountBadge = document.getElementById('queue-count-badge');
+        const totalPagesBadge = document.getElementById('total-pages-badge');
+        const copiesRange = document.getElementById('copies-range');
+        const copiesInput = document.getElementById('copies-input');
+        const collateToggle = document.getElementById('collate-toggle');
+        const collateDesc = document.getElementById('collate-desc');
+        const btnPrint = document.getElementById('btn-print');
+        const btnDownload = document.getElementById('btn-download');
+        const clearAllTop = document.getElementById('clear-all-top');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        const loadingTitle = document.getElementById('loading-title');
+        const loadingSubtitle = document.getElementById('loading-subtitle');
+        const loadingBar = document.getElementById('loading-bar');
+        const toastContainer = document.getElementById('toast-container');
+
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            const bgColors = {
+                info: 'bg-slate-800 border-slate-700 text-slate-200',
+                success: 'bg-emerald-900/90 border-emerald-700 text-emerald-100',
+                error: 'bg-rose-900/90 border-rose-700 text-rose-100'
+            };
+            const icons = {
+                info: '<svg class="w-4 h-4 text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>',
+                success: '<svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>',
+                error: '<svg class="w-4 h-4 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>'
+            };
+
+            toast.className = `pointer-events-auto flex items-center space-x-2.5 px-4 py-3 rounded-xl border shadow-xl backdrop-blur-md text-xs font-medium transition-all duration-300 transform translate-y-2 opacity-0 ${bgColors[type]}`;
+            toast.innerHTML = `${icons[type]}<span>${message}</span>`;
+            
+            toastContainer.appendChild(toast);
+            setTimeout(() => toast.classList.remove('translate-y-2', 'opacity-0'), 10);
+
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        // Drag and drop prevent defaults
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, () => dropzone.classList.add('drag-active'), false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, () => dropzone.classList.remove('drag-active'), false);
+        });
+
+        // Drop event handler with recursive folder scanning
+        dropzone.addEventListener('drop', async (e) => {
+            const items = e.dataTransfer.items;
+            const files = [];
+            
+            if (items && items.length > 0) {
+                const entryPromises = [];
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i].webkitGetAsEntry ? items[i].webkitGetAsEntry() : null;
+                    if (item) {
+                        entryPromises.push(traverseFileTree(item, files));
+                    }
+                }
+                await Promise.all(entryPromises);
+            }
+
+            if (files.length === 0 && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                for (let i = 0; i < e.dataTransfer.files.length; i++) {
+                    files.push(e.dataTransfer.files[i]);
+                }
+            }
+
+            await processAndAddFiles(files);
+        });
+
+        fileInput.addEventListener('change', async (e) => {
+            await processAndAddFiles(Array.from(e.target.files));
+            fileInput.value = '';
+        });
+
+        folderInput.addEventListener('change', async (e) => {
+            await processAndAddFiles(Array.from(e.target.files));
+            folderInput.value = '';
+        });
+
+        async function traverseFileTree(item, fileList) {
+            if (item.isFile) {
+                return new Promise((resolve) => {
+                    item.file(file => {
+                        if (file.name.toLowerCase().endsWith('.pdf') || file.type === 'application/pdf') {
+                            fileList.push(file);
+                        }
+                        resolve();
+                    }, (err) => {
+                        console.error("Error reading file entry:", err);
+                        resolve();
+                    });
+                });
+            } else if (item.isDirectory) {
+                const dirReader = item.createReader();
+                return new Promise((resolve) => {
+                    const readAllEntries = () => {
+                        dirReader.readEntries(async (entries) => {
+                            if (entries.length === 0) {
+                                resolve();
+                            } else {
+                                for (let entry of entries) {
+                                    await traverseFileTree(entry, fileList);
+                                }
+                                readAllEntries();
+                            }
+                        }, (err) => {
+                            console.error("Error reading directory entries:", err);
+                            resolve();
+                        });
+                    };
+                    readAllEntries();
+                });
+            }
+        }
+
+        async function processAndAddFiles(files) {
+            const pdfFiles = files.filter(f => {
+                const name = f.name ? f.name.toLowerCase() : '';
+                const type = f.type ? f.type.toLowerCase() : '';
+                return name.endsWith('.pdf') || type.includes('pdf');
+            });
+            
+            if (pdfFiles.length === 0) {
+                showToast('No valid PDF files found in selection.', 'error');
+                return;
+            }
+
+            showLoading(true, 'Reading & Analyzing PDFs', `Processing 0 of ${pdfFiles.length} files...`, 0);
+
+            let addedCount = 0;
+            for (let i = 0; i < pdfFiles.length; i++) {
+                const file = pdfFiles[i];
+                const progress = ((i / pdfFiles.length) * 100);
+                updateLoadingProgress(progress, `Processing (${i + 1}/${pdfFiles.length}): ${file.name}`);
+
+                try {
+                    const arrayBuffer = await file.arrayBuffer();
+                    const pdfDoc = await window.PDFLib.PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+                    const pageCount = pdfDoc.getPageCount();
+
+                    pdfQueue.push({
+                        id: Math.random().toString(36).substring(2, 9),
+                        file: file,
+                        name: file.name,
+                        size: formatFileSize(file.size),
+                        pageCount: pageCount,
+                        arrayBuffer: arrayBuffer,
+                        pdfDoc: pdfDoc
+                    });
+                    addedCount++;
+                } catch (err) {
+                    console.error(`Error loading PDF ${file.name}:`, err);
+                    showToast(`Failed to parse: ${file.name} (Corrupted or password protected)`, 'error');
+                }
+            }
+
+            showLoading(false);
+            renderQueue();
+            if (addedCount > 0) {
+                showToast(`Successfully added ${addedCount} PDF file(s)`, 'success');
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024, dm = 2, sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        window.sortQueue = function(direction) {
+            if (pdfQueue.length <= 1) return;
+            pdfQueue.sort((a, b) => {
+                if (direction === 'asc') {
+                    return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+                } else {
+                    return b.name.localeCompare(a.name, undefined, { numeric: true, sensitivity: 'base' });
+                }
+            });
+            renderQueue();
+            showToast(`Queue sorted ${direction === 'asc' ? 'A to Z' : 'Z to A'}`, 'info');
+        };
+
+        function renderQueue() {
+            if (pdfQueue.length === 0) {
+                emptyState.classList.remove('hidden');
+                queueList.classList.add('hidden');
+                queueList.innerHTML = '';
+                queueCountBadge.textContent = '0';
+                totalPagesBadge.textContent = '0 total pages';
+                btnPrint.disabled = true;
+                btnDownload.disabled = true;
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            queueList.classList.remove('hidden');
+            queueCountBadge.textContent = pdfQueue.length;
+
+            let totalPages = pdfQueue.reduce((acc, item) => acc + item.pageCount, 0);
+            const copies = parseInt(copiesInput.value) || 1;
+            totalPagesBadge.textContent = `${totalPages * copies} total pages (${totalPages} x ${copies} copies)`;
+
+            btnPrint.disabled = false;
+            btnDownload.disabled = false;
+
+            queueList.innerHTML = pdfQueue.map((item, index) => `
+                <div class="group bg-slate-900/60 hover:bg-slate-900 border border-slate-700/75 rounded-xl p-3.5 flex items-center justify-between transition shadow-sm">
+                    <div class="flex items-center space-x-3 overflow-hidden">
+                        <div class="bg-blue-600/20 text-blue-400 font-bold text-xs w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border border-blue-500/30">
+                            ${index + 1}
+                        </div>
+                        <div class="overflow-hidden">
+                            <h4 class="text-xs font-semibold text-white truncate max-w-[180px] sm:max-w-xs md:max-w-md" title="${item.name}">${item.name}</h4>
+                            <div class="flex items-center space-x-2 mt-0.5">
+                                <span class="text-[11px] text-slate-400">${item.size}</span>
+                                <span class="text-[10px] text-slate-600">•</span>
+                                <span class="text-[11px] font-medium text-blue-400 bg-blue-500/10 px-1.5 py-0.2 rounded">${item.pageCount} pages</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-1 shrink-0">
+                        <button onclick="moveQueueItem(${index}, -1)" ${index === 0 ? 'disabled' : ''} class="p-1.5 text-slate-400 hover:text-white disabled:text-slate-600 hover:bg-slate-800 rounded-lg transition disabled:cursor-not-allowed cursor-pointer" title="Move Up">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+                        </button>
+                        <button onclick="moveQueueItem(${index}, 1)" ${index === pdfQueue.length - 1 ? 'disabled' : ''} class="p-1.5 text-slate-400 hover:text-white disabled:text-slate-600 hover:bg-slate-800 rounded-lg transition disabled:cursor-not-allowed cursor-pointer" title="Move Down">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </button>
+                        <button onclick="removeQueueItem(${index})" class="p-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition ml-1 cursor-pointer" title="Remove">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        window.moveQueueItem = function(index, direction) {
+            const newIndex = index + direction;
+            if (newIndex < 0 || newIndex >= pdfQueue.length) return;
+            const temp = pdfQueue[index];
+            pdfQueue[index] = pdfQueue[newIndex];
+            pdfQueue[newIndex] = temp;
+            renderQueue();
+        };
+
+        window.removeQueueItem = function(index) {
+            pdfQueue.splice(index, 1);
+            renderQueue();
+            showToast('Document removed from queue', 'info');
+        };
+
+        clearAllTop.addEventListener('click', () => {
+            if (pdfQueue.length === 0) return;
+            pdfQueue = [];
+            renderQueue();
+            showToast('Queue cleared', 'info');
+        });
+
+        copiesRange.addEventListener('input', (e) => {
+            copiesInput.value = e.target.value;
+            renderQueue();
+        });
+
+        copiesInput.addEventListener('input', (e) => {
+            let val = parseInt(e.target.value) || 1;
+            if (val < 1) val = 1;
+            if (val > 99) val = 99;
+            copiesInput.value = val;
+            copiesRange.value = Math.min(val, 20);
+            renderQueue();
+        });
+
+        collateToggle.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                collateDesc.textContent = "Doc A, Doc B, Doc A, Doc B";
+                showToast('Collation enabled (Complete set per copy)', 'info');
+            } else {
+                collateDesc.textContent = "Doc A, Doc A, Doc B, Doc B";
+                showToast('Collation disabled (All copies of Doc A, then Doc B)', 'info');
+            }
+        });
+
+        function showLoading(show, title = 'Processing...', subtitle = '', percent = 0) {
+            if (show) {
+                loadingTitle.textContent = title;
+                loadingSubtitle.textContent = subtitle;
+                loadingBar.style.width = `${percent}%`;
+                loadingOverlay.classList.remove('hidden');
+            } else {
+                loadingOverlay.classList.add('hidden');
+            }
+        }
+
+        function updateLoadingProgress(percent, subtitle) {
+            loadingBar.style.width = `${percent}%`;
+            if (subtitle) loadingSubtitle.textContent = subtitle;
+        }
+
+        async function generateMasterPDF() {
+            const copies = parseInt(copiesInput.value) || 1;
+            const isCollated = collateToggle.checked;
+
+            showLoading(true, 'Merging Master PDF', 'Initializing master document...', 10);
+            const masterPdfDoc = await window.PDFLib.PDFDocument.create();
+
+            const totalSteps = isCollated ? copies * pdfQueue.length : pdfQueue.length * copies;
+            let currentStep = 0;
+
+            if (isCollated) {
+                for (let c = 0; c < copies; c++) {
+                    for (let i = 0; i < pdfQueue.length; i++) {
+                        currentStep++;
+                        updateLoadingProgress((currentStep / totalSteps) * 90, `Copy ${c + 1}/${copies}: Merging ${pdfQueue[i].name}`);
+                        
+                        const sourceDoc = pdfQueue[i].pdfDoc;
+                        const pageIndices = sourceDoc.getPageIndices();
+                        const copiedPages = await masterPdfDoc.copyPages(sourceDoc, pageIndices);
+                        copiedPages.forEach(page => masterPdfDoc.addPage(page));
+                    }
+                }
+            } else {
+                for (let i = 0; i < pdfQueue.length; i++) {
+                    const sourceDoc = pdfQueue[i].pdfDoc;
+                    const pageIndices = sourceDoc.getPageIndices();
+                    
+                    for (let c = 0; c < copies; c++) {
+                        currentStep++;
+                        updateLoadingProgress((currentStep / totalSteps) * 90, `Doc ${i + 1}/${pdfQueue.length}: Copy ${c + 1}/${copies}`);
+                        
+                        const copiedPages = await masterPdfDoc.copyPages(sourceDoc, pageIndices);
+                        copiedPages.forEach(page => masterPdfDoc.addPage(page));
+                    }
+                }
+            }
+
+            updateLoadingProgress(95, 'Finalizing master PDF bytes...');
+            const pdfBytes = await masterPdfDoc.save();
+            showLoading(false);
+            return pdfBytes;
+        }
+
+        btnPrint.addEventListener('click', async () => {
+            if (pdfQueue.length === 0) return;
+            try {
+                const pdfBytes = await generateMasterPDF();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const blobUrl = URL.createObjectURL(blob);
+
+                showToast('Opening print dialog...', 'info');
+
+                const iframe = document.getElementById('print-iframe');
+                iframe.src = blobUrl;
+                iframe.onload = () => {
+                    setTimeout(() => {
+                        try {
+                            iframe.contentWindow.focus();
+                            iframe.contentWindow.print();
+                        } catch (e) {
+                            console.error('Iframe print error:', e);
+                            window.open(blobUrl, '_blank');
+                        }
+                    }, 500);
+                };
+            } catch (err) {
+                console.error('Print generation error:', err);
+                showLoading(false);
+                showToast('Failed to generate master PDF for printing', 'error');
+            }
+        });
+
+        btnDownload.addEventListener('click', async () => {
+            if (pdfQueue.length === 0) return;
+            try {
+                const pdfBytes = await generateMasterPDF();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Batch_Print_${new Date().toISOString().slice(0, 10)}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                showToast('Master PDF downloaded successfully', 'success');
+            } catch (err) {
+                console.error('Download error:', err);
+                showLoading(false);
+                showToast('Failed to generate master PDF for download', 'error');
+            }
+        });
+    </script>
+</body>
+</html>
