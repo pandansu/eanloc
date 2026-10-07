@@ -9,65 +9,71 @@
     <!-- PDF.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-12">
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen pb-12">
     <div class="max-w-5xl mx-auto px-4 pt-8">
         <!-- Header -->
         <div class="mb-8">
-            <h1 class="text-3xl font-bold text-slate-900 tracking-tight">Waybill Page Counter</h1>
-            <p class="text-slate-500 mt-1">Counts waybill pages automatically for SPX (Shopee), J&T Express (Lazada), and SingPost (including TikTok).</p>
+            <h1 class="text-3xl font-bold text-white tracking-tight">Waybill Page Counter</h1>
+            <p class="text-slate-400 mt-1">Counts waybill pages automatically for SPX (Shopee), J&T Express (Lazada), and SingPost (TikTok).</p>
         </div>
 
         <!-- Drop Zone -->
-        <div id="dropZone" class="border-3 border-dashed border-slate-300 bg-white rounded-xl p-8 text-center cursor-pointer transition-all hover:border-slate-400 mb-8 flex flex-col items-center justify-center min-h-[200px]">
-            <svg class="w-12 h-12 text-slate-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-            <p class="text-base font-semibold text-slate-700">Drag & drop your PDF folder or files here</p>
-            <p class="text-xs text-slate-400 mt-1">or click to select files/folders</p>
+        <div id="dropZone" class="relative border-2 border-dashed border-slate-700 bg-slate-900 hover:border-slate-500 rounded-xl p-8 text-center cursor-pointer transition-all mb-8 flex flex-col items-center justify-center min-h-[200px]">
+            <!-- Reset Button inside upper right corner -->
+            <button id="resetBtn" type="button" class="absolute top-3 right-3 px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-200 border border-slate-700 hover:border-rose-700/50 rounded-lg transition-colors cursor-pointer flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                Reset
+            </button>
+
+            <svg class="w-12 h-12 text-slate-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+            <p class="text-base font-semibold text-slate-200">Drag & drop your PDF folder or files here</p>
+            <p class="text-xs text-slate-400 mt-1">or click to add files/folders (incremental addition)</p>
             <input type="file" id="fileInput" accept="application/pdf" multiple webkitdirectory class="hidden">
         </div>
 
         <!-- Summary Statistics -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-2">
-            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+            <div class="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-sm">
                 <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Counted Pages</div>
-                <div id="statTotal" class="text-3xl font-bold text-slate-900 mt-1">0</div>
+                <div id="statTotal" class="text-3xl font-bold text-white mt-1">0</div>
             </div>
-            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs border-l-4 border-l-orange-500">
+            <div class="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-sm border-l-4 border-l-orange-500">
                 <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">SPX Express (Shopee)</div>
-                <div id="statSpx" class="text-3xl font-bold text-slate-900 mt-1">0</div>
+                <div id="statSpx" class="text-3xl font-bold text-orange-400 mt-1">0</div>
             </div>
-            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs border-l-4 border-l-rose-600">
+            <div class="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-sm border-l-4 border-l-rose-600">
                 <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">J&T Express (Lazada)</div>
-                <div id="statJt" class="text-3xl font-bold text-slate-900 mt-1">0</div>
+                <div id="statJt" class="text-3xl font-bold text-rose-400 mt-1">0</div>
             </div>
-            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs border-l-4 border-l-amber-500">
+            <!-- SingPost Blue Accent Card -->
+            <div class="bg-slate-900 p-5 rounded-xl border border-slate-800 shadow-sm border-l-4 border-l-blue-500">
                 <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">SingPost (TikTok)*</div>
-                <div id="statSingpost" class="text-3xl font-bold text-slate-900 mt-1">0</div>
+                <div id="statSingpost" class="text-3xl font-bold text-blue-400 mt-1">0</div>
             </div>
         </div>
 
         <!-- Summary Note -->
-        <p class="text-xs text-slate-500 mb-8 italic flex items-center gap-1">
+        <p class="text-xs text-slate-400 mb-8 italic flex items-center gap-1">
             <span>* Note: Check TikTok waybills for multi-page waybills when necessary.</span>
         </p>
 
         <!-- Extracted Data Table -->
-        <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                <h2 class="font-bold text-slate-800">File Processing Results</h2>
-                <button id="exportBtn" disabled class="px-3 py-1.5 text-xs font-semibold bg-white border border-slate-300 hover:border-slate-400 rounded-md text-slate-700 shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">Export CSV</button>
+        <div class="bg-slate-900 rounded-xl border border-slate-800 shadow-sm overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-800 bg-slate-900/50">
+                <h2 class="font-bold text-slate-200">File Processing Results</h2>
             </div>
             <div class="overflow-x-auto max-h-96">
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="bg-slate-100/75 text-slate-500 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200/50">
+                        <tr class="bg-slate-800/60 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-800">
                             <th class="px-6 py-3">File Name</th>
                             <th class="px-6 py-3">Pages Counted</th>
                             <th class="px-6 py-3">Courier / Category</th>
                             <th class="px-6 py-3">Status</th>
                         </tr>
                     </thead>
-                    <tbody id="resultsTableBody" class="divide-y divide-slate-100 text-sm">
-                        <tr id="emptyRow"><td colspan="4" class="px-6 py-8 text-center text-slate-400 italic">No files parsed yet. Drop a PDF file or folder above to begin.</td></tr>
+                    <tbody id="resultsTableBody" class="divide-y divide-slate-800/60 text-sm">
+                        <tr id="emptyRow"><td colspan="4" class="px-6 py-8 text-center text-slate-500 italic">No files parsed yet. Drop PDF files or folders above to begin.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -79,6 +85,7 @@
 
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
+        const resetBtn = document.getElementById('resetBtn');
         
         const statTotal = document.getElementById('statTotal');
         const statSpx = document.getElementById('statSpx');
@@ -87,19 +94,36 @@
         
         const resultsTableBody = document.getElementById('resultsTableBody');
         const emptyRow = document.getElementById('emptyRow');
-        const exportBtn = document.getElementById('exportBtn');
 
         let extractedRecords = [];
+        const processedFileKeys = new Set(); // Prevent duplicates by name and size
 
-        dropZone.addEventListener('click', () => fileInput.click());
+        // Click to upload
+        dropZone.addEventListener('click', (e) => {
+            if (e.target.closest('#resetBtn')) return; // Prevent file dialogue when clicking reset
+            fileInput.click();
+        });
+
         fileInput.addEventListener('change', (e) => processFiles(Array.from(e.target.files)));
         
-        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drop-zone--over'); });
-        ['dragleave', 'dragend'].forEach(type => { dropZone.addEventListener(type, () => dropZone.classList.remove('drop-zone--over')); });
+        // Reset action
+        resetBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            extractedRecords = [];
+            processedFileKeys.clear();
+            fileInput.value = '';
+            resultsTableBody.innerHTML = `
+                <tr id="emptyRow"><td colspan="4" class="px-6 py-8 text-center text-slate-500 italic">No files parsed yet. Drop PDF files or folders above to begin.</td></tr>
+            `;
+            updateCounters();
+        });
+        
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-slate-400'); });
+        ['dragleave', 'dragend'].forEach(type => { dropZone.addEventListener(type, () => dropZone.classList.remove('border-slate-400')); });
         
         dropZone.addEventListener('drop', async (e) => {
             e.preventDefault();
-            dropZone.classList.remove('drop-zone--over');
+            dropZone.classList.remove('border-slate-400');
             
             const pdfFiles = [];
             const items = e.dataTransfer.items;
@@ -168,15 +192,17 @@
 
         async function processFiles(files) {
             const pdfFiles = files.filter(f => f.name.toLowerCase().endsWith('.pdf'));
-            if (pdfFiles.length === 0) {
-                alert('No PDF files found in the selection.');
-                return;
-            }
-
-            extractedRecords = [];
-            resultsTableBody.innerHTML = '';
+            if (pdfFiles.length === 0) return;
 
             for (const file of pdfFiles) {
+                // Duplicate check based on filename and size
+                const fileKey = `${file.name}_${file.size}`;
+                if (processedFileKeys.has(fileKey)) {
+                    console.log(`Skipped duplicate file: ${file.name}`);
+                    continue;
+                }
+                processedFileKeys.add(fileKey);
+
                 try {
                     const arrayBuffer = await file.arrayBuffer();
                     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -204,19 +230,21 @@
         }
 
         function appendRowToTable(record) {
-            if (emptyRow) emptyRow.remove();
+            const currentEmptyRow = document.getElementById('emptyRow');
+            if (currentEmptyRow) currentEmptyRow.remove();
+
             const tr = document.createElement('tr');
-            tr.className = 'hover:bg-slate-50 transition-colors';
+            tr.className = 'hover:bg-slate-800/40 transition-colors';
             
             tr.innerHTML = `
-                <td class="px-6 py-3.5 font-medium text-slate-700 truncate max-w-[250px]" title="${record.fileName}">${record.fileName}</td>
-                <td class="px-6 py-3.5 font-semibold text-slate-900">${record.pageCount}</td>
+                <td class="px-6 py-3.5 font-medium text-slate-300 truncate max-w-[250px]" title="${record.fileName}">${record.fileName}</td>
+                <td class="px-6 py-3.5 font-semibold text-white">${record.pageCount}</td>
                 <td class="px-6 py-3.5">
                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getBadgeClass(record.courier)}">
                         ${record.courier}
                     </span>
                 </td>
-                <td class="px-6 py-3.5 text-xs font-medium text-emerald-600">
+                <td class="px-6 py-3.5 text-xs font-medium text-emerald-400">
                     ${record.status}
                 </td>
             `;
@@ -224,10 +252,10 @@
         }
 
         function getBadgeClass(courier) {
-            if (courier === 'SPX Express') return 'bg-orange-50 text-orange-700 border border-orange-200';
-            if (courier === 'J&T Express') return 'bg-rose-50 text-rose-700 border border-rose-200';
-            if (courier === 'SingPost') return 'bg-amber-50 text-amber-700 border border-amber-200';
-            return 'bg-slate-100 text-slate-600 border border-slate-200';
+            if (courier === 'SPX Express') return 'bg-orange-950/80 text-orange-400 border border-orange-800/60';
+            if (courier === 'J&T Express') return 'bg-rose-950/80 text-rose-400 border border-rose-800/60';
+            if (courier === 'SingPost') return 'bg-blue-950/80 text-blue-400 border border-blue-800/60'; // Blue accent for SingPost
+            return 'bg-slate-800 text-slate-400 border border-slate-700';
         }
 
         function updateCounters() {
@@ -241,24 +269,7 @@
             statSpx.innerText = spxPages;
             statJt.innerText = jtPages;
             statSingpost.innerText = singpostPages;
-
-            exportBtn.disabled = extractedRecords.length === 0;
         }
-
-        exportBtn.addEventListener('click', () => {
-            if (extractedRecords.length === 0) return;
-            let csvContent = "data:text/csv;charset=utf-8,File Name,Pages Counted,Courier,Status\n";
-            extractedRecords.forEach(r => {
-                csvContent += `"${r.fileName}","${r.pageCount}","${r.courier}","${r.status}"\n`;
-            });
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "waybill_page_counts.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        });
     </script>
 </body>
 </html>
