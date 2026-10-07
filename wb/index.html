@@ -1,252 +1,73 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Waybill Page Counter (SPX, J&amp;T, SingPost)</title>
+    <title>Waybill Page Counter (SPX, J&T, SingPost)</title>
     <!-- Tailwind CSS -->
-    <script src="Waybill%20Page%20Counter%20(SPX,%20J&amp;T,%20SingPost)_files/browser@4_tC3J"></script>
-    <style>
-        /*! tailwindcss v4.3.3 | MIT License | https://tailwindcss.com */
-        @layer properties;
-        @layer theme, base, components, utilities;
-        @layer theme {
-          :root, :host {
-            --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', Arial,
-            sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
-            --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
-            monospace;
-            --color-orange-500: oklch(70.5% 0.213 47.604);
-            --color-blue-500: oklch(62.3% 0.214 259.815);
-            --color-emerald-400: oklch(79.2% 0.209 151.711);
-            --color-rose-500: oklch(64.5% 0.246 16.439);
-            --color-slate-100: oklch(96.8% 0.007 247.896);
-            --color-slate-200: oklch(92.9% 0.013 255.508);
-            --color-slate-300: oklch(86.9% 0.022 252.894);
-            --color-slate-400: oklch(70.4% 0.04 256.788);
-            --color-slate-500: oklch(55.4% 0.046 257.417);
-            --color-slate-700: oklch(37.2% 0.044 257.287);
-            --color-slate-800: oklch(27.9% 0.041 260.031);
-            --color-slate-900: oklch(20.8% 0.042 265.755);
-            --color-slate-950: oklch(12.9% 0.042 264.695);
-            --color-white: #fff;
-            --spacing: 0.25rem;
-            --container-5xl: 64rem;
-            --text-xs: 0.75rem;
-            --text-xs--line-height: calc(1 / 0.75);
-            --text-sm: 0.875rem;
-            --text-sm--line-height: calc(1.25 / 0.875);
-            --text-base: 1rem;
-            --text-base--line-height: calc(1.5 / 1);
-            --text-3xl: 1.875rem;
-            --text-3xl--line-height: calc(2.25 / 1.875);
-            --font-weight-medium: 500;
-            --font-weight-semibold: 600;
-            --font-weight-bold: 700;
-            --tracking-tight: -0.025em;
-            --tracking-wider: 0.05em;
-            --radius-xl: 0.75rem;
-            --default-transition-duration: 150ms;
-            --default-transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-            --default-font-family: var(--font-sans);
-            --default-mono-font-family: var(--font-mono);
-          }
-        }
-        @layer base {
-          *, ::after, ::before, ::backdrop, ::file-selector-button {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            border: 0 solid;
-          }
-          html, :host {
-            line-height: 1.5;
-            -webkit-text-size-adjust: 100%;
-            tab-size: 4;
-            font-family: var(--default-font-family);
-            -webkit-tap-highlight-color: transparent;
-          }
-          table { border-collapse: collapse; }
-          button, input { font: inherit; color: inherit; background-color: transparent; }
-          [hidden] { display: none !important; }
-        }
-        @layer utilities {
-          .mx-auto { margin-inline: auto; }
-          .mt-1 { margin-top: var(--spacing); }
-          .mb-2 { margin-bottom: calc(var(--spacing) * 2); }
-          .mb-3 { margin-bottom: calc(var(--spacing) * 3); }
-          .mb-8 { margin-bottom: calc(var(--spacing) * 8); }
-          .flex { display: flex; }
-          .grid { display: grid; }
-          .hidden { display: none; }
-          .inline-flex { display: inline-flex; }
-          .relative { position: relative; }
-          .absolute { position: absolute; }
-          .top-3 { top: calc(var(--spacing) * 3); }
-          .right-3 { right: calc(var(--spacing) * 3); }
-          .h-12 { height: calc(var(--spacing) * 12); }
-          .max-h-96 { max-height: calc(var(--spacing) * 96); }
-          .min-h-\[220px\] { min-height: 220px; }
-          .min-h-screen { min-height: 100vh; }
-          .w-12 { width: calc(var(--spacing) * 12); }
-          .w-full { width: 100%; }
-          .max-w-5xl { max-width: var(--container-5xl); }
-          .max-w-\[250px\] { max-width: 250px; }
-          .cursor-pointer { cursor: pointer; }
-          .grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
-          .flex-col { flex-direction: column; }
-          .items-center { align-items: center; }
-          .justify-center { justify-content: center; }
-          .gap-1 { gap: var(--spacing); }
-          .gap-4 { gap: calc(var(--spacing) * 4); }
-          .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-          .overflow-hidden { overflow: hidden; }
-          .overflow-x-auto { overflow-x: auto; }
-          .rounded-full { border-radius: 9999px; }
-          .rounded-lg { border-radius: 0.5rem; }
-          .rounded-xl { border-radius: var(--radius-xl); }
-          .border { border-style: solid; border-width: 1px; }
-          .border-3 { border-style: solid; border-width: 3px; }
-          .border-b { border-bottom-style: solid; border-bottom-width: 1px; }
-          .border-l-4 { border-left-style: solid; border-left-width: 4px; }
-          .border-dashed { border-style: dashed; }
-          
-          .border-slate-700 { border-color: var(--color-slate-700); }
-          .border-slate-800 { border-color: var(--color-slate-800); }
-          .border-l-blue-500 { border-left-color: var(--color-blue-500); }
-          .border-l-orange-500 { border-left-color: var(--color-orange-500); }
-          .border-l-rose-500 { border-left-color: var(--color-rose-500); }
-          
-          .bg-slate-800 { background-color: var(--color-slate-800); }
-          .bg-slate-800\/60 { background-color: rgba(30, 41, 59, 0.6); }
-          .bg-slate-900 { background-color: var(--color-slate-900); }
-          .bg-slate-950 { background-color: var(--color-slate-950); }
-          
-          .p-3 { padding: calc(var(--spacing) * 3); }
-          .p-5 { padding: calc(var(--spacing) * 5); }
-          .p-8 { padding: calc(var(--spacing) * 8); }
-          .px-3 { padding-inline: calc(var(--spacing) * 3); }
-          .px-4 { padding-inline: calc(var(--spacing) * 4); }
-          .px-6 { padding-inline: calc(var(--spacing) * 6); }
-          .py-1\.5 { padding-block: calc(var(--spacing) * 1.5); }
-          .py-3 { padding-block: calc(var(--spacing) * 3); }
-          .py-3\.5 { padding-block: calc(var(--spacing) * 3.5); }
-          .py-4 { padding-block: calc(var(--spacing) * 4); }
-          .pt-8 { padding-top: calc(var(--spacing) * 8); }
-          .pb-12 { padding-bottom: calc(var(--spacing) * 12); }
-          
-          .text-center { text-align: center; }
-          .text-left { text-align: left; }
-          .text-3xl { font-size: var(--text-3xl); line-height: var(--text-3xl--line-height); }
-          .text-base { font-size: var(--text-base); line-height: var(--text-base--line-height); }
-          .text-sm { font-size: var(--text-sm); line-height: var(--text-sm--line-height); }
-          .text-xs { font-size: var(--text-xs); line-height: var(--text-xs--line-height); }
-          .text-\[10px\] { font-size: 10px; }
-          
-          .font-bold { font-weight: var(--font-weight-bold); }
-          .font-medium { font-weight: var(--font-weight-medium); }
-          .font-semibold { font-weight: var(--font-weight-semibold); }
-          .tracking-tight { letter-spacing: var(--tracking-tight); }
-          .tracking-wider { letter-spacing: var(--tracking-wider); }
-          
-          .text-slate-100 { color: var(--color-slate-100); }
-          .text-slate-200 { color: var(--color-slate-200); }
-          .text-slate-300 { color: var(--color-slate-300); }
-          .text-slate-400 { color: var(--color-slate-400); }
-          .text-slate-500 { color: var(--color-slate-500); }
-          .text-emerald-400 { color: var(--color-emerald-400); }
-          
-          .uppercase { text-transform: uppercase; }
-          .italic { font-style: italic; }
-          .shadow-xs { box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.3); }
-          .transition-all { transition: all var(--default-transition-duration) var(--default-transition-timing-function); }
-          .transition-colors { transition: color, background-color, border-color var(--default-transition-duration) var(--default-transition-timing-function); }
-          
-          .drop-zone--over {
-            border-color: #60a5fa !important;
-            background-color: #1e293b !important;
-          }
-
-          @media (hover: hover) {
-            .hover\:border-slate-500:hover { border-color: var(--color-slate-500); }
-            .hover\:bg-rose-600:hover { background-color: #e11d48; }
-            .hover\:bg-slate-700:hover { background-color: var(--color-slate-700); }
-          }
-          @media (width >= 48rem) {
-            .md\:grid-cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-          }
-        }
-    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <!-- PDF.js -->
-    <script src="Waybill%20Page%20Counter%20(SPX,%20J&amp;T,%20SingPost)_files/pdf.min_tC3J.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
-<body class="bg-slate-900 text-slate-100 font-sans min-h-screen pb-12">
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-12">
     <div class="max-w-5xl mx-auto px-4 pt-8">
         <!-- Header -->
         <div class="mb-8">
-            <h1 class="text-3xl font-bold text-white tracking-tight">Waybill Page Counter</h1>
-            <p class="text-slate-400 mt-1">Counts waybill pages automatically for SPX (Shopee), J&amp;T Express (Lazada), and SingPost (TikTok).</p>
+            <h1 class="text-3xl font-bold text-slate-900 tracking-tight">Waybill Page Counter</h1>
+            <p class="text-slate-500 mt-1">Counts waybill pages automatically for SPX (Shopee), J&T Express (Lazada), and SingPost (including TikTok).</p>
         </div>
 
-        <!-- Drop Zone with Embedded Reset Button -->
-        <div id="dropZone" class="relative border-3 border-dashed border-slate-700 bg-slate-800 rounded-xl p-8 text-center cursor-pointer transition-all hover:border-slate-500 mb-8 flex flex-col items-center justify-center min-h-[220px]">
-            <!-- Reset Button in Top-Right Corner -->
-            <button id="resetBtn" title="Clear all processed files" class="absolute top-3 right-3 px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-white font-medium text-xs rounded-lg transition-colors cursor-pointer shadow-xs z-10 flex items-center gap-1">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                Reset
-            </button>
-
-            <svg class="w-12 h-12 text-slate-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-            <p class="text-base font-semibold text-slate-200">Drag &amp; drop your PDF folder or files here</p>
-            <p class="text-xs text-slate-400 mt-1">or click to select files/folders (incremental addition, duplicates ignored)</p>
-            <input type="file" id="fileInput" accept="application/pdf" multiple="" webkitdirectory="" class="hidden">
+        <!-- Drop Zone -->
+        <div id="dropZone" class="border-3 border-dashed border-slate-300 bg-white rounded-xl p-8 text-center cursor-pointer transition-all hover:border-slate-400 mb-8 flex flex-col items-center justify-center min-h-[200px]">
+            <svg class="w-12 h-12 text-slate-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+            <p class="text-base font-semibold text-slate-700">Drag & drop your PDF folder or files here</p>
+            <p class="text-xs text-slate-400 mt-1">or click to select files/folders</p>
+            <input type="file" id="fileInput" accept="application/pdf" multiple webkitdirectory class="hidden">
         </div>
 
         <!-- Summary Statistics -->
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-2">
-            <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-xs">
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
                 <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Counted Pages</div>
-                <div id="statTotal" class="text-3xl font-bold text-white mt-1">0</div>
+                <div id="statTotal" class="text-3xl font-bold text-slate-900 mt-1">0</div>
             </div>
-            <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-xs border-l-4 border-l-orange-500">
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs border-l-4 border-l-orange-500">
                 <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">SPX Express (Shopee)</div>
-                <div id="statSpx" class="text-3xl font-bold text-white mt-1">0</div>
+                <div id="statSpx" class="text-3xl font-bold text-slate-900 mt-1">0</div>
             </div>
-            <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-xs border-l-4 border-l-rose-500">
-                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">J&amp;T Express (Lazada)</div>
-                <div id="statJt" class="text-3xl font-bold text-white mt-1">0</div>
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs border-l-4 border-l-rose-600">
+                <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">J&T Express (Lazada)</div>
+                <div id="statJt" class="text-3xl font-bold text-slate-900 mt-1">0</div>
             </div>
-            <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 shadow-xs border-l-4 border-l-blue-500">
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs border-l-4 border-l-amber-500">
                 <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">SingPost (TikTok)*</div>
-                <div id="statSingpost" class="text-3xl font-bold text-white mt-1">0</div>
+                <div id="statSingpost" class="text-3xl font-bold text-slate-900 mt-1">0</div>
             </div>
         </div>
 
         <!-- Summary Note -->
-        <p class="text-xs text-slate-400 mb-8 italic flex items-center gap-1">
+        <p class="text-xs text-slate-500 mb-8 italic flex items-center gap-1">
             <span>* Note: Check TikTok waybills for multi-page waybills when necessary.</span>
         </p>
 
         <!-- Extracted Data Table -->
-        <div class="bg-slate-800 rounded-xl border border-slate-700 shadow-xs overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-700 bg-slate-950">
-                <h2 class="font-bold text-slate-200">File Processing Results</h2>
+        <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                <h2 class="font-bold text-slate-800">File Processing Results</h2>
+                <button id="exportBtn" disabled class="px-3 py-1.5 text-xs font-semibold bg-white border border-slate-300 hover:border-slate-400 rounded-md text-slate-700 shadow-2xs cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed">Export CSV</button>
             </div>
             <div class="overflow-x-auto max-h-96">
                 <table class="w-full text-left border-collapse">
                     <thead>
-                        <tr class="bg-slate-900/80 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-700">
+                        <tr class="bg-slate-100/75 text-slate-500 uppercase text-[10px] font-bold tracking-wider border-b border-slate-200/50">
                             <th class="px-6 py-3">File Name</th>
                             <th class="px-6 py-3">Pages Counted</th>
                             <th class="px-6 py-3">Courier / Category</th>
                             <th class="px-6 py-3">Status</th>
                         </tr>
                     </thead>
-                    <tbody id="resultsTableBody" class="text-sm">
-                        <tr id="emptyRow">
-                            <td colspan="4" class="px-6 py-8 text-center text-slate-500 italic">No files processed yet. Drop PDF files above to begin.</td>
-                        </tr>
+                    <tbody id="resultsTableBody" class="divide-y divide-slate-100 text-sm">
+                        <tr id="emptyRow"><td colspan="4" class="px-6 py-8 text-center text-slate-400 italic">No files parsed yet. Drop a PDF file or folder above to begin.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -258,7 +79,6 @@
 
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
-        const resetBtn = document.getElementById('resetBtn');
         
         const statTotal = document.getElementById('statTotal');
         const statSpx = document.getElementById('statSpx');
@@ -266,32 +86,14 @@
         const statSingpost = document.getElementById('statSingpost');
         
         const resultsTableBody = document.getElementById('resultsTableBody');
+        const emptyRow = document.getElementById('emptyRow');
+        const exportBtn = document.getElementById('exportBtn');
 
         let extractedRecords = [];
-        let processedKeys = new Set();
 
-        dropZone.addEventListener('click', (e) => {
-            if (e.target.closest('#resetBtn')) return;
-            fileInput.click();
-        });
-
-        fileInput.addEventListener('change', (e) => {
-            processFiles(Array.from(e.target.files));
-            fileInput.value = '';
-        });
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => processFiles(Array.from(e.target.files)));
         
-        resetBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            extractedRecords = [];
-            processedKeys.clear();
-            resultsTableBody.innerHTML = `
-                <tr id="emptyRow">
-                    <td colspan="4" class="px-6 py-8 text-center text-slate-500 italic">No files processed yet. Drop PDF files above to begin.</td>
-                </tr>
-            `;
-            updateCounters();
-        });
-
         dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drop-zone--over'); });
         ['dragleave', 'dragend'].forEach(type => { dropZone.addEventListener(type, () => dropZone.classList.remove('drop-zone--over')); });
         
@@ -367,17 +169,14 @@
         async function processFiles(files) {
             const pdfFiles = files.filter(f => f.name.toLowerCase().endsWith('.pdf'));
             if (pdfFiles.length === 0) {
-                alert('No new PDF files found in the selection.');
+                alert('No PDF files found in the selection.');
                 return;
             }
 
-            for (const file of pdfFiles) {
-                const fileKey = `${file.name}_${file.size}`;
-                if (processedKeys.has(fileKey)) {
-                    continue; // Skip duplicate file
-                }
-                processedKeys.add(fileKey);
+            extractedRecords = [];
+            resultsTableBody.innerHTML = '';
 
+            for (const file of pdfFiles) {
                 try {
                     const arrayBuffer = await file.arrayBuffer();
                     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -405,21 +204,19 @@
         }
 
         function appendRowToTable(record) {
-            const emptyRow = document.getElementById('emptyRow');
             if (emptyRow) emptyRow.remove();
-
             const tr = document.createElement('tr');
-            tr.className = 'hover:bg-slate-700/50 transition-colors border-b border-slate-700/50';
+            tr.className = 'hover:bg-slate-50 transition-colors';
             
             tr.innerHTML = `
-                <td class="px-6 py-3.5 font-medium text-slate-200 truncate max-w-[250px]" title="${record.fileName}">${record.fileName}</td>
-                <td class="px-6 py-3.5 font-semibold text-white">${record.pageCount}</td>
+                <td class="px-6 py-3.5 font-medium text-slate-700 truncate max-w-[250px]" title="${record.fileName}">${record.fileName}</td>
+                <td class="px-6 py-3.5 font-semibold text-slate-900">${record.pageCount}</td>
                 <td class="px-6 py-3.5">
                     <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getBadgeClass(record.courier)}">
                         ${record.courier}
                     </span>
                 </td>
-                <td class="px-6 py-3.5 text-xs font-medium text-emerald-400">
+                <td class="px-6 py-3.5 text-xs font-medium text-emerald-600">
                     ${record.status}
                 </td>
             `;
@@ -427,10 +224,10 @@
         }
 
         function getBadgeClass(courier) {
-            if (courier === 'SPX Express') return 'bg-orange-500/20 text-orange-400 border border-orange-500/30';
-            if (courier === 'J&T Express') return 'bg-rose-500/20 text-rose-400 border border-rose-500/30';
-            if (courier === 'SingPost') return 'bg-blue-500/20 text-blue-400 border border-blue-500/30';
-            return 'bg-slate-700 text-slate-300 border border-slate-600';
+            if (courier === 'SPX Express') return 'bg-orange-50 text-orange-700 border border-orange-200';
+            if (courier === 'J&T Express') return 'bg-rose-50 text-rose-700 border border-rose-200';
+            if (courier === 'SingPost') return 'bg-amber-50 text-amber-700 border border-amber-200';
+            return 'bg-slate-100 text-slate-600 border border-slate-200';
         }
 
         function updateCounters() {
@@ -444,7 +241,24 @@
             statSpx.innerText = spxPages;
             statJt.innerText = jtPages;
             statSingpost.innerText = singpostPages;
+
+            exportBtn.disabled = extractedRecords.length === 0;
         }
+
+        exportBtn.addEventListener('click', () => {
+            if (extractedRecords.length === 0) return;
+            let csvContent = "data:text/csv;charset=utf-8,File Name,Pages Counted,Courier,Status\n";
+            extractedRecords.forEach(r => {
+                csvContent += `"${r.fileName}","${r.pageCount}","${r.courier}","${r.status}"\n`;
+            });
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "waybill_page_counts.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
     </script>
 </body>
 </html>
