@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -56,7 +55,7 @@
         
         <!-- Upload Section -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8">
-            <h2 class="text-lg font-semibold text-slate-700 mb-4"><i class="fa-solid fa-file-excel text-emerald-600 mr-2"></i>Step 1: Upload Excel Files</h2>
+            <h2 class="text-lg font-semibold text-slate-700 mb-4"><i class="fa-solid fa-file-excel text-emerald-600 mr-2"></i>Step 1: Upload Excel Files & Select Sheets</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 
                 <!-- Picking File Box -->
@@ -67,6 +66,11 @@
                         <input type="file" id="filePicking" accept=".xlsx, .xls, .csv" style="display: none;">
                     </div>
                     <div id="infoPicking" class="file-info"></div>
+                    <!-- Sheet Selector for Picking -->
+                    <div id="sheetContainerPicking" class="hidden mt-3">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1"><i class="fa-solid fa-table-cells mr-1"></i> Select Sheet:</label>
+                        <select id="sheetSelectPicking" onchange="onSheetChange('picking')" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
+                    </div>
                 </div>
 
                 <!-- Delivery File Box -->
@@ -77,6 +81,11 @@
                         <input type="file" id="fileDelv" accept=".xlsx, .xls, .csv" style="display: none;">
                     </div>
                     <div id="infoDelv" class="file-info"></div>
+                    <!-- Sheet Selector for Delivery -->
+                    <div id="sheetContainerDelv" class="hidden mt-3">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1"><i class="fa-solid fa-table-cells mr-1"></i> Select Sheet:</label>
+                        <select id="sheetSelectDelv" onchange="onSheetChange('delv')" class="w-full text-xs bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"></select>
+                    </div>
                 </div>
 
             </div>
@@ -132,6 +141,8 @@
 
     <!-- JavaScript Logic -->
     <script>
+        let pickingWorkbook = null;
+        let delvWorkbook = null;
         let pickingRows = [];
         let delvRows = [];
         let globalResultsCache = [];
@@ -150,7 +161,7 @@
             }
         }
 
-        function setupDropzone(dropzoneId, fileInputId, infoId, onDataParsed) {
+        function setupDropzone(dropzoneId, fileInputId, infoId, type) {
             const dropzone = document.getElementById(dropzoneId);
             const fileInput = document.getElementById(fileInputId);
             const infoDiv = document.getElementById(infoId);
@@ -161,24 +172,30 @@
             dropzone.addEventListener('drop', (e) => {
                 e.preventDefault();
                 dropzone.classList.remove('dragover');
-                if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0], infoDiv, onDataParsed);
+                if (e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0], infoDiv, type);
             });
             fileInput.addEventListener('change', (e) => {
-                if (e.target.files.length > 0) handleFile(e.target.files[0], infoDiv, onDataParsed);
+                if (e.target.files.length > 0) handleFile(e.target.files[0], infoDiv, type);
             });
         }
 
-        function handleFile(file, infoDiv, onDataParsed) {
+        function handleFile(file, infoDiv, type) {
             infoDiv.textContent = `Loaded file: ${file.name}`;
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
-                    const rows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-                    onDataParsed(rows);
+                    
+                    if (type === 'picking') {
+                        pickingWorkbook = workbook;
+                        populateSheetSelector('picking', workbook.SheetNames);
+                        parseSelectedSheet('picking');
+                    } else {
+                        delvWorkbook = workbook;
+                        populateSheetSelector('delv', workbook.SheetNames);
+                        parseSelectedSheet('delv');
+                    }
                     checkEnableProcess();
                 } catch (err) {
                     showError("Failed to parse Excel file: " + err.message);
@@ -187,8 +204,47 @@
             reader.readAsArrayBuffer(file);
         }
 
-        setupDropzone('dropzonePicking', 'filePicking', 'infoPicking', (rows) => { pickingRows = rows; });
-        setupDropzone('dropzoneDelv', 'fileDelv', 'infoDelv', (rows) => { delvRows = rows; });
+        function populateSheetSelector(type, sheetNames) {
+            const selectId = type === 'picking' ? 'sheetSelectPicking' : 'sheetSelectDelv';
+            const containerId = type === 'picking' ? 'sheetContainerPicking' : 'sheetContainerDelv';
+            const select = document.getElementById(selectId);
+            select.innerHTML = '';
+            
+            sheetNames.forEach(name => {
+                let opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                select.appendChild(opt);
+            });
+            
+            document.getElementById(containerId).classList.remove('hidden');
+        }
+
+        function onSheetChange(type) {
+            parseSelectedSheet(type);
+            checkEnableProcess();
+        }
+
+        function parseSelectedSheet(type) {
+            try {
+                if (type === 'picking') {
+                    if (!pickingWorkbook) return;
+                    const sheetName = document.getElementById('sheetSelectPicking').value;
+                    const worksheet = pickingWorkbook.Sheets[sheetName];
+                    pickingRows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                } else {
+                    if (!delvWorkbook) return;
+                    const sheetName = document.getElementById('sheetSelectDelv').value;
+                    const worksheet = delvWorkbook.Sheets[sheetName];
+                    delvRows = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                }
+            } catch (err) {
+                showError("Failed to parse sheet: " + err.message);
+            }
+        }
+
+        setupDropzone('dropzonePicking', 'filePicking', 'infoPicking', 'picking');
+        setupDropzone('dropzoneDelv', 'fileDelv', 'infoDelv', 'delv');
 
         function showError(msg) {
             const box = document.getElementById('errorBox');
@@ -262,7 +318,7 @@
             document.getElementById('errorBox').classList.add('hidden');
             
             if (pickingRows.length === 0 || delvRows.length === 0) {
-                showError("Please make sure both Excel files are loaded.");
+                showError("Please make sure both Excel files and valid sheets are loaded.");
                 return;
             }
 
@@ -285,7 +341,6 @@
                     let mapping = getCanonicalKeyAndTitle(rowText, company, docNo, '', '');
                     let groupKey = mapping.key;
 
-                    // Track contiguous blocks (segments) for DJI-xxx / retail store orders
                     if (groupKey !== currentActiveGroup) {
                         currentActiveGroup = groupKey;
                         blockCountersCache[groupKey] = (blockCountersCache[groupKey] || 0) + 1;
@@ -324,7 +379,6 @@
                     let delvTextNorm = normalizeText(rowText + ' ' + remark + ' ' + receiver);
                     let matchedKey = null;
 
-                    // Layer 1: Fuzzy Normalized Lookup
                     for (let normDoc in normalizedDocNos) {
                         if (delvTextNorm.includes(normDoc)) {
                             matchedKey = normalizedDocNos[normDoc];
@@ -345,7 +399,6 @@
                         delvMapCache[matchedKey].items[ean] = (delvMapCache[matchedKey].items[ean] || 0) + qty;
                         if (remark) delvRemarksMapCache[matchedKey].add(remark);
                     } else {
-                        // Layer 2 Check: Can we match via SKU-Signature if qty/SKU matches a discrepancy?
                         let autoMatched = false;
                         for (let pKey in pickingMapCache) {
                             let pItems = pickingMapCache[pKey].items;
