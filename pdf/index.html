@@ -77,10 +77,10 @@
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
 
 const $ = id => document.getElementById(id);
-const drop = $('drop'), fileIn = $('file'), status = $('status'), bar = $('bar');
-const out = $('out'), btnExtract = $('extract'), btnCopy = $('copy'), btnDownload = $('download'), btnClear = $('clear');
-const table = $('table'), tbody = table.querySelector('tbody'), canvas = $('canvas'), ctx = canvas.getContext('2d');
-const invoiceNo = $('invoiceNo'), invoiceDate = $('invoiceDate'), rowCount = $('rowCount'), mode = $('mode');
+const drop = $('drop'), fileIn =$('file'), status = $('status'), bar =$('bar');
+const out = $('out'), btnExtract = $('extract'), btnCopy =$('copy'), btnDownload = $('download'), btnClear =$('clear');
+const table = $('table'), tbody = table.querySelector('tbody'), canvas =$('canvas'), ctx = canvas.getContext('2d');
+const invoiceNo = $('invoiceNo'), invoiceDate =$('invoiceDate'), rowCount = $('rowCount'), mode =$('mode');
 
 let pdfFile = null;
 let parsed = [];
@@ -107,8 +107,21 @@ function parseItemsFromText(text) {
   const rows = [];
   const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
   for (const line of lines) {
-    const m = line.match(/^(\d+)\s+([0-9]{8,14})\s+(.+?)\s+(\d+(?:\.\d+)?)\s+(?:UNIT|PCS|PC|EA)\b/i);
-    if (m) rows.push({ item_code: m[2], qty: m[4], description: m[3].trim() });
+    const m = line.match(/^(\d+)\s+([0-9]{8,14})\s+(.+?)\s+([\d,]+(?:\.\d+)?)\s+(?:UNIT|PCS|PC|EA)\b/i);
+    if (m) {
+      let rawQty = m[4].replace(/,/g, '');
+      let num = parseFloat(rawQty);
+      
+      // Remove decimal points and trailing fractional zeros
+      let qty = rawQty.replace(/\.0+$/, '').replace(/\./g, '');
+      
+      // If quantity is more than 99, drop trailing zeros
+      if (num > 99) {
+        qty = qty.replace(/0+$/, '');
+      }
+
+      rows.push({ item_code: m[2], qty: qty, description: m[3].trim() });
+    }
   }
   return rows;
 }
