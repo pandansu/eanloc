@@ -4,6 +4,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>EAN Lookup</title>
 
+  <!-- FontAwesome CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
   <style>
     body {
       font-family: Arial;
@@ -12,6 +15,7 @@
       padding: 30px;
       display: flex;
       justify-content: center;
+      transition: background 0.3s, color 0.3s;
     }
 
     .card {
@@ -21,6 +25,32 @@
       padding: 25px;
       border-radius: 14px;
       box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+      position: relative;
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+
+    /* Minimalist mode toggle button */
+    .mode-toggle {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: transparent;
+      border: none;
+      font-size: 16px;
+      cursor: pointer;
+      padding: 0;
+      border-radius: 6px;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      user-select: none;
+      color: inherit;
+    }
+
+    .mode-toggle:hover {
+      background: rgba(0, 0, 0, 0.05);
     }
 
     h2 {
@@ -41,6 +71,8 @@
       border: 1px solid #ddd;
       border-radius: 8px;
       box-sizing: border-box;
+      background: #fff;
+      color: #333;
     }
 
     .input-wrap input:focus {
@@ -58,7 +90,7 @@
       cursor: pointer;
       user-select: none;
       background: #eee;
-      border-radius: 8px;   /* Rounded square instead of circle */
+      border-radius: 8px;
       width: 42px;
       height: 42px;
       display: flex;
@@ -66,10 +98,10 @@
       justify-content: center;
     }
 
-.clear-x:hover {
-  background: #ccc;      /* Highlight on hover */
-  color: #222;
-}
+    .clear-x:hover {
+      background: #ccc;
+      color: #222;
+    }
 
     button {
       width: 100%;
@@ -95,12 +127,70 @@
       line-height: 1.6;
       text-align: center;
     }
+
+    /* DARK MODE STYLES */
+    body.dark-mode {
+      background: #121212;
+      color: #e0e0e0;
+    }
+
+    body.dark-mode .card {
+      background: #1e1e1e;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.5);
+      color: #e0e0e0;
+    }
+
+    body.dark-mode h2 {
+      color: #ffffff;
+    }
+
+    body.dark-mode .input-wrap input {
+      background: #2d2d2d;
+      border-color: #444;
+      color: #ffffff;
+    }
+
+    body.dark-mode .input-wrap input:focus {
+      border-color: #3b7bd6;
+    }
+
+    body.dark-mode .clear-x {
+      background: #333;
+      color: #bbb;
+    }
+
+    body.dark-mode .clear-x:hover {
+      background: #444;
+      color: #fff;
+    }
+
+    body.dark-mode button {
+      background: #3b7bd6;
+    }
+
+    body.dark-mode button:hover {
+      background: #4a90e2;
+    }
+
+    /* Keep toggle transparent in dark mode */
+    body.dark-mode .mode-toggle {
+      background: transparent;
+    }
+
+    body.dark-mode .mode-toggle:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
   </style>
 </head>
 
-<body>
+<!-- Default to dark-mode class on body -->
+<body class="dark-mode">
 
 <div class="card">
+  <!-- Mode Toggle Button (Starts with Moon for default dark mode) -->
+  <button class="mode-toggle" onclick="toggleDarkMode()" title="Toggle Dark/Light Mode">
+    <i class="fa-solid fa-moon"></i>
+  </button>
 
   <h2>EAN Lookup</h2>
 
@@ -123,6 +213,19 @@ const csvUrl =
 
 let index = {};
 let ready = false;
+
+// Toggle Dark/Light Mode function
+function toggleDarkMode() {
+  document.body.classList.toggle('dark-mode');
+  const isDark = document.body.classList.contains('dark-mode');
+  const toggleBtn = document.querySelector('.mode-toggle');
+  
+  toggleBtn.innerHTML = isDark 
+    ? '<i class="fa-solid fa-moon"></i>' 
+    : '<i class="fa-solid fa-sun"></i>';
+    
+  localStorage.setItem('theme', isDark ? 'dark' : 'light');
+}
 
 // CSV PARSER (UNCHANGED)
 function parseCSVLine(line) {
@@ -202,8 +305,17 @@ function lookup() {
   }
 }
 
-// ENTER KEY (UNCHANGED)
+// ENTER KEY & THEME INIT
 document.addEventListener("DOMContentLoaded", () => {
+  // Respect saved theme if user explicitly switched to light mode before
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme === 'light') {
+    document.body.classList.remove('dark-mode');
+    const toggleBtn = document.querySelector('.mode-toggle');
+    if (toggleBtn) {
+      toggleBtn.innerHTML = '<i class="fa-solid fa-sun"></i>';
+    }
+  }
 
   const input = document.getElementById("sku");
 
