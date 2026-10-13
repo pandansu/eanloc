@@ -3,198 +3,470 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>EAN Counter</title>
+    <title>EAN Counter / Tabulator</title>
     <!-- Include SheetJS for Excel parsing -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
+        :root {
+            --bg-main: #0f172a;
+            --bg-card: #1e293b;
+            --bg-input: #0f172a;
+            --border-color: #334155;
+            --border-focus: #3b82f6;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #10b981;
+            --radius: 8px;
+        }
+
         body {
-            font-family: Arial, sans-serif;
-            max-width: 650px;
-            margin: 40px auto;
-            padding: 20px;
-            background-color: #f9f9f9;
-            color: #333;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            max-width: 1280px;
+            margin: 24px auto;
+            padding: 0 24px;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            line-height: 1.5;
         }
-        h2 {
-            margin-top: 0;
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 28px;
+            padding-bottom: 36px; /* Extra space for bottom resize handle */
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+            position: relative;
+            min-height: 620px;
+            height: 650px;
+            display: flex;
+            flex-direction: column;
         }
-        label {
-            display: block;
-            margin-top: 15px;
-            font-weight: bold;
-        }
-        textarea {
-            width: 100%;
-            height: 120px;
-            margin-top: 5px;
-            padding: 8px;
-            font-family: monospace;
-            box-sizing: border-box;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        .mode-selector {
-            background: #e9ecef;
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-        }
-        .mode-selector label {
-            display: inline;
-            margin-right: 20px;
-            font-weight: normal;
-            cursor: pointer;
-        }
-        .section {
-            display: none;
-        }
-        .section.active {
-            display: block;
-        }
-        .dropzone {
-            border: 2px dashed #007bff;
-            background-color: #fff;
-            padding: 20px;
-            text-align: center;
-            border-radius: 6px;
-            margin-top: 10px;
-            cursor: pointer;
+
+        /* Card Resize Handle in the middle of the bottom border */
+        .card-resize-handle {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 48px;
+            height: 6px;
+            background-color: var(--border-color);
+            border-radius: 3px;
+            cursor: ns-resize;
             transition: background-color 0.2s;
         }
-        .dropzone.dragover {
-            background-color: #e2eef8;
-            border-color: #0056b3;
+
+        .card-resize-handle:hover {
+            background-color: var(--accent);
         }
-        .dropzone p {
+
+        /* 2-Column Main Dashboard Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 28px;
+            align-items: stretch;
+            flex: 1;
+            min-height: 0;
+        }
+
+        @media (max-width: 900px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+        }
+
+        .pane-column {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-height: 0;
+        }
+
+        /* Header Styling */
+        .header-container {
+            margin-bottom: 16px;
+            flex-shrink: 0;
+        }
+
+        h2 {
+            margin: 0 0 4px 0;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            color: #ffffff;
+        }
+
+        p.subtitle {
             margin: 0;
-            color: #555;
+            color: var(--text-muted);
             font-size: 13px;
         }
-        .file-info {
-            margin-top: 5px;
-            font-style: italic;
-            color: #28a745;
+
+        /* Mode Selector Box */
+        .mode-selector {
+            background: #0f172a;
+            border: 1px solid var(--border-color);
+            padding: 10px 14px;
+            border-radius: var(--radius);
+            margin-bottom: 16px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .mode-selector strong {
             font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
         }
-        .sheet-control {
-            margin-top: 10px;
+
+        .mode-selector label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin: 0;
+            font-weight: 500;
+            font-size: 13px;
+            color: var(--text-main);
+            text-transform: none;
+            letter-spacing: normal;
+            cursor: pointer;
+        }
+
+        .mode-selector input[type="radio"] {
+            accent-color: var(--accent);
+            cursor: pointer;
+            width: 15px;
+            height: 15px;
+        }
+
+        label {
+            display: block;
+            margin-top: 12px;
+            margin-bottom: 6px;
+            font-weight: 600;
+            font-size: 12px;
+            color: #cbd5e1;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            flex-shrink: 0;
+        }
+
+        textarea {
+            width: 100%;
+            margin-top: 2px;
+            padding: 10px 12px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 13px;
+            background-color: var(--bg-input);
+            color: #e2e8f0;
+            box-sizing: border-box;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            resize: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--border-focus);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+
+        .section {
             display: none;
-            background: #eef2f7;
-            padding: 8px 12px;
-            border-radius: 4px;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
         }
+
+        .section.active {
+            display: flex;
+        }
+
+        .dropzone {
+            border: 2px dashed var(--border-color);
+            background-color: rgba(15, 23, 42, 0.5);
+            padding: 14px;
+            text-align: center;
+            border-radius: var(--radius);
+            margin-top: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .dropzone:hover {
+            border-color: var(--accent);
+            background-color: rgba(59, 130, 246, 0.05);
+        }
+
+        .dropzone.dragover {
+            background-color: rgba(59, 130, 246, 0.1);
+            border-color: var(--accent);
+        }
+
+        .dropzone p {
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .file-info {
+            margin-top: 4px;
+            font-style: normal;
+            color: var(--success);
+            font-size: 12px;
+            font-weight: 500;
+            flex-shrink: 0;
+        }
+
+        .sheet-control {
+            margin-top: 8px;
+            display: none;
+            background: #0f172a;
+            border: 1px solid var(--border-color);
+            padding: 6px 12px;
+            border-radius: var(--radius);
+            flex-shrink: 0;
+        }
+
         .sheet-control select {
-            padding: 4px;
+            background-color: var(--bg-card);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 4px 8px;
+            border-radius: 6px;
             margin-left: 8px;
-            font-size: 14px;
+            font-size: 12px;
+            cursor: pointer;
         }
+
+        .sheet-control select:focus {
+            outline: none;
+            border-color: var(--border-focus);
+        }
+
         button {
-            padding: 8px 16px;
-            background-color: #007bff;
+            padding: 10px 18px;
+            background-color: var(--accent);
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: var(--radius);
             cursor: pointer;
-            font-weight: bold;
-            margin-top: 15px;
+            font-weight: 600;
+            font-size: 13px;
+            flex-shrink: 0;
+            transition: background-color 0.2s, transform 0.1s;
         }
+
         button:hover {
-            background-color: #0056b3;
+            background-color: var(--accent-hover);
         }
-        .output-section {
-            margin-top: 25px;
-            border-top: 1px solid #ddd;
-            padding-top: 15px;
+
+        button:active {
+            transform: translateY(1px);
         }
+
         .success-msg {
-            color: #28a745;
-            font-weight: bold;
+            color: var(--success);
+            font-weight: 600;
+            font-size: 13px;
             margin-left: 10px;
         }
+
         .flex-boxes {
             display: flex;
-            gap: 15px;
+            gap: 12px;
+            flex: 1;
+            min-height: 0;
+            margin-top: 4px;
         }
+
         .flex-box {
             flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .flex-box textarea {
+            flex: 1;
+            min-height: 120px;
+        }
+
+        #inputSingle {
+            flex: 1;
+            min-height: 150px;
+        }
+
+        /* Right-Column Full Height Output Container */
+        .output-wrapper {
+            background: #0f172a;
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            border-radius: var(--radius);
+            flex: 1;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .output-wrapper label {
+            margin-top: 0;
+        }
+
+        #outputData {
+            flex: 1;
+            min-height: 200px;
+            background-color: #0b1120;
+            color: #38bdf8;
+            margin-top: 6px;
+        }
+
+        .action-row {
+            margin-top: 14px;
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+            height: 41px; /* Matches button height to ensure clean layout alignment */
         }
     </style>
 </head>
 <body>
 
-    <h2>EAN Counter</h2>
-    <p>Select modes and drop excel file:</p>
+    <div class="card" id="mainCard">
+        <!-- MAIN DASHBOARD GRID -->
+        <div class="dashboard-grid">
+            
+            <!-- LEFT COLUMN: Header, Mode Selector & Controls -->
+            <div class="pane-column">
+                
+                <!-- HEADER -->
+                <div class="header-container">
+                    <h2>EAN Counter / Tabulator</h2>
+                    <p class="subtitle">A specialised tool to count ECom products / tabulate delivery quantities</p>
+                </div>
 
-    <!-- Mode Selector -->
-    <div class="mode-selector">
-        <strong>Mode:</strong>
-        <label><input type="radio" name="appMode" value="single" checked> Count EAN</label>
-        <label><input type="radio" name="appMode" value="dual"> Tabulate total quantities</label>
-    </div>
+                <!-- MODE SELECTOR -->
+                <div class="mode-selector">
+                    <strong>Mode:</strong>
+                    <label><input type="radio" name="appMode" value="single" checked> Count EAN</label>
+                    <label><input type="radio" name="appMode" value="dual"> Tabulate total delivery quantities</label>
+                </div>
 
-    <!-- SECTION 1: Single List (Column E) -->
-    <div id="modeSingle" class="section active">
-        <label>Drag & Drop Excel File:</label>
-        <div id="dropzoneSingle" class="dropzone">
-            <p>📁 Drop Excel file here or click to browse</p>
-            <input type="file" id="fileSingle" accept=".xlsx, .xls, .csv" style="display: none;">
-        </div>
-        <div id="infoSingle" class="file-info"></div>
+                <!-- SECTION 1: Single List (Column E) -->
+                <div id="modeSingle" class="section active">
+                    <label>Excel Document: ECom / Delivery</label>
+                    <div id="dropzoneSingle" class="dropzone">
+                        <p>📁 Drop Excel file here or click to browse</p>
+                        <input type="file" id="fileSingle" accept=".xlsx, .xls, .csv" style="display: none;">
+                    </div>
+                    <div id="infoSingle" class="file-info"></div>
 
-        <div id="sheetContainerSingle" class="sheet-control">
-            <label for="sheetSelectSingle" style="display:inline; font-weight:bold; font-size:13px;">Select Sheet:</label>
-            <select id="sheetSelectSingle"></select>
-        </div>
+                    <div id="sheetContainerSingle" class="sheet-control">
+                        <label for="sheetSelectSingle" style="display:inline; font-weight:600; font-size:12px; color:var(--text-main); text-transform:none;">Select Sheet:</label>
+                        <select id="sheetSelectSingle"></select>
+                    </div>
 
-        <label for="inputSingle" style="margin-top:15px;">Input Data (Inspect / Edit Text):</label>
-        <textarea id="inputSingle" placeholder="Values from Column E will appear here..."></textarea>
-        
-        <div class="controls">
-            <button id="processSingleBtn">Count</button>
-        </div>
-    </div>
+                    <label for="inputSingle">Extracted Data</label>
+                    <textarea id="inputSingle"></textarea>
+                    
+                    <div class="action-row">
+                        <button id="processSingleBtn">Count Frequencies</button>
+                    </div>
+                </div>
 
-    <!-- SECTION 2: Dual Columns (Col Z & Col AD) -->
-    <div id="modeDual" class="section">
-        <label>Drag & Drop Excel File:</label>
-        <div id="dropzoneDual" class="dropzone">
-            <p>📁 Drop Excel file here or click to browse</p>
-            <input type="file" id="fileDual" accept=".xlsx, .xls, .csv" style="display: none;">
-        </div>
-        <div id="infoDual" class="file-info"></div>
+                <!-- SECTION 2: Dual Columns (Col Z & Col AD) -->
+                <div id="modeDual" class="section">
+                    <label>Excel Document</label>
+                    <div id="dropzoneDual" class="dropzone">
+                        <p>📁 Drop Excel file here or click to browse</p>
+                        <input type="file" id="fileDual" accept=".xlsx, .xls, .csv" style="display: none;">
+                    </div>
+                    <div id="infoDual" class="file-info"></div>
 
-        <div id="sheetContainerDual" class="sheet-control">
-            <label for="sheetSelectDual" style="display:inline; font-weight:bold; font-size:13px;">Select Sheet:</label>
-            <select id="sheetSelectDual"></select>
-        </div>
+                    <div id="sheetContainerDual" class="sheet-control">
+                        <label for="sheetSelectDual" style="display:inline; font-weight:600; font-size:12px; color:var(--text-main); text-transform:none;">Select Sheet:</label>
+                        <select id="sheetSelectDual"></select>
+                    </div>
 
-        <div class="flex-boxes" style="margin-top: 10px;">
-            <div class="flex-box">
-                <label for="inputEan">EAN:</label>
-                <textarea id="inputEan" placeholder="EAN values..."></textarea>
+                    <div class="flex-boxes">
+                        <div class="flex-box">
+                            <label for="inputEan">EAN</label>
+                            <textarea id="inputEan"></textarea>
+                        </div>
+                        <div class="flex-box">
+                            <label for="inputQty">Qty</label>
+                            <textarea id="inputQty"></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="action-row">
+                        <button id="processDualBtn">Tabulate Totals</button>
+                    </div>
+                </div>
+
             </div>
-            <div class="flex-box">
-                <label for="inputQty">Qty</label>
-                <textarea id="inputQty" placeholder="Qty values..."></textarea>
-            </div>
-        </div>
-        
-        <div class="controls">
-            <button id="processDualBtn">Count</button>
-        </div>
-    </div>
 
-    <!-- COMMON OUTPUT SECTION -->
-    <div class="output-section">
-        <label for="outputData">Output:</label>
-        <textarea id="outputData" readonly placeholder="Processed results will appear here..."></textarea>
-        <div style="margin-top: 10px;">
-            <button id="copyBtn">Copy</button>
-            <span id="copyStatus" class="success-msg"></span>
+            <!-- RIGHT COLUMN: Output Pane & Copy Button Outside Wrapper -->
+            <div class="pane-column">
+                <div class="output-wrapper">
+                    <label for="outputData">Processed Output</label>
+                    <textarea id="outputData" readonly placeholder="Processed results will appear here..."></textarea>
+                </div>
+                <div class="action-row">
+                    <button id="copyBtn">Copy to Clipboard</button>
+                    <span id="copyStatus" class="success-msg"></span>
+                </div>
+            </div>
+
         </div>
+
+        <!-- CARD RESIZE HANDLE -->
+        <div class="card-resize-handle" id="cardResizeHandle" title="Drag vertically to resize card height"></div>
     </div>
 
     <script>
+        // Card Resizing Logic via Bottom Handle
+        const card = document.getElementById('mainCard');
+        const resizeHandle = document.getElementById('cardResizeHandle');
+        let isResizing = false;
+        let startY, startHeight;
+
+        resizeHandle.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            startY = e.clientY;
+            startHeight = card.offsetHeight;
+            document.body.style.cursor = 'ns-resize';
+            e.preventDefault();
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            const deltaY = e.clientY - startY;
+            const newHeight = startHeight + deltaY;
+            if (newHeight >= 500) {
+                card.style.height = newHeight + 'px';
+            }
+        });
+
+        window.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                document.body.style.cursor = 'default';
+            }
+        });
+
         // Store workbook contexts globally to allow sheet switching without re-uploading
         let workbookSingle = null;
         let workbookDual = null;
@@ -224,6 +496,7 @@
                     document.getElementById('modeDual').classList.add('active');
                 }
                 document.getElementById('outputData').value = '';
+                document.getElementById('copyStatus').textContent = '';
             });
         });
 
@@ -260,7 +533,7 @@
         }
 
         function handleFile(file, infoDiv, sheetContainerId, sheetSelectId, onWorkbookLoaded) {
-            infoDiv.textContent = `Loaded file: ${file.name}`;
+            infoDiv.textContent = `✓ Loaded: ${file.name}`;
             const reader = new FileReader();
             reader.onload = function(e) {
                 const data = new Uint8Array(e.target.result);
@@ -418,7 +691,7 @@
             outputBox.select();
             navigator.clipboard.writeText(outputBox.value).then(() => {
                 const status = document.getElementById('copyStatus');
-                status.textContent = 'Copied successfully!';
+                status.textContent = '✓ Copied successfully!';
                 setTimeout(() => { status.textContent = ''; }, 2000);
             });
         });
