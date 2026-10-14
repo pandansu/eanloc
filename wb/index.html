@@ -14,7 +14,7 @@
         <!-- Header -->
         <div class="mb-8">
             <h1 class="text-3xl font-bold text-white tracking-tight">Waybill Page Counter</h1>
-            <p class="text-slate-400 mt-1">Counts waybill pages automatically for SPX (Shopee), J&T Express (Lazada), and SingPost (TikTok).</p>
+            <p class="text-slate-400 mt-1">Counts waybill pages automatically for SPX (Shopee), J&T Express (Lazada), and SingPost (including TikTok).</p>
         </div>
 
         <!-- Drop Zone -->
@@ -22,16 +22,16 @@
             <!-- Reset Button inside upper right corner -->
             <button id="resetBtn" type="button" class="absolute top-3 right-3 px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-200 border border-slate-700 hover:border-rose-700/50 rounded-lg transition-colors cursor-pointer flex items-center gap-1">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                Reset
+                Reset All
             </button>
 
             <svg class="w-12 h-12 text-slate-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
             <p class="text-base font-semibold text-slate-200 mb-1">Drag & drop your PDF folder or files here</p>
             <p class="text-xs text-slate-400 mb-4">or choose an option below to browse (incremental addition)</p>
             
-            <!-- Separate action buttons for files vs folder selection -->
+            <!-- Action buttons (both styled uniformly with dark slate theme) -->
             <div class="flex flex-wrap gap-3 justify-center relative z-10">
-                <label class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg cursor-pointer transition shadow-sm inline-flex items-center gap-1.5">
+                <label class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg cursor-pointer transition shadow-sm inline-flex items-center gap-1.5 border border-slate-700">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                     Browse Files
                     <input type="file" id="fileInput" accept="application/pdf" multiple class="hidden">
