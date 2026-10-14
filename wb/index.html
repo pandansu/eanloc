@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Waybill Page Counter (SPX, J&T, SingPost)</title>
+    <title>Waybill Page Counter</title>
     <!-- Tailwind CSS -->
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
     <!-- PDF.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
@@ -18,7 +18,7 @@
         </div>
 
         <!-- Drop Zone -->
-        <div id="dropZone" class="relative border-2 border-dashed border-slate-700 bg-slate-900 hover:border-slate-500 rounded-xl p-8 text-center cursor-pointer transition-all mb-8 flex flex-col items-center justify-center min-h-[200px]">
+        <div id="dropZone" class="relative border-2 border-dashed border-slate-700 bg-slate-900 hover:border-slate-500 rounded-xl p-8 text-center transition-all mb-8 flex flex-col items-center justify-center min-h-[200px]">
             <!-- Reset Button inside upper right corner -->
             <button id="resetBtn" type="button" class="absolute top-3 right-3 px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-rose-900/60 text-slate-300 hover:text-rose-200 border border-slate-700 hover:border-rose-700/50 rounded-lg transition-colors cursor-pointer flex items-center gap-1">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
@@ -26,9 +26,22 @@
             </button>
 
             <svg class="w-12 h-12 text-slate-500 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-            <p class="text-base font-semibold text-slate-200">Drag & drop your PDF folder or files here</p>
-            <p class="text-xs text-slate-400 mt-1">or click to add files/folders (incremental addition)</p>
-            <input type="file" id="fileInput" accept="application/pdf" multiple webkitdirectory class="hidden">
+            <p class="text-base font-semibold text-slate-200 mb-1">Drag & drop your PDF folder or files here</p>
+            <p class="text-xs text-slate-400 mb-4">or choose an option below to browse (incremental addition)</p>
+            
+            <!-- Separate action buttons for files vs folder selection -->
+            <div class="flex flex-wrap gap-3 justify-center relative z-10">
+                <label class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg cursor-pointer transition shadow-sm inline-flex items-center gap-1.5">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    Browse Files
+                    <input type="file" id="fileInput" accept="application/pdf" multiple class="hidden">
+                </label>
+                <label class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg cursor-pointer transition shadow-sm inline-flex items-center gap-1.5 border border-slate-700">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"></path></svg>
+                    Browse Folder
+                    <input type="file" id="folderInput" webkitdirectory directory multiple class="hidden">
+                </label>
+            </div>
         </div>
 
         <!-- Summary Statistics -->
@@ -85,6 +98,7 @@
 
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
+        const folderInput = document.getElementById('folderInput');
         const resetBtn = document.getElementById('resetBtn');
         
         const statTotal = document.getElementById('statTotal');
@@ -98,13 +112,16 @@
         let extractedRecords = [];
         const processedFileKeys = new Set(); // Prevent duplicates by name and size
 
-        // Click to upload
-        dropZone.addEventListener('click', (e) => {
-            if (e.target.closest('#resetBtn')) return; // Prevent file dialogue when clicking reset
-            fileInput.click();
+        // File and Folder Inputs
+        fileInput.addEventListener('change', (e) => {
+            processFiles(Array.from(e.target.files));
+            fileInput.value = '';
         });
 
-        fileInput.addEventListener('change', (e) => processFiles(Array.from(e.target.files)));
+        folderInput.addEventListener('change', (e) => {
+            processFiles(Array.from(e.target.files));
+            folderInput.value = '';
+        });
         
         // Reset action
         resetBtn.addEventListener('click', (e) => {
@@ -112,6 +129,7 @@
             extractedRecords = [];
             processedFileKeys.clear();
             fileInput.value = '';
+            folderInput.value = '';
             resultsTableBody.innerHTML = `
                 <tr id="emptyRow"><td colspan="4" class="px-6 py-8 text-center text-slate-500 italic">No files parsed yet. Drop PDF files or folders above to begin.</td></tr>
             `;
@@ -169,10 +187,10 @@
         async function detectCourier(pdf, fileName) {
             const fname = fileName.toUpperCase();
             
-            // File name detection logic
-            if (fname.includes('SINGPOST') || fname.includes('TIKTOK') || fname.includes('TIK TOK')) return 'SingPost';
+            // Priority check: J&T first, then SPX, then SingPost/TikTok
             if (fname.includes('LAZADA') || fname.includes('J&T') || fname.includes('JNT') || fname.includes('J AND T')) return 'J&T Express';
             if (fname.includes('SHOPEE') || fname.includes('SPX')) return 'SPX Express';
+            if (fname.includes('SINGPOST') || fname.includes('TIKTOK') || fname.includes('TIK TOK')) return 'SingPost';
 
             // Embedded PDF text check fallback
             try {
@@ -180,9 +198,9 @@
                 const textContent = await page.getTextContent();
                 const text = textContent.items.map(item => item.str).join(' ').toUpperCase();
 
-                if (text.includes('SINGPOST') || text.includes('TIKTOK') || text.includes('TIK TOK')) return 'SingPost';
                 if (text.includes('LAZADA') || text.includes('J&T') || text.includes('JNT') || text.includes('J AND T') || /JT\d+/.test(text)) return 'J&T Express';
                 if (text.includes('SHOPEE') || text.includes('SPX') || /SPXSG\d+/.test(text)) return 'SPX Express';
+                if (text.includes('SINGPOST') || text.includes('TIKTOK') || text.includes('TIK TOK')) return 'SingPost';
             } catch (err) {
                 console.warn("PDF embedded text read failed:", err);
             }
@@ -195,7 +213,6 @@
             if (pdfFiles.length === 0) return;
 
             for (const file of pdfFiles) {
-                // Duplicate check based on filename and size
                 const fileKey = `${file.name}_${file.size}`;
                 if (processedFileKeys.has(fileKey)) {
                     console.log(`Skipped duplicate file: ${file.name}`);
@@ -254,7 +271,7 @@
         function getBadgeClass(courier) {
             if (courier === 'SPX Express') return 'bg-orange-950/80 text-orange-400 border border-orange-800/60';
             if (courier === 'J&T Express') return 'bg-rose-950/80 text-rose-400 border border-rose-800/60';
-            if (courier === 'SingPost') return 'bg-blue-950/80 text-blue-400 border border-blue-800/60'; // Blue accent for SingPost
+            if (courier === 'SingPost') return 'bg-blue-950/80 text-blue-400 border border-blue-800/60';
             return 'bg-slate-800 text-slate-400 border border-slate-700';
         }
 
