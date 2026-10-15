@@ -217,6 +217,11 @@
                 select.appendChild(opt);
             });
             
+            // Automatically select the 2nd sheet by default for the picking dropdown if it exists
+            if (type === 'picking' && sheetNames.length > 1) {
+                select.value = sheetNames[1];
+            }
+            
             document.getElementById(containerId).classList.remove('hidden');
         }
 
