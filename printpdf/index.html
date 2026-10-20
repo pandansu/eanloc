@@ -6,6 +6,10 @@
     <title>Batch PDF Merger & Printer Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -23,11 +27,6 @@
     <style>
         body { font-family: 'Inter', sans-serif; }
         .drag-active { border-color: #3b82f6 !important; background-color: rgba(59, 130, 246, 0.08) !important; }
-        @keyframes pulse-subtle {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.6; }
-        }
-        .animate-pulse-subtle { animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
     </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-full flex flex-col selection:bg-blue-500 selection:text-white">
@@ -42,9 +41,9 @@
                 </div>
                 <div>
                     <h1 class="text-lg font-bold tracking-tight text-white flex items-center gap-2">
-                        PDF BatchFlow <span class="text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full font-medium">Pro</span>
+                        PDF BatchFlow <span class="text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full font-medium">🤣</span>
                     </h1>
-                    <p class="text-xs text-slate-400 hidden sm:block">Merge, sort, collate & batch print PDFs instantly</p>
+                    <p class="text-xs text-slate-400 hidden sm:block">Merge, sort, collate & batch print PDFs</p>
                 </div>
             </div>
             <div class="flex items-center space-x-3">
@@ -63,8 +62,8 @@
 
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        <!-- Left Panel: Dropzone & Print Settings (5 cols) -->
-        <div class="lg:col-span-5 flex flex-col space-y-6">
+        <!-- Left Panel: Dropzone & Print Settings (4 cols) -->
+        <div class="lg:col-span-4 flex flex-col space-y-6">
             
             <!-- Drag & Drop & Folder Upload Card -->
             <div class="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-6 shadow-xl backdrop-blur-sm">
@@ -81,10 +80,9 @@
                             </svg>
                         </div>
                         <div>
-                            <p class="text-sm font-medium text-slate-200">Drag & drop PDFs or folders here</p>
-                            <p class="text-xs text-slate-400 mt-1">Supports multi-file selection & recursive folder trees</p>
+                            <p class="text-sm font-medium text-slate-200">Drag & drop PDFs or click to browse</p>
                         </div>
-                        <div class="flex flex-wrap gap-2 justify-center pt-2">
+                        <div class="flex flex-wrap gap-2 justify-center pt-2" onclick="event.stopPropagation()">
                             <label class="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg cursor-pointer transition shadow-sm inline-flex items-center gap-1.5">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                                 Browse Files
@@ -113,7 +111,7 @@
                     </div>
                 </div>
 
-                <!-- Collate Toggle (Default unchecked: Doc A, Doc A, Doc B, Doc B) -->
+                <!-- Collate Toggle -->
                 <div class="pt-2 border-t border-slate-700/60">
                     <div class="flex items-center justify-between">
                         <div>
@@ -147,13 +145,13 @@
 
         </div>
 
-        <!-- Right Panel: Document Queue & Order (7 cols) -->
-        <div class="lg:col-span-7 flex flex-col">
+        <!-- Right Panel: Document Queue & Order (8 cols) -->
+        <div class="lg:col-span-8 flex flex-col">
             <div class="bg-slate-800/90 border border-slate-700/80 rounded-2xl p-6 shadow-xl backdrop-blur-sm flex-1 flex flex-col">
                 <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
                     <div>
                         <h2 class="text-sm font-semibold text-slate-200 uppercase tracking-wider">3. Document Queue & Sequence</h2>
-                        <p class="text-xs text-slate-400 mt-0.5">Sort alphabetically or reorder manually</p>
+                        <p class="text-xs text-slate-400 mt-0.5">Duplicates auto-filtered • Drag to reorder</p>
                     </div>
                     <div class="flex items-center space-x-2">
                         <button onclick="sortQueue('asc')" class="text-xs bg-slate-700/60 hover:bg-slate-700 text-slate-300 px-2.5 py-1.5 rounded-lg border border-slate-600/50 transition flex items-center gap-1.5 cursor-pointer shadow-sm" title="Sort A to Z">
@@ -214,6 +212,7 @@
     <script>
         // State Management
         let pdfQueue = [];
+        let draggedIndex = null;
 
         // DOM Elements
         const dropzone = document.getElementById('dropzone');
@@ -260,6 +259,11 @@
                 setTimeout(() => toast.remove(), 300);
             }, 4000);
         }
+
+        // Make entire dropzone box clickable to open file input
+        dropzone.addEventListener('click', () => {
+            fileInput.click();
+        });
 
         // Drag and drop prevent defaults
         ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
@@ -345,6 +349,51 @@
             }
         }
 
+        // Virtual Print Rasterization using PDF.js
+        async function runVirtualPrint(arrayBuffer, progressCallback) {
+            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+            const pdfDoc = await loadingTask.promise;
+            const numPages = pdfDoc.numPages;
+
+            const cleanPdfDoc = await window.PDFLib.PDFDocument.create();
+
+            for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+                if (progressCallback) {
+                    progressCallback(pageNum, numPages);
+                }
+
+                const page = await pdfDoc.getPage(pageNum);
+                const viewport = page.getViewport({ scale: 2.0 }); // 2x scale for sharp printing
+
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                await page.render({ canvasContext: context, viewport: viewport }).promise;
+
+                const imgDataUrl = canvas.toDataURL('image/jpeg', 0.92);
+                const imgBytes = await fetch(imgDataUrl).then(res => res.arrayBuffer());
+                
+                const embeddedImage = await cleanPdfDoc.embedJpg(imgBytes);
+                const pdfPage = cleanPdfDoc.addPage([viewport.width / 2, viewport.height / 2]);
+                pdfPage.drawImage(embeddedImage, {
+                    x: 0,
+                    y: 0,
+                    width: pdfPage.getWidth(),
+                    height: pdfPage.getHeight(),
+                });
+            }
+
+            const cleanBytes = await cleanPdfDoc.save();
+            const finalizedDoc = await window.PDFLib.PDFDocument.load(cleanBytes);
+            return {
+                pdfDoc: finalizedDoc,
+                pageCount: finalizedDoc.getPageCount(),
+                arrayBuffer: cleanBytes
+            };
+        }
+
         async function processAndAddFiles(files) {
             const pdfFiles = files.filter(f => {
                 const name = f.name ? f.name.toLowerCase() : '';
@@ -357,39 +406,63 @@
                 return;
             }
 
-            showLoading(true, 'Reading & Analyzing PDFs', `Processing 0 of ${pdfFiles.length} files...`, 0);
+            showLoading(true, 'Ingesting PDFs', `Processing 0 of ${pdfFiles.length} files...`, 0);
 
             let addedCount = 0;
+            let duplicateCount = 0;
+
             for (let i = 0; i < pdfFiles.length; i++) {
                 const file = pdfFiles[i];
-                const progress = ((i / pdfFiles.length) * 100);
-                updateLoadingProgress(progress, `Processing (${i + 1}/${pdfFiles.length}): ${file.name}`);
+                const baseProgress = (i / pdfFiles.length) * 100;
+                updateLoadingProgress(baseProgress, `Processing (${i + 1}/${pdfFiles.length}): ${file.name}`);
+
+                const displayName = file.webkitRelativePath || file.name;
+
+                // Check for duplicate in queue by name and size
+                const isDuplicate = pdfQueue.some(item => item.name === displayName && item.file.size === file.size);
+                if (isDuplicate) {
+                    duplicateCount++;
+                    continue;
+                }
 
                 try {
-                    const arrayBuffer = await file.arrayBuffer();
-                    const pdfDoc = await window.PDFLib.PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+                    const rawBuffer = await file.arrayBuffer();
+                    const uint8Array = new Uint8Array(rawBuffer);
+                    
+                    // Load natively via pdf-lib for quick page counting & inspection
+                    const pdfDoc = await window.PDFLib.PDFDocument.load(uint8Array, { ignoreEncryption: true });
                     const pageCount = pdfDoc.getPageCount();
 
                     pdfQueue.push({
                         id: Math.random().toString(36).substring(2, 9),
                         file: file,
-                        name: file.name,
-                        size: formatFileSize(file.size),
+                        name: displayName,
+                        size: formatFileSize(rawBuffer.byteLength),
                         pageCount: pageCount,
-                        arrayBuffer: arrayBuffer,
-                        pdfDoc: pdfDoc
+                        rawArrayBuffer: rawBuffer,
+                        rasterizedPdfDoc: null, // Cached rasterized doc for subsequent prints
+                        pageRange: ''
                     });
                     addedCount++;
                 } catch (err) {
                     console.error(`Error loading PDF ${file.name}:`, err);
-                    showToast(`Failed to parse: ${file.name} (Corrupted or password protected)`, 'error');
+                    showToast(`Failed to parse: ${file.name}`, 'error');
                 }
             }
 
+            pdfQueue.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+
             showLoading(false);
             renderQueue();
+
             if (addedCount > 0) {
-                showToast(`Successfully added ${addedCount} PDF file(s)`, 'success');
+                let msg = `Added ${addedCount} file(s)`;
+                if (duplicateCount > 0) {
+                    msg += ` • ${duplicateCount} duplicate(s) skipped`;
+                }
+                showToast(msg, 'success');
+            } else if (duplicateCount > 0) {
+                showToast(`Skipped ${duplicateCount} duplicate file(s) already in queue.`, 'info');
             }
         }
 
@@ -413,58 +486,161 @@
             showToast(`Queue sorted ${direction === 'asc' ? 'A to Z' : 'Z to A'}`, 'info');
         };
 
-        function renderQueue() {
+        // Queue Drag & Drop Handlers
+        window.onQueueDragStart = function(e, index) {
+            draggedIndex = index;
+            e.dataTransfer.effectAllowed = 'move';
+            e.currentTarget.classList.add('opacity-40', 'border-blue-500');
+        };
+
+        window.onQueueDragOver = function(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        };
+
+        window.onQueueDragEnter = function(e) {
+            e.currentTarget.classList.add('border-blue-400', 'bg-slate-800/90');
+        };
+
+        window.onQueueDragLeave = function(e) {
+            e.currentTarget.classList.remove('border-blue-400', 'bg-slate-800/90');
+        };
+
+        window.onQueueDrop = function(e, targetIndex) {
+            e.preventDefault();
+            e.currentTarget.classList.remove('border-blue-400', 'bg-slate-800/90');
+            if (draggedIndex === null || draggedIndex === targetIndex) return;
+
+            const movedItem = pdfQueue.splice(draggedIndex, 1)[0];
+            pdfQueue.splice(targetIndex, 0, movedItem);
+            draggedIndex = null;
+            renderQueue();
+            showToast('Queue reordered', 'info');
+        };
+
+        function parsePageRange(rangeStr, maxPages) {
+            if (!rangeStr || !rangeStr.trim()) {
+                return Array.from({ length: maxPages }, (_, i) => i);
+            }
+            const indices = [];
+            const parts = rangeStr.split(',');
+            for (let part of parts) {
+                part = part.trim();
+                if (!part) continue;
+                if (part.includes('-')) {
+                    const [startStr, endStr] = part.split('-');
+                    let start = parseInt(startStr, 10);
+                    let end = parseInt(endStr, 10);
+                    if (!isNaN(start) && !isNaN(end)) {
+                        if (start > end) [start, end] = [end, start];
+                        for (let p = start; p <= end; p++) {
+                            if (p >= 1 && p <= maxPages) {
+                                if (!indices.includes(p - 1)) indices.push(p - 1);
+                            }
+                        }
+                    }
+                } else {
+                    let p = parseInt(part, 10);
+                    if (!isNaN(p) && p >= 1 && p <= maxPages) {
+                        if (!indices.includes(p - 1)) indices.push(p - 1);
+                    }
+                }
+            }
+            return indices.length > 0 ? indices : Array.from({ length: maxPages }, (_, i) => i);
+        }
+
+        window.onPageRangeInput = function(index, value) {
+            if (pdfQueue[index]) {
+                pdfQueue[index].pageRange = value;
+                updateQueueStats();
+                const countEl = document.getElementById(`file-pages-${index}`);
+                if (countEl) {
+                    const selectedPages = parsePageRange(value, pdfQueue[index].pageCount).length;
+                    countEl.textContent = `${selectedPages} pages total`;
+                }
+            }
+        };
+
+        function updateQueueStats() {
             if (pdfQueue.length === 0) {
-                emptyState.classList.remove('hidden');
-                queueList.classList.add('hidden');
-                queueList.innerHTML = '';
                 queueCountBadge.textContent = '0';
                 totalPagesBadge.textContent = '0 total pages';
                 btnPrint.disabled = true;
                 btnDownload.disabled = true;
                 return;
             }
+            queueCountBadge.textContent = pdfQueue.length;
+            let totalPages = pdfQueue.reduce((acc, item) => {
+                const indices = parsePageRange(item.pageRange, item.pageCount);
+                return acc + indices.length;
+            }, 0);
+            const copies = parseInt(copiesInput.value) || 1;
+            totalPagesBadge.textContent = `${totalPages * copies} total pages (${totalPages} x ${copies} copies)`;
+            btnPrint.disabled = false;
+            btnDownload.disabled = false;
+        }
+
+        function renderQueue() {
+            if (pdfQueue.length === 0) {
+                emptyState.classList.remove('hidden');
+                queueList.classList.add('hidden');
+                queueList.innerHTML = '';
+                updateQueueStats();
+                return;
+            }
 
             emptyState.classList.add('hidden');
             queueList.classList.remove('hidden');
-            queueCountBadge.textContent = pdfQueue.length;
+            updateQueueStats();
 
-            let totalPages = pdfQueue.reduce((acc, item) => acc + item.pageCount, 0);
-            const copies = parseInt(copiesInput.value) || 1;
-            totalPagesBadge.textContent = `${totalPages * copies} total pages (${totalPages} x ${copies} copies)`;
-
-            btnPrint.disabled = false;
-            btnDownload.disabled = false;
-
-            queueList.innerHTML = pdfQueue.map((item, index) => `
-                <div class="group bg-slate-900/60 hover:bg-slate-900 border border-slate-700/75 rounded-xl p-3.5 flex items-center justify-between transition shadow-sm">
-                    <div class="flex items-center space-x-3 overflow-hidden">
+            queueList.innerHTML = pdfQueue.map((item, index) => {
+                const selectedCount = parsePageRange(item.pageRange, item.pageCount).length;
+                return `
+                <div draggable="true" 
+                     ondragstart="onQueueDragStart(event, ${index})" 
+                     ondragover="onQueueDragOver(event)" 
+                     ondragenter="onQueueDragEnter(event)" 
+                     ondragleave="onQueueDragLeave(event)" 
+                     ondrop="onQueueDrop(event, ${index})"
+                     class="group bg-slate-900/60 hover:bg-slate-900 border border-slate-700/75 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition shadow-sm cursor-grab active:cursor-grabbing">
+                    <div class="flex items-center space-x-3 overflow-hidden pointer-events-none sm:pointer-events-auto">
                         <div class="bg-blue-600/20 text-blue-400 font-bold text-xs w-7 h-7 rounded-lg flex items-center justify-center shrink-0 border border-blue-500/30">
                             ${index + 1}
                         </div>
                         <div class="overflow-hidden">
-                            <h4 class="text-xs font-semibold text-white truncate max-w-[180px] sm:max-w-xs md:max-w-md" title="${item.name}">${item.name}</h4>
+                            <h4 class="text-xs font-semibold text-white truncate max-w-[200px] sm:max-w-xs md:max-w-lg" title="${item.name}">${item.name}</h4>
                             <div class="flex items-center space-x-2 mt-0.5">
                                 <span class="text-[11px] text-slate-400">${item.size}</span>
                                 <span class="text-[10px] text-slate-600">•</span>
-                                <span class="text-[11px] font-medium text-blue-400 bg-blue-500/10 px-1.5 py-0.2 rounded">${item.pageCount} pages</span>
+                                <span id="file-pages-${index}" class="text-[11px] font-medium text-blue-400 bg-blue-500/10 px-1.5 py-0.2 rounded">${selectedCount} pages total</span>
                             </div>
                         </div>
                     </div>
                     
-                    <div class="flex items-center space-x-1 shrink-0">
-                        <button onclick="moveQueueItem(${index}, -1)" ${index === 0 ? 'disabled' : ''} class="p-1.5 text-slate-400 hover:text-white disabled:text-slate-600 hover:bg-slate-800 rounded-lg transition disabled:cursor-not-allowed cursor-pointer" title="Move Up">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
-                        </button>
-                        <button onclick="moveQueueItem(${index}, 1)" ${index === pdfQueue.length - 1 ? 'disabled' : ''} class="p-1.5 text-slate-400 hover:text-white disabled:text-slate-600 hover:bg-slate-800 rounded-lg transition disabled:cursor-not-allowed cursor-pointer" title="Move Down">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-                        </button>
-                        <button onclick="removeQueueItem(${index})" class="p-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition ml-1 cursor-pointer" title="Remove">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        </button>
+                    <div class="flex items-center justify-between sm:justify-end space-x-3 w-full sm:w-auto" onclick="event.stopPropagation()">
+                        <div class="flex items-center space-x-1 bg-slate-800/80 px-2 py-0.5 rounded-lg border border-slate-700">
+                            <span class="text-[10px] text-slate-400 font-medium whitespace-nowrap">Pages:</span>
+                            <input type="text" 
+                                   value="${item.pageRange !== undefined ? item.pageRange : ''}" 
+                                   placeholder="All" 
+                                   oninput="onPageRangeInput(${index}, this.value)" 
+                                   class="w-16 bg-slate-900 border border-slate-700 rounded px-1 py-0.5 text-[11px] text-white text-center focus:outline-none focus:border-blue-500">
+                        </div>
+
+                        <div class="flex items-center space-x-1 shrink-0">
+                            <button onclick="moveQueueItem(${index}, -1)" ${index === 0 ? 'disabled' : ''} class="p-1.5 text-slate-400 hover:text-white disabled:text-slate-600 hover:bg-slate-800 rounded-lg transition disabled:cursor-not-allowed cursor-pointer" title="Move Up">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path></svg>
+                            </button>
+                            <button onclick="moveQueueItem(${index}, 1)" ${index === pdfQueue.length - 1 ? 'disabled' : ''} class="p-1.5 text-slate-400 hover:text-white disabled:text-slate-600 hover:bg-slate-800 rounded-lg transition disabled:cursor-not-allowed cursor-pointer" title="Move Down">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </button>
+                            <button onclick="removeQueueItem(${index})" class="p-1.5 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition ml-1 cursor-pointer" title="Remove">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
                     </div>
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
         }
 
         window.moveQueueItem = function(index, direction) {
@@ -491,7 +667,7 @@
 
         copiesRange.addEventListener('input', (e) => {
             copiesInput.value = e.target.value;
-            renderQueue();
+            updateQueueStats();
         });
 
         copiesInput.addEventListener('input', (e) => {
@@ -500,7 +676,7 @@
             if (val > 99) val = 99;
             copiesInput.value = val;
             copiesRange.value = Math.min(val, 20);
-            renderQueue();
+            updateQueueStats();
         });
 
         collateToggle.addEventListener('change', (e) => {
@@ -533,40 +709,68 @@
             const copies = parseInt(copiesInput.value) || 1;
             const isCollated = collateToggle.checked;
 
-            showLoading(true, 'Merging Master PDF', 'Initializing master document...', 10);
-            const masterPdfDoc = await window.PDFLib.PDFDocument.create();
+            showLoading(true, 'Merging Master PDF', 'Preparing files...', 10);
+            
+            // Rasterize files on first run and cache them to prevent ArrayBuffer detachment errors on subsequent prints
+            const processedDocs = [];
+            for (let i = 0; i < pdfQueue.length; i++) {
+                const item = pdfQueue[i];
+                let sourceDoc;
 
-            const totalSteps = isCollated ? copies * pdfQueue.length : pdfQueue.length * copies;
+                if (item.rasterizedPdfDoc) {
+                    sourceDoc = item.rasterizedPdfDoc;
+                } else {
+                    updateLoadingProgress(10 + ((i / pdfQueue.length) * 40), `Virtual printing (${i + 1}/${pdfQueue.length}): ${item.name}`);
+                    const res = await runVirtualPrint(item.rawArrayBuffer);
+                    item.rasterizedPdfDoc = res.pdfDoc;
+                    sourceDoc = item.rasterizedPdfDoc;
+                }
+
+                processedDocs.push({
+                    sourceDoc: sourceDoc,
+                    pageCount: item.pageCount,
+                    pageRange: item.pageRange,
+                    name: item.name
+                });
+            }
+
+            const masterPdfDoc = await window.PDFLib.PDFDocument.create();
+            const parsedQueuePages = processedDocs.map(item => parsePageRange(item.pageRange, item.pageCount));
+            const totalSteps = isCollated ? copies * processedDocs.length : processedDocs.length * copies;
             let currentStep = 0;
 
             if (isCollated) {
                 for (let c = 0; c < copies; c++) {
-                    for (let i = 0; i < pdfQueue.length; i++) {
+                    for (let i = 0; i < processedDocs.length; i++) {
                         currentStep++;
-                        updateLoadingProgress((currentStep / totalSteps) * 90, `Copy ${c + 1}/${copies}: Merging ${pdfQueue[i].name}`);
+                        updateLoadingProgress(50 + ((currentStep / totalSteps) * 45), `Copy ${c + 1}/${copies}: Merging ${processedDocs[i].name}`);
                         
-                        const sourceDoc = pdfQueue[i].pdfDoc;
-                        const pageIndices = sourceDoc.getPageIndices();
-                        const copiedPages = await masterPdfDoc.copyPages(sourceDoc, pageIndices);
-                        copiedPages.forEach(page => masterPdfDoc.addPage(page));
+                        const sourceDoc = processedDocs[i].sourceDoc;
+                        const pageIndices = parsedQueuePages[i];
+                        if (pageIndices.length > 0) {
+                            const copiedPages = await masterPdfDoc.copyPages(sourceDoc, pageIndices);
+                            copiedPages.forEach(page => masterPdfDoc.addPage(page));
+                        }
                     }
                 }
             } else {
-                for (let i = 0; i < pdfQueue.length; i++) {
-                    const sourceDoc = pdfQueue[i].pdfDoc;
-                    const pageIndices = sourceDoc.getPageIndices();
+                for (let i = 0; i < processedDocs.length; i++) {
+                    const sourceDoc = processedDocs[i].sourceDoc;
+                    const pageIndices = parsedQueuePages[i];
                     
                     for (let c = 0; c < copies; c++) {
                         currentStep++;
-                        updateLoadingProgress((currentStep / totalSteps) * 90, `Doc ${i + 1}/${pdfQueue.length}: Copy ${c + 1}/${copies}`);
+                        updateLoadingProgress(50 + ((currentStep / totalSteps) * 45), `Doc ${i + 1}/${processedDocs.length}: Copy ${c + 1}/${copies}`);
                         
-                        const copiedPages = await masterPdfDoc.copyPages(sourceDoc, pageIndices);
-                        copiedPages.forEach(page => masterPdfDoc.addPage(page));
+                        if (pageIndices.length > 0) {
+                            const copiedPages = await masterPdfDoc.copyPages(sourceDoc, pageIndices);
+                            copiedPages.forEach(page => masterPdfDoc.addPage(page));
+                        }
                     }
                 }
             }
 
-            updateLoadingProgress(95, 'Finalizing master PDF bytes...');
+            updateLoadingProgress(98, 'Finalizing master PDF bytes...');
             const pdfBytes = await masterPdfDoc.save();
             showLoading(false);
             return pdfBytes;
