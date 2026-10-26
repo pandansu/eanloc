@@ -1,3 +1,4 @@
+
 (function() {
     'use strict';
 
@@ -25,6 +26,7 @@
         'JALAN BESUT',
         'ESR CHAI CHEE',
         'TAMPINES MALL',
+        'TAMPINES ONE',
         'TECHUB',
         'ORCHARD',
         'VIVOCITY',
@@ -41,7 +43,7 @@
 
     const locations = rawLocations.sort((a, b) => a.localeCompare(b));
 
-    // Helper to generate current YYMM dynamically (e.g., 2610 for October 2026)
+    // Helper to generate current YYMM dynamically
     function getCurrentYYMM() {
         const now = new Date();
         const yy = String(now.getFullYear()).slice(-2);
@@ -57,7 +59,7 @@
         } else {
             element.value = value;
         }
-        
+
         element.dispatchEvent(new Event('input', { bubbles: true }));
         element.dispatchEvent(new Event('change', { bubbles: true }));
         element.dispatchEvent(new Event('blur', { bubbles: true }));
@@ -72,7 +74,7 @@
         }
     }
 
-    // --- AUTO DATE-TIME PICKER LOGIC ("此刻" / "Now" & "确 认" / "Ok") ---
+    // --- AUTO DATE-TIME PICKER LOGIC ---
     function autoSelectActualDeliveryDate() {
         if (dateFilled) return;
 
@@ -91,9 +93,8 @@
         dateInput.click();
 
         setTimeout(() => {
-            // Query calendar popup footer buttons
             const buttons = Array.from(document.querySelectorAll('.ant-calendar-footer a, .ant-calendar-footer button, .ant-picker-footer a, .ant-picker-footer button'));
-            
+
             // 1. Click "此刻" or "Now"
             const nowBtn = buttons.find(b => {
                 const text = b.textContent.trim().toLowerCase();
@@ -111,7 +112,7 @@
                     const text = b.textContent.trim().toLowerCase();
                     return text.includes('确') || text.includes('认') || text.includes('定') || text === 'ok';
                 });
-                
+
                 if (confirmBtn) {
                     confirmBtn.click();
                     dateFilled = true;
@@ -129,9 +130,14 @@
 
         const currentValue = (receiveUnitInput.value || "").trim();
 
-        if (currentValue === "") return;
+        if (currentValue === "") {
+            // Form has been reset/cleared for a new entry
+            dateFilled = false;
+            lastProcessedUnit = "";
+            return;
+        }
 
-        // E-commerce exclusion list (Case-insensitive)
+        // E-commerce exclusion list
         const isExcluded = /SHOPEE|LAZADA|TIKTOK|AMAZON/i.test(currentValue);
 
         if (isExcluded) {
@@ -141,21 +147,20 @@
                 setNativeValue(remarkInput, "");
             }
             lastProcessedUnit = currentValue;
-            
-            // Trigger date picker after excluded unit selection completes
+
             setTimeout(autoSelectActualDeliveryDate, 300);
             return;
         }
 
-        if (currentValue === lastProcessedUnit) return;
+        if (currentValue === lastProcessedUnit && dateFilled) return;
 
         // Check strictly for "专卖店"
         const prefix = currentValue.includes('专卖店') ? 'XF' : 'INV';
         const yymm = getCurrentYYMM();
-        
+
         let existingRemark = remarkInput.value || "";
         let appendedPart = "";
-        
+
         locations.forEach(loc => {
             if (existingRemark.includes(` ${loc}`)) {
                 appendedPart = ` ${loc}`;
@@ -171,23 +176,22 @@
             focusRemarkField(remarkInput);
         }
 
-        // Trigger date picker AFTER unit selection and remark auto-fill are complete
         setTimeout(autoSelectActualDeliveryDate, 400);
     }
 
-    // Inject dropdown directly inside the remark input container
+    // Inject dropdown inside remark container
     function injectInFieldDropdown() {
         const remarkInput = document.querySelector('input[name="remark"]');
         if (!remarkInput || document.getElementById('dji-remark-wrapper')) return;
 
         const parent = remarkInput.parentNode;
-        
+
         const wrapper = document.createElement('div');
         wrapper.id = 'dji-remark-wrapper';
         wrapper.style.position = 'relative';
         wrapper.style.display = 'block';
         wrapper.className = remarkInput.className;
-        
+
         remarkInput.style.width = '100%';
         remarkInput.style.paddingRight = '28px';
 
@@ -262,14 +266,14 @@
                 item.style.cursor = 'pointer';
                 item.style.fontSize = '12px';
                 item.style.borderBottom = '1px solid #f0f0f0';
-                
+
                 item.onmouseover = () => { item.style.backgroundColor = '#f5f5f5'; };
                 item.onmouseout = () => { item.style.backgroundColor = '#fff'; };
-                
+
                 item.onclick = (e) => {
                     e.stopPropagation();
                     let currentVal = remarkInput.value || '';
-                    
+
                     locations.forEach(l => {
                         const escapedLoc = l.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                         currentVal = currentVal.replace(new RegExp(`\\s*-\\s*${escapedLoc}`, 'g'), '');
@@ -281,7 +285,6 @@
                     menu.style.display = 'none';
                     focusRemarkField(remarkInput);
 
-                    // Trigger date picker AFTER selecting location from dropdown
                     setTimeout(autoSelectActualDeliveryDate, 300);
                 };
                 listContainer.appendChild(item);
@@ -319,6 +322,20 @@
         });
     }
 
+    // Reset check loop: checks if the date or receiveUnit became empty after a save
+    setInterval(() => {
+        const receiveUnitWrapper = document.querySelector('app-inputtable-auto[name="rceiveUnit"]');
+        const receiveUnitInput = receiveUnitWrapper ? receiveUnitWrapper.querySelector('input') : document.querySelector('input[name="rceiveUnit"]');
+        const datePickerInput = document.querySelector('nz-date-picker[name="ActualDeliveryDate"] input');
+
+        if ((receiveUnitInput && receiveUnitInput.value.trim() === "") || (datePickerInput && datePickerInput.value.trim() === "")) {
+            dateFilled = false;
+            if (receiveUnitInput && receiveUnitInput.value.trim() === "") {
+                lastProcessedUnit = "";
+            }
+        }
+    }, 500);
+
     // Event listeners
     document.addEventListener('change', (e) => {
         if (e.target && (e.target.closest('app-inputtable-auto[name="rceiveUnit"]') || e.target.name === 'rceiveUnit')) {
@@ -328,7 +345,7 @@
 
     document.addEventListener('click', (e) => {
         const isReceiveUnitInput = e.target && (e.target.closest('app-inputtable-auto[name="rceiveUnit"]') || e.target.name === 'rceiveUnit');
-        
+
         setTimeout(() => {
             handleUnitChange(!isReceiveUnitInput);
             injectInFieldDropdown();
