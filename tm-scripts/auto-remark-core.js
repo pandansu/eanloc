@@ -26,7 +26,6 @@
         'JALAN BESUT',
         'ESR CHAI CHEE',
         'TAMPINES MALL',
-        'TAMPINES ONE',
         'TECHUB',
         'ORCHARD',
         'VIVOCITY',
@@ -43,7 +42,7 @@
 
     const locations = rawLocations.sort((a, b) => a.localeCompare(b));
 
-    // Helper to generate current YYMM dynamically
+    // Helper to generate current YYMM dynamically (e.g., 2610 for October 2026)
     function getCurrentYYMM() {
         const now = new Date();
         const yy = String(now.getFullYear()).slice(-2);
@@ -51,7 +50,7 @@
         return yy + mm;
     }
 
-    // Helper to safely update input value and trigger Angular bindings
+    // Helper to safely update input value and trigger Angular/React bindings
     function setNativeValue(element, value) {
         const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
         if (nativeInputValueSetter) {
@@ -131,7 +130,6 @@
         const currentValue = (receiveUnitInput.value || "").trim();
 
         if (currentValue === "") {
-            // Form has been reset/cleared for a new entry
             dateFilled = false;
             lastProcessedUnit = "";
             return;
@@ -322,7 +320,38 @@
         });
     }
 
-    // Reset check loop: checks if the date or receiveUnit became empty after a save
+    // Intercept Save Button Clicks to Validate Remark Length
+    document.addEventListener('click', function(e) {
+        const target = e.target.closest('button, nz-button, a');
+        if (!target) return;
+
+        const text = target.textContent.trim().toLowerCase();
+        const isSaveButton = text.includes('保存') || text.includes('save') || text.includes('提交') || text.includes('submit');
+
+        if (isSaveButton) {
+            const receiveUnitWrapper = document.querySelector('app-inputtable-auto[name="rceiveUnit"]');
+            const receiveUnitInput = receiveUnitWrapper ? receiveUnitWrapper.querySelector('input') : document.querySelector('input[name="rceiveUnit"]');
+            const currentValue = receiveUnitInput ? (receiveUnitInput.value || "").trim() : "";
+
+            const isExcluded = /SHOPEE|LAZADA|TIKTOK|AMAZON/i.test(currentValue);
+
+            if (!isExcluded && currentValue !== "") {
+                const remarkInput = document.querySelector('input[name="remark"]');
+                if (remarkInput) {
+                    const remarkValue = (remarkInput.value || "").trim();
+                    if (remarkValue.length < 12) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        e.stopImmediatePropagation();
+                        alert('🔴 Check invoice number \n🔴 检查单号是否真确');
+                        focusRemarkField(remarkInput);
+                    }
+                }
+            }
+        }
+    }, true); // Capture phase interception
+
+    // Reset check loop (Handles consecutive entries after saving)
     setInterval(() => {
         const receiveUnitWrapper = document.querySelector('app-inputtable-auto[name="rceiveUnit"]');
         const receiveUnitInput = receiveUnitWrapper ? receiveUnitWrapper.querySelector('input') : document.querySelector('input[name="rceiveUnit"]');
