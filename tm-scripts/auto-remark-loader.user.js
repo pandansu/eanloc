@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name         Delivery Order Auto-Remark & Date Picker (Remote Loader)
 // @namespace    http://tampermonkey.net/
-// @version      1.0.0
+// @version      1.1.0
 // @description  Remote loader for DJI Delivery Order automation script
-// @match        https://scsm-djifx.lingyingdms.com/*
+// @match        https://djifx-web.yzdms.xyz/*
 // @grant        GM_xmlhttpRequest
 // @connect      raw.githubusercontent.com
 // @connect      *
