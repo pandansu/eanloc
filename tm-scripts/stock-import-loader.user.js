@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Stock Import Tool (Remote Loader)
 // @namespace    stock-import-tool
-// @version      3.1
+// @version      3.2
 // @description  Stock import tool
 // @match        https://djifx-web.yzdms.xyz/*
 // @exclude      https://djifx-web.yzdms.xyz/imeiprint*
