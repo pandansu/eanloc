@@ -3,9 +3,9 @@
 // @namespace    stock-import-tool
 // @version      3.1
 // @description  Stock import tool
-// @match        https://scsm-djifx.lingyingdms.com/*
-// @exclude      https://scsm-djifx.lingyingdms.com/imeiprint*
-// @exclude      https://scsm-djifx.lingyingdms.com/print*
+// @match        https://djifx-web.yzdms.xyz/*
+// @exclude      https://djifx-web.yzdms.xyz/imeiprint*
+// @exclude      https://djifx-web.yzdms.xyz/print*
 // @require      https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js
 // @grant        GM_xmlhttpRequest
 // @connect      raw.githubusercontent.com
