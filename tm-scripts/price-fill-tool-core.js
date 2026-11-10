@@ -1,9 +1,9 @@
-
 (function () {
     'use strict';
 
     const GOOGLE_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSIW6M5LlGnAjkmxLDeZPWonnJWTb0YW4-lw0FRhYst8zfHbTDrQmsNqacBWIcn0BFDRmIIbHBNHqfn/pub?output=csv";
 
+    // Webpage table column indexes (remain fixed based on webpage DOM structure)
     const TABLE_EAN_COL_INDEX = 5;
     const TABLE_PRICE_COL_INDEX = 8;
 
@@ -26,6 +26,15 @@
     let currentFileData = null;
     let currentFileIsCSV = false;
     let autoCloseTimer = null;
+
+    // Dynamic column mapping object (automatically updated based on Excel headers)
+    let colMap = {
+        category: 1,    // Default fallback for 平台
+        productName: 3, // Default fallback for 货品名字
+        ean: 4,         // Default fallback for EAN
+        itemCode: 5,    // Default fallback for 串号
+        price: 7        // Default fallback for 价格
+    };
 
     if (/(\/assets\/imei\.html|\/imeiprint\/)/.test(location.pathname + location.search + location.hash)) {
         return;
@@ -186,13 +195,44 @@
 
     function isExcludedRow(row) {
         if (!row) return false;
+
+        // 1. Check for OOS / Cancel keywords in any column
         for (let i = 0; i < row.length; i++) {
             const val = String(row[i] || "").trim().toUpperCase();
             if (["OOS", "CANCEL", "CANCELLED"].includes(val)) {
                 return true;
             }
         }
+
+        // 2. Ignore row if product name contains "DJI Care Refresh"
+        const prodName = String(row[colMap.productName] || "").trim().toLowerCase();
+        if (prodName.includes("dji care refresh")) {
+            return true;
+        }
+
         return false;
+    }
+
+    function detectColumnIndexes(headerRow) {
+        if (!headerRow || !Array.isArray(headerRow)) return;
+
+        headerRow.forEach((val, idx) => {
+            const h = String(val || "").trim().toLowerCase();
+
+            if (h.includes("平台") || h.includes("platform") || h.includes("channel")) {
+                colMap.category = idx;
+            } else if (h.includes("货品") || h.includes("product") || h.includes("goods") || h.includes("name")) {
+                colMap.productName = idx;
+            } else if (h.includes("ean") || h.includes("barcode")) {
+                colMap.ean = idx;
+            } else if (h.includes("串号") || h.includes("serial")) {
+                colMap.itemCode = idx;
+            } else if (h.includes("价格") || h.includes("price") || h.includes("amount")) {
+                colMap.price = idx;
+            }
+        });
+
+        console.log("Auto-detected Excel Column Mapping:", colMap);
     }
 
     function updateCounts() {
@@ -208,9 +248,9 @@
 
         const totalRows = excelRows.slice(1).filter(row => {
             if (isExcludedRow(row)) return false;
-            const category = String(row[1] || "").trim();
-            const ean = String(row[4] || "").trim();
-            const itemCode = String(row[5] || "").trim();
+            const category = String(row[colMap.category] || "").trim();
+            const ean = String(row[colMap.ean] || "").trim();
+            const itemCode = String(row[colMap.itemCode] || "").trim();
             return category !== "" || ean !== "" || itemCode !== "";
         }).length;
 
@@ -219,10 +259,10 @@
         const selectedPlatform = document.getElementById("filterValueSelect").value;
         const platformRows = excelRows.slice(1).filter(row => {
             if (isExcludedRow(row)) return false;
-            const rowCategory = normalizeCategory(String(row[1] || "").trim());
-            const category = String(row[1] || "").trim();
-            const ean = String(row[4] || "").trim();
-            const itemCode = String(row[5] || "").trim();
+            const rowCategory = normalizeCategory(String(row[colMap.category] || "").trim());
+            const category = String(row[colMap.category] || "").trim();
+            const ean = String(row[colMap.ean] || "").trim();
+            const itemCode = String(row[colMap.itemCode] || "").trim();
             const isValid = category !== "" || ean !== "" || itemCode !== "";
             return isValid && rowCategory === selectedPlatform;
         }).length;
@@ -565,13 +605,16 @@
             raw: false
         });
 
-        // DONE in Column F (index 5) substitution rule with Column E (index 4)
+        // 🔍 Auto-detect columns based on header row text (Row 0)
+        detectColumnIndexes(excelRows[0]);
+
+        // DONE substitution rule
         for (let i = 1; i < excelRows.length; i++) {
             const row = excelRows[i];
-            if (row && row.length > 5) {
-                const colF = String(row[5] || "").trim();
-                if (colF.toUpperCase() === "DONE") {
-                    row[5] = row[4];
+            if (row && row.length > colMap.itemCode) {
+                const colVal = String(row[colMap.itemCode] || "").trim();
+                if (colVal.toUpperCase() === "DONE") {
+                    row[colMap.itemCode] = row[colMap.ean];
                 }
             }
         }
@@ -581,9 +624,9 @@
 
         const actualRowsCount = excelRows.slice(1).filter(row => {
             if (isExcludedRow(row)) return false;
-            const category = String(row[1] || "").trim();
-            const ean = String(row[4] || "").trim();
-            const itemCode = String(row[5] || "").trim();
+            const category = String(row[colMap.category] || "").trim();
+            const ean = String(row[colMap.ean] || "").trim();
+            const itemCode = String(row[colMap.itemCode] || "").trim();
             return category !== "" || ean !== "" || itemCode !== "";
         }).length;
 
@@ -605,16 +648,14 @@
     }
 
     function buildFilterValues() {
-        const filterCol = 1; // Excel Col B
         const filterValueSelect = document.getElementById("filterValueSelect");
-
         filterValueSelect.innerHTML = "";
 
         const values = new Set();
 
         excelRows.slice(1).forEach(row => {
             if (isExcludedRow(row)) return;
-            const value = normalizeCategory(String(row[filterCol] || "").trim());
+            const value = normalizeCategory(String(row[colMap.category] || "").trim());
             if (value) values.add(value);
         });
 
@@ -651,10 +692,10 @@
 
         excelRows.slice(1).forEach(row => {
             if (isExcludedRow(row)) return;
-            const rowCategory = normalizeCategory(String(row[1] || "").trim());
+            const rowCategory = normalizeCategory(String(row[colMap.category] || "").trim());
             if (rowCategory !== filterValue) return;
 
-            const val = String(row[5] || "").trim(); // Excel Col F (index 5)
+            const val = String(row[colMap.itemCode] || "").trim();
             if (/^\d+$/.test(val)) {
                 redItemsCount[val] = (redItemsCount[val] || 0) + 1;
             }
@@ -693,10 +734,10 @@
 
         excelRows.slice(1).forEach(row => {
             if (isExcludedRow(row)) return;
-            const rowCategory = normalizeCategory(String(row[1] || "").trim());
+            const rowCategory = normalizeCategory(String(row[colMap.category] || "").trim());
             if (rowCategory !== filterValue) return;
 
-            const val = String(row[5] || "").trim();
+            const val = String(row[colMap.itemCode] || "").trim();
 
             if (/[A-Za-z]/.test(val) && /\d/.test(val)) {
                 serials.push(val);
@@ -863,7 +904,6 @@
             return;
         }
 
-        const eanCol = 4; // Excel Col E
         const filterValue = document.getElementById("filterValueSelect").value;
 
         priceMap = {};
@@ -871,20 +911,17 @@
 
         excelRows.slice(1).forEach(row => {
             if (isExcludedRow(row)) return;
-            const rowCategory = normalizeCategory(String(row[1] || "").trim());
+            const rowCategory = normalizeCategory(String(row[colMap.category] || "").trim());
             if (rowCategory !== filterValue) return;
 
-            const ean = clean(row[eanCol]);
-            let price = clean(row[8]).replace(/[^\d.]/g, ""); // Col I
-            if (!price) {
-                price = clean(row[7]).replace(/[^\d.]/g, ""); // Col H
-            }
+            const ean = clean(row[colMap.ean]);
+            let price = clean(row[colMap.price]).replace(/[^\d.]/g, "");
 
             if (/^\d{8,14}$/.test(ean) && price) {
                 priceMap[ean] = price;
             }
 
-            const accCode = String(row[5] || "").trim();
+            const accCode = String(row[colMap.itemCode] || "").trim();
             if (/^\d+$/.test(accCode)) {
                 priceMap[accCode] = price || "";
                 accessoriesList.push({
@@ -990,10 +1027,8 @@
                         priceInput.blur();
                         matched++;
                     } else {
-                        // Highlight EAN text with bold red and left border, and highlight price input box
                         eanCell.style.color = "#c62828";
                         eanCell.style.fontWeight = "bold";
-                        // eanCell.style.borderLeft = "4px solid #c62828";
 
                         if (priceInput) {
                             priceInput.style.background = "#ffebee";
