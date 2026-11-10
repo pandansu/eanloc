@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Price Fill Tool (Remote Loader)
 // @namespace    http://tampermonkey.net/
-// @version      3.4
+// @version      5.7
 // @description  Complete Google Sheet & Excel price fill script with DONE substitution, robust OOS/CANCEL exclusion, and sequential workflow
 // @match        https://djifx-web.yzdms.xyz/*
 // @exclude      https://djifx-web.yzdms.xyz/imeiprint*
