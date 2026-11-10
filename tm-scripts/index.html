@@ -246,12 +246,22 @@
         </a>
       </div>
 
-      <!-- Item 2: Scan Checker  -->
+      <!-- Item 2: Scan Checker -->
       <div class="script-item">
         <div class="script-info">
           <span class="script-name" data-i18n="scanChecker">Scan Checker</span>
         </div>
         <a href="#" id="btn-scan" class="btn" data-i18n="installBtn">
+          Install Script
+        </a>
+      </div>
+
+      <!-- Item 3: Price Fill Tool -->
+      <div class="script-item">
+        <div class="script-info">
+          <span class="script-name" data-i18n="priceFillTool">Price Fill Tool</span>
+        </div>
+        <a href="#" id="btn-price" class="btn" data-i18n="installBtn">
           Install Script
         </a>
       </div>
@@ -263,9 +273,11 @@
 <script>
   const QUANTITY_SCRIPT_URL = "https://raw.githubusercontent.com/pandansu/eanloc/refs/heads/main/tm-scripts/quantity-checker-loader.user.js";
   const SCAN_SCRIPT_URL = "https://raw.githubusercontent.com/pandansu/eanloc/refs/heads/main/tm-scripts/scan-checker-loader.user.js";
+  const PRICE_SCRIPT_URL = "https://raw.githubusercontent.com/pandansu/eanloc/refs/heads/main/tm-scripts/price-fill-tool-loader.user.js";
 
   document.getElementById('btn-quantity').href = QUANTITY_SCRIPT_URL;
   document.getElementById('btn-scan').href = SCAN_SCRIPT_URL;
+  document.getElementById('btn-price').href = PRICE_SCRIPT_URL;
 
   // --- i18n ---
   const translations = {
@@ -277,6 +289,7 @@
       step2Desc: 'Once Tampermonkey is installed, click below to install your desired script. Tampermonkey will open its confirmation screen — just click <strong>Install</strong> there.',
       quantityChecker: "Quantity Checker",
       scanChecker: "Scan Checker",
+      priceFillTool: "Price Fill Tool",
       installBtn: "Install Script",
       detected: "Detected browser: ",
       notDetected: "Couldn't auto-detect your browser — pick it below.",
@@ -290,6 +303,7 @@
       step2Desc: '安装 Tampermonkey 后，点击下方按钮安装所需脚本。Tampermonkey 将打开确认页面 — 在该页面点击<strong>安装</strong>即可。',
       quantityChecker: "Quantity Checker",
       scanChecker: "Scan Checker",
+      priceFillTool: "Price Fill Tool",
       installBtn: "安装脚本",
       detected: "检测到的浏览器：",
       notDetected: "无法自动检测您的浏览器 — 请在下方手动选择。",
