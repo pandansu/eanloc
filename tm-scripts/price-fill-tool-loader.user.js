@@ -2,10 +2,9 @@
 // @name         Price Fill Tool (Remote Loader)
 // @namespace    http://tampermonkey.net/
 // @version      3.4
-// @description  Google Sheet or Excel price fill using EAN 商品编码
+// @description  Complete Google Sheet & Excel price fill script with DONE substitution, robust OOS/CANCEL exclusion, and sequential workflow
 // @match        https://djifx-web.yzdms.xyz/*
 // @exclude      https://djifx-web.yzdms.xyz/imeiprint*
-// @exclude      https://djifx-web.yzdms.xyz/print*
 // @require      https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js
 // @grant        GM_xmlhttpRequest
 // @connect      docs.google.com
