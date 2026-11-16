@@ -1,9 +1,9 @@
+
 (function () {
     'use strict';
 
     const GOOGLE_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSIW6M5LlGnAjkmxLDeZPWonnJWTb0YW4-lw0FRhYst8zfHbTDrQmsNqacBWIcn0BFDRmIIbHBNHqfn/pub?output=csv";
 
-    // Webpage table column indexes (remain fixed based on webpage DOM structure)
     const TABLE_EAN_COL_INDEX = 5;
     const TABLE_PRICE_COL_INDEX = 8;
 
@@ -27,13 +27,12 @@
     let currentFileIsCSV = false;
     let autoCloseTimer = null;
 
-    // Dynamic column mapping object (automatically updated based on Excel headers)
     let colMap = {
-        category: 1,    // Default fallback for 平台
-        productName: 3, // Default fallback for 货品名字
-        ean: 4,         // Default fallback for EAN
-        itemCode: 5,    // Default fallback for 串号
-        price: 7        // Default fallback for 价格
+        category: 1,
+        productName: 3,
+        ean: 4,
+        itemCode: 5,
+        price: 7
     };
 
     if (/(\/assets\/imei\.html|\/imeiprint\/)/.test(location.pathname + location.search + location.hash)) {
@@ -196,7 +195,6 @@
     function isExcludedRow(row) {
         if (!row) return false;
 
-        // 1. Check for OOS / Cancel keywords in any column
         for (let i = 0; i < row.length; i++) {
             const val = String(row[i] || "").trim().toUpperCase();
             if (["OOS", "CANCEL", "CANCELLED"].includes(val)) {
@@ -204,7 +202,6 @@
             }
         }
 
-        // 2. Ignore row if product name contains "DJI Care Refresh"
         const prodName = String(row[colMap.productName] || "").trim().toLowerCase();
         if (prodName.includes("dji care refresh")) {
             return true;
@@ -225,7 +222,7 @@
                 colMap.productName = idx;
             } else if (h.includes("ean") || h.includes("barcode")) {
                 colMap.ean = idx;
-            } else if (h.includes("串号") || h.includes("serial")) {
+            } else if (h.includes("串号") || h.includes("serial") || h.includes("编码") || h.includes("item code") || h.includes("code") || h.includes("货号") || h.includes("条码")) {
                 colMap.itemCode = idx;
             } else if (h.includes("价格") || h.includes("price") || h.includes("amount")) {
                 colMap.price = idx;
@@ -605,10 +602,8 @@
             raw: false
         });
 
-        // 🔍 Auto-detect columns based on header row text (Row 0)
         detectColumnIndexes(excelRows[0]);
 
-        // DONE substitution rule
         for (let i = 1; i < excelRows.length; i++) {
             const row = excelRows[i];
             if (row && row.length > colMap.itemCode) {
@@ -721,7 +716,7 @@
         });
     }
 
-    // STEP 1: Enter Items (Serials and Accessories population)
+    // STEP 1: Enter Items (Serials and Aggregated Accessories population)
     function enterItems() {
         if (!excelRows.length) {
             alert("Upload Excel first.");
@@ -730,7 +725,7 @@
 
         const filterValue = document.getElementById("filterValueSelect").value;
         const serials = [];
-        const accessoriesList = [];
+        const accMap = {}; // Aggregates identical accessory codes and counts total quantities
 
         excelRows.slice(1).forEach(row => {
             if (isExcludedRow(row)) return;
@@ -744,12 +739,14 @@
             }
 
             if (/^\d+$/.test(val)) {
-                accessoriesList.push({
-                    code: val,
-                    qty: 1
-                });
+                accMap[val] = (accMap[val] || 0) + 1;
             }
         });
+
+        const accessoriesList = Object.keys(accMap).map(code => ({
+            code: code,
+            qty: accMap[code]
+        }));
 
         if (serials.length === 0 && accessoriesList.length === 0) {
             alert(`No items or serial numbers found for ${filterValue}.`);
@@ -907,7 +904,6 @@
         const filterValue = document.getElementById("filterValueSelect").value;
 
         priceMap = {};
-        const accessoriesList = [];
 
         excelRows.slice(1).forEach(row => {
             if (isExcludedRow(row)) return;
@@ -924,10 +920,6 @@
             const accCode = String(row[colMap.itemCode] || "").trim();
             if (/^\d+$/.test(accCode)) {
                 priceMap[accCode] = price || "";
-                accessoriesList.push({
-                    code: accCode,
-                    price: price || ""
-                });
             }
         });
 
