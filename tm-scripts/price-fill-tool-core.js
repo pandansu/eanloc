@@ -716,7 +716,7 @@
         });
     }
 
-    // STEP 1: Enter Items (Serials and Aggregated Accessories population)
+    // STEP 1: Enter Items (Serials and Ordered Aggregated Accessories population)
     function enterItems() {
         if (!excelRows.length) {
             alert("Upload Excel first.");
@@ -725,7 +725,9 @@
 
         const filterValue = document.getElementById("filterValueSelect").value;
         const serials = [];
-        const accMap = {}; // Aggregates identical accessory codes and counts total quantities
+        const accMap = {};
+        const accessoriesList = [];
+        const seenCodes = new Set();
 
         excelRows.slice(1).forEach(row => {
             if (isExcludedRow(row)) return;
@@ -740,13 +742,15 @@
 
             if (/^\d+$/.test(val)) {
                 accMap[val] = (accMap[val] || 0) + 1;
+                if (!seenCodes.has(val)) {
+                    seenCodes.add(val);
+                    accessoriesList.push({
+                        code: val,
+                        qty: accMap[val]
+                    });
+                }
             }
         });
-
-        const accessoriesList = Object.keys(accMap).map(code => ({
-            code: code,
-            qty: accMap[code]
-        }));
 
         if (serials.length === 0 && accessoriesList.length === 0) {
             alert(`No items or serial numbers found for ${filterValue}.`);
@@ -784,7 +788,7 @@
                                     if (confirmBtn) confirmBtn.click();
 
                                     setTimeout(() => {
-                                        processAccessoriesTableOnly(accessoriesList);
+                                        processAccessoriesTableOnly(accessoriesList, accMap);
                                     }, 600);
                                 }, 800);
                             }
@@ -794,14 +798,14 @@
                     }
                 }, 700);
             } else {
-                processAccessoriesTableOnly(accessoriesList);
+                processAccessoriesTableOnly(accessoriesList, accMap);
             }
         } else {
-            processAccessoriesTableOnly(accessoriesList);
+            processAccessoriesTableOnly(accessoriesList, accMap);
         }
     }
 
-    function processAccessoriesTableOnly(items) {
+    function processAccessoriesTableOnly(items, accMap) {
         let peijianTab = null;
         document.querySelectorAll("ul.table-tap li a").forEach(a => {
             if (a.textContent.trim() === "配件") {
@@ -825,7 +829,7 @@
             function populateNextCode() {
                 if (index >= items.length) {
                     setTimeout(() => {
-                        fillAccessoryQuantitiesOnly(items);
+                        fillAccessoryQuantitiesByCode(accMap);
                     }, 800);
                     return;
                 }
@@ -877,21 +881,27 @@
         }, 500);
     }
 
-    function fillAccessoryQuantitiesOnly(items) {
+    function fillAccessoryQuantitiesByCode(accMap) {
         setTimeout(() => {
             const rows = document.querySelectorAll("div.receipt-table tbody tr, .ui-table-scrollable-body-table tbody tr");
-            items.forEach((item, index) => {
-                const row = rows[index];
-                if (!row) return;
+            rows.forEach(row => {
                 const cells = row.querySelectorAll("td");
-                const qtyInput = cells[6]?.querySelector("input") || row.querySelector("input[prop='pInt']");
-                if (qtyInput && item.qty) {
-                    setNativeInputValue(qtyInput, String(item.qty));
+                if (cells.length < 7) return;
+
+                const codeCell = cells[1];
+                const codeInput = codeCell.querySelector("input");
+                const code = codeInput ? codeInput.value.trim() : codeCell.innerText.trim();
+
+                if (code && accMap[code] !== undefined) {
+                    const qtyInput = cells[6]?.querySelector("input") || row.querySelector("input[prop='pInt']");
+                    if (qtyInput) {
+                        setNativeInputValue(qtyInput, String(accMap[code]));
+                    }
                 }
             });
-            console.log("Accessory items and quantities entered.");
+            console.log("Accessory quantities matched and filled accurately by code lookup.");
             revealFillPricesButton();
-        }, 400);
+        }, 600);
     }
 
     // STEP 2: Fill Prices Accordingly
