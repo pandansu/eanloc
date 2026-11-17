@@ -141,6 +141,19 @@
 
     <!-- JavaScript Logic -->
     <script>
+        // Designated Care EANs
+        const CARE_EANS = new Set([
+            "6937224174177", "6937224173781", "6937224173620", "6937224173750", 
+            "6937224173477", "6937224173637", "6937224174054", "6937224173439", 
+            "6937224174047", "6937224174030", "6937224173934", "6937224173958", 
+            "6937224173286", "6937224173842", "6937224179103", "6937224179141", 
+            "6937224179387", "6937224177277", "6937224179349", "6937224177192", 
+            "6937224179271", "6937224179882", "6937224180291", "6937224180307", 
+            "6937224180222", "6937224180260", "6937224180246", "6937224179868", 
+            "6937224177154", "6937224177147", "6937224177055", "6937224177079", 
+            "6937224176898", "6937224176881"
+        ]);
+
         let pickingWorkbook = null;
         let delvWorkbook = null;
         let pickingRows = [];
@@ -484,7 +497,7 @@
                 let noteString = 'NA';
                 if (isDjiStore && blockCount > 1) {
                     if (remarksText) {
-                        noteString = `<strong>(${blockCount} invoices)</strong> :- ${remarksText}`;
+                        noteString = `<strong>(${blockCount} invoices)</strong> - ${remarksText}`;
                     } else {
                         noteString = `<strong>(${blockCount} invoices)</strong>`;
                     }
@@ -543,14 +556,20 @@
                 let statusText = item.isMatch ? 'Quantities Match' : 'Discrepancy Found';
                 let icon = item.isMatch ? '<i class="fa-solid fa-circle-check text-emerald-600"></i>' : '<i class="fa-solid fa-triangle-exclamation text-rose-600"></i>';
 
-                let itemsHtml = item.items.map(i => `
-                    <tr class="text-xs border-b border-slate-100">
-                        <td class="py-1.5 font-mono">${i.ean}</td>
-                        <td class="py-1.5 text-right font-medium">${i.pQty}</td>
-                        <td class="py-1.5 text-right font-medium">${i.dQty}</td>
-                        <td class="py-1.5 text-center">${i.match ? '<span class="text-emerald-600 font-bold">✔</span>' : '<span class="text-rose-600 font-bold">✖</span>'}</td>
-                    </tr>
-                `).join('');
+                let itemsHtml = item.items.map(i => {
+                    let displayEan = i.ean;
+                    if (CARE_EANS.has(i.ean)) {
+                        displayEan += ' <span class="text-indigo-600 font-bold">(CARE)</span>';
+                    }
+                    return `
+                        <tr class="text-xs border-b border-slate-100">
+                            <td class="py-1.5 font-mono">${displayEan}</td>
+                            <td class="py-1.5 text-right font-medium">${i.pQty}</td>
+                            <td class="py-1.5 text-right font-medium">${i.dQty}</td>
+                            <td class="py-1.5 text-center">${i.match ? '<span class="text-emerald-600 font-bold">✔</span>' : '<span class="text-rose-600 font-bold">✖</span>'}</td>
+                        </tr>
+                    `;
+                }).join('');
 
                 let card = document.createElement('div');
                 card.className = `border-2 ${statusColor} rounded-xl p-5 shadow-sm bg-white flex flex-col justify-between transition hover:shadow-md`;
@@ -613,12 +632,18 @@
 
             keys.forEach(key => {
                 let record = unmatchedMap[key];
-                let itemsHtml = Object.entries(record.items).map(([ean, qty]) => `
-                    <tr class="text-xs border-b border-amber-100">
-                        <td class="py-1.5 font-mono">${ean}</td>
-                        <td class="py-1.5 text-right font-medium text-amber-900">${qty}</td>
-                    </tr>
-                `).join('');
+                let itemsHtml = Object.entries(record.items).map(([ean, qty]) => {
+                    let displayEan = ean;
+                    if (CARE_EANS.has(ean)) {
+                        displayEan += ' <span class="text-indigo-600 font-bold">(CARE)</span>';
+                    }
+                    return `
+                        <tr class="text-xs border-b border-amber-100">
+                            <td class="py-1.5 font-mono">${displayEan}</td>
+                            <td class="py-1.5 text-right font-medium text-amber-900">${qty}</td>
+                        </tr>
+                    `;
+                }).join('');
 
                 let card = document.createElement('div');
                 card.className = `border-2 border-amber-400 bg-amber-50/60 rounded-xl p-5 shadow-sm flex flex-col justify-between`;
@@ -651,16 +676,14 @@
                             </table>
                         </div>
                         <div class="bg-amber-100/70 p-3 rounded-lg border border-amber-200">
-                            <label class="block text-xs font-bold text-amber-900 mb-1"><i class="fa-solid fa-right-left mr-1"></i> Fix Typo / Reassign To:</label>
-                            <div class="flex gap-2">
-                                <select id="target_${safeKeyId}" class="text-xs bg-white border border-amber-300 rounded px-2 py-1.5 flex-grow focus:outline-none focus:ring-1 focus:ring-amber-500">
-                                    <option value="">-- Choose Audit Card --</option>
-                                    ${auditOptionsHtml}
-                                </select>
-                                <button onclick="handleReassignClick('${safeKeyId}')" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-1.5 rounded transition shrink-0">
-                                    Merge
-                                </button>
-                            </div>
+                            <label class="block text-xs font-bold text-amber-900 mb-1.5"><i class="fa-solid fa-right-left mr-1"></i> Fix Typo / Reassign To:</label>
+                            <select id="target_${safeKeyId}" class="text-xs bg-white border border-amber-300 rounded px-2 py-2 w-full mb-2 focus:outline-none focus:ring-1 focus:ring-amber-500">
+                                <option value="">-- Choose Audit Card --</option>
+                                ${auditOptionsHtml}
+                            </select>
+                            <button onclick="handleReassignClick('${safeKeyId}')" class="w-full bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold py-2 rounded transition">
+                                <i class="fa-solid fa-right-left mr-1"></i> Merge
+                            </button>
                         </div>
                     </div>
                 `;
